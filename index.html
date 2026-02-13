@@ -488,26 +488,27 @@
         document.getElementById('signout-button').addEventListener('click', handleSignoutClick);
 
         function handleAuthClick() {
-            tokenClient.callback = async (resp) => {
-                if (resp.error !== undefined) {
-                    showError('Erro ao fazer login: ' + resp.error);
-                    return;
-                }
-                
-                console.log('✅ Login efetuado com sucesso!');
-                document.getElementById('signout-button').style.display = 'block';
-                document.getElementById('authorize-button').style.display = 'none';
-                
-                await loadUserData();
-            };
-
-            if (gapi.client.getToken() === null) {
-                tokenClient.requestAccessToken({prompt: 'consent'});
-            } else {
-                tokenClient.requestAccessToken({prompt: ''});
+          tokenClient.callback = async (resp) => {
+            if (resp.error) {
+              console.error('❌ Erro no token:', resp);
+              showError('Erro ao fazer login: ' + resp.error);
+              return;
             }
+        
+            // ✅ ESSENCIAL: injeta o access token no GAPI
+            gapi.client.setToken({ access_token: resp.access_token });
+        
+            console.log('✅ Token setado no GAPI:', gapi.client.getToken());
+        
+            document.getElementById('signout-button').style.display = 'block';
+            document.getElementById('authorize-button').style.display = 'none';
+        
+            await loadUserData();
+          };
+        
+          tokenClient.requestAccessToken({ prompt: 'consent' });
         }
-
+        
         function handleSignoutClick() {
             const token = gapi.client.getToken();
             if (token !== null) {
@@ -540,6 +541,12 @@
 
             } catch (error) {
                 console.error('❌ Erro ao carregar dados:', error);
+
+                const msg =
+                    error?.result?.error?.message ||
+                    error?.message ??
+                    (typof error === 'string' ? error : JSON.stringify(error));
+                
                 showError('Erro ao carregar dados: ' + error.message);
             }
         }
