@@ -432,60 +432,55 @@
     <!-- Google API -->
     <script src="https://apis.google.com/js/api.js"></script>
     <script>
-    // Cole este código JavaScript SUBSTITUINDO o bloco de script atual (a partir da linha 420)
-
         // ============================================
         // CONFIGURAÇÃO - VOCÊ PRECISA PREENCHER ISSO
         // ============================================
         
-        const CLIENT_ID = '609822768101-pc5n35t3hp61pq4gbn4pjog0do169nmq.apps.googleusercontent.com';
-        const SPREADSHEET_ID = '1_X6u1N_T7shcsY6tKexJDe4R3_Y5dcG1sqT2hTLS85Q';
+        // 1. Vá em: https://console.cloud.google.com/
+        // 2. Crie um projeto novo
+        // 3. Ative "Google Sheets API" e "Google Drive API"
+        // 4. Crie credenciais OAuth 2.0 para aplicação web
+        // 5. Cole o Client ID aqui:
+        const CLIENT_ID = '609822768101-pc5n35t3hp6ipq4gbm4pjog0do169nmq.apps.googleusercontent.com';
+        
+        // 6. Cole o ID da planilha do cliente aqui (pega da URL do Google Sheets)
+        // Exemplo URL: https://docs.google.com/spreadsheets/d/ABC123XYZ/edit
+        // O ID é: ABC123XYZ
+        const SPREADSHEET_ID = '1_X6W1N_T7shcsY6tKexJDe4R3_Y5dcGlSqT2hTLS85Q/edit?gid=1441064540#gid=1441064540';
         
         // Não mexe nisso aqui embaixo
         const DISCOVERY_DOCS = ["https://sheets.googleapis.com/$discovery/rest?version=v4"];
         const SCOPES = "https://www.googleapis.com/auth/spreadsheets.readonly";
 
         // ============================================
-        // CÓDIGO DA APLICAÇÃO - VERSÃO CORRIGIDA
+        // CÓDIGO DA APLICAÇÃO
         // ============================================
 
+        let gapiInited = false;
+        let gisInited = false;
         let tokenClient;
-        let gapiReady = false;
-        let gisReady = false;
 
-        // Carrega GAPI
         function gapiLoaded() {
-            gapi.load('client', async () => {
-                await gapi.client.init({
-                    discoveryDocs: DISCOVERY_DOCS,
-                });
-                gapiReady = true;
-                console.log('✅ GAPI inicializado');
-                maybeEnableButtons();
-            });
+            gapi.load('client', initializeGapiClient);
         }
 
-        // Carrega GIS
+        async function initializeGapiClient() {
+            await gapi.client.init({
+                apiKey: 'AIzaSyDummyKeyForPublicSheets', // Não precisa de API key real para Sheets público
+                discoveryDocs: DISCOVERY_DOCS,
+            });
+            gapiInited = true;
+        }
+
         function gisLoaded() {
             tokenClient = google.accounts.oauth2.initTokenClient({
                 client_id: CLIENT_ID,
                 scope: SCOPES,
-                callback: '', // definido depois
+                callback: '', // defined later
             });
-            gisReady = true;
-            console.log('✅ GIS inicializado');
-            maybeEnableButtons();
+            gisInited = true;
         }
 
-        // Habilita botões quando tudo estiver pronto
-        function maybeEnableButtons() {
-            if (gapiReady && gisReady) {
-                document.getElementById('authorize-button').disabled = false;
-                console.log('✅ Sistema pronto! Pode fazer login.');
-            }
-        }
-
-        // Botões
         document.getElementById('authorize-button').addEventListener('click', handleAuthClick);
         document.getElementById('signout-button').addEventListener('click', handleSignoutClick);
 
@@ -495,11 +490,8 @@
                     showError('Erro ao fazer login: ' + resp.error);
                     return;
                 }
-                
-                console.log('✅ Login efetuado com sucesso!');
                 document.getElementById('signout-button').style.display = 'block';
                 document.getElementById('authorize-button').style.display = 'none';
-                
                 await loadUserData();
             };
 
@@ -524,8 +516,6 @@
 
         async function loadUserData() {
             try {
-                console.log('📊 Carregando dados do usuário...');
-                
                 // Mostrar dashboard
                 document.getElementById('auth-section').style.display = 'none';
                 document.getElementById('dashboard-section').style.display = 'block';
@@ -538,18 +528,13 @@
                     loadAlertas()
                 ]);
 
-                console.log('✅ Todos os dados carregados!');
-
             } catch (error) {
-                console.error('❌ Erro ao carregar dados:', error);
                 showError('Erro ao carregar dados: ' + error.message);
             }
         }
 
         async function loadResumo() {
             try {
-                console.log('📊 Carregando resumo...');
-                
                 const response = await gapi.client.sheets.spreadsheets.values.get({
                     spreadsheetId: SPREADSHEET_ID,
                     range: 'Resumo!A1:B10',
@@ -561,8 +546,7 @@
                     return;
                 }
 
-                console.log('✅ Resumo carregado:', rows.length, 'linhas');
-
+                // Esperamos formato: [Nome do Campo, Valor]
                 rows.forEach(row => {
                     const field = row[0];
                     const value = row[1];
@@ -602,18 +586,15 @@
                 });
 
             } catch (error) {
-                console.error('❌ Erro ao carregar resumo:', error);
                 showError('Erro ao carregar resumo: ' + error.message);
             }
         }
 
         async function loadInvestimentos() {
             try {
-                console.log('📊 Carregando investimentos...');
-                
                 const response = await gapi.client.sheets.spreadsheets.values.get({
                     spreadsheetId: SPREADSHEET_ID,
-                    range: 'Investimentos!A2:F100',
+                    range: 'Investimentos!A2:F100', // Pula header
                 });
 
                 const rows = response.result.values;
@@ -621,8 +602,6 @@
                     document.getElementById('investimentos-content').innerHTML = '<p>Nenhum investimento cadastrado.</p>';
                     return;
                 }
-
-                console.log('✅ Investimentos carregados:', rows.length, 'linhas');
 
                 let html = `
                     <table>
@@ -639,7 +618,7 @@
                 `;
 
                 rows.forEach(row => {
-                    if (row[0]) {
+                    if (row[0]) { // Se tem nome
                         const rentabilidade = parseFloat(row[4]) || 0;
                         const rentClass = rentabilidade >= 0 ? 'positive' : 'negative';
                         
@@ -659,7 +638,6 @@
                 document.getElementById('investimentos-content').innerHTML = html;
 
             } catch (error) {
-                console.error('❌ Erro ao carregar investimentos:', error);
                 document.getElementById('investimentos-content').innerHTML = 
                     '<div class="error">Erro ao carregar investimentos: ' + error.message + '</div>';
             }
@@ -667,8 +645,6 @@
 
         async function loadImoveis() {
             try {
-                console.log('📊 Carregando imóveis...');
-                
                 const response = await gapi.client.sheets.spreadsheets.values.get({
                     spreadsheetId: SPREADSHEET_ID,
                     range: 'Imóveis!A2:F100',
@@ -679,8 +655,6 @@
                     document.getElementById('imoveis-content').innerHTML = '<p>Nenhum imóvel cadastrado.</p>';
                     return;
                 }
-
-                console.log('✅ Imóveis carregados:', rows.length, 'linhas');
 
                 let html = `
                     <table>
@@ -716,7 +690,6 @@
                 document.getElementById('imoveis-content').innerHTML = html;
 
             } catch (error) {
-                console.error('❌ Erro ao carregar imóveis:', error);
                 document.getElementById('imoveis-content').innerHTML = 
                     '<div class="error">Erro ao carregar imóveis: ' + error.message + '</div>';
             }
@@ -724,8 +697,6 @@
 
         async function loadAlertas() {
             try {
-                console.log('📊 Carregando alertas...');
-                
                 const response = await gapi.client.sheets.spreadsheets.values.get({
                     spreadsheetId: SPREADSHEET_ID,
                     range: 'Alertas!A2:C50',
@@ -736,8 +707,6 @@
                     document.getElementById('alertas-content').innerHTML = '<p>Nenhum alerta no momento. Tudo em dia! ✓</p>';
                     return;
                 }
-
-                console.log('✅ Alertas carregados:', rows.length, 'linhas');
 
                 let html = `
                     <table>
@@ -767,7 +736,6 @@
                 document.getElementById('alertas-content').innerHTML = html;
 
             } catch (error) {
-                console.error('❌ Erro ao carregar alertas:', error);
                 document.getElementById('alertas-content').innerHTML = 
                     '<div class="error">Erro ao carregar alertas: ' + error.message + '</div>';
             }
@@ -792,14 +760,14 @@
         }
 
         function showError(message) {
-            console.error('❌', message);
+            console.error(message);
             alert(message);
         }
 
-        // Inicializar quando página carregar
+        // Inicializar
         window.addEventListener('load', () => {
-            console.log('🚀 Iniciando aplicação...');
-            gapiLoaded();
+            gapi.load('client', initializeGapiClient);
+            gisLoaded();
         });
     </script>
     <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
