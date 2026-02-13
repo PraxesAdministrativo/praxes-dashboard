@@ -489,16 +489,18 @@
 
         function handleAuthClick() {
             tokenClient.callback = async (resp) => {
-                if (resp.error !== undefined) {
-                    showError('Erro ao fazer login: ' + resp.error);
-                    return;
-                }
-                
-                console.log('✅ Login efetuado com sucesso!');
-                document.getElementById('signout-button').style.display = 'block';
-                document.getElementById('authorize-button').style.display = 'none';
-                
-                await loadUserData();
+              if (resp.error !== undefined) {
+                showError('Erro ao fazer login: ' + resp.error);
+                return;
+              }
+            
+              // ESSENCIAL: joga o token no gapi para o Sheets funcionar
+              gapi.client.setToken(resp);
+            
+              document.getElementById('signout-button').style.display = 'block';
+              document.getElementById('authorize-button').style.display = 'none';
+            
+              await loadUserData();
             };
 
             if (gapi.client.getToken() === null) {
