@@ -819,8 +819,16 @@
       function formatCurrency(value) {
         if (!value) return "R$ 0";
 
-        const num =
-          typeof value === "string" ? parseFloat(value.replace(/[^\d.-]/g, "")) : value;
+        left num;
+
+        if (typeof value === 'string') {
+         cleaned = cleaned.replace(/\./g, '');
+          cleaned = cleaned.replace(',', '.');
+
+          num = parseFloat(cleaned);
+        } else {
+          num = parseFloat(value);
+        }
 
         return new Intl.NumberFormat("pt-BR", {
           style: "currency",
