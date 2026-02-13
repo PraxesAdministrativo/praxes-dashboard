@@ -518,6 +518,13 @@
           // ✅ ESSENCIAL: injeta o access token no GAPI
           gapi.client.setToken({ access_token: resp.access_token });
 
+          const u = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+            headers: { Authorization: `Bearer ${resp.access_token}` },
+          }).then(r => r.json());
+          
+          console.log("✅ Logado como:", u.email);
+          alert("Logado como: " + u.email);
+
           console.log("✅ Token setado no GAPI:", gapi.client.getToken());
 
           document.getElementById("signout-button").style.display = "block";
