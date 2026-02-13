@@ -494,9 +494,10 @@
                 return;
               }
             
-              // ESSENCIAL: joga o token no gapi para o Sheets funcionar
-              gapi.client.setToken(resp);
+              // ✅ ESSENCIAL: passa o access_token pro GAPI
+              gapi.client.setToken({ access_token: resp.access_token });
             
+              console.log('✅ Login efetuado com sucesso!');
               document.getElementById('signout-button').style.display = 'block';
               document.getElementById('authorize-button').style.display = 'none';
             
@@ -548,17 +549,15 @@
 
         async function loadResumo() {
             try {
-                console.log('📊 Carregando resumo...');
+                catch (error) {
+                  console.error('❌ Erro ao carregar resumo:', error);
                 
-                const response = await gapi.client.sheets.spreadsheets.values.get({
-                    spreadsheetId: SPREADSHEET_ID,
-                    range: 'Resumo!A1:B10',
-                });
-
-                const rows = response.result.values;
-                if (!rows || rows.length === 0) {
-                    showError('Nenhum dado encontrado na aba Resumo');
-                    return;
+                  const msg =
+                    error?.result?.error?.message ||
+                    error?.message ||
+                    JSON.stringify(error);
+                
+                  showError('Erro ao carregar resumo: ' + msg);
                 }
 
                 console.log('✅ Resumo carregado:', rows.length, 'linhas');
