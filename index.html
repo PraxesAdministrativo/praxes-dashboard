@@ -53,11 +53,16 @@
       }
 
       .logo {
-        font-family: "Cormorant Garamond", serif;
-        font-size: 32px;
-        font-weight: 700;
-        letter-spacing: 3px;
-        color: var(--cream);
+          font-family: 'Cormorant Garamond', serif;
+          font-size: 32px;
+          font-weight: 700;
+          letter-spacing: 2px;
+          color: var(--cream);
+      }
+      
+      .logo-img {
+          height: 55px;
+          width: auto;
       }
 
       .user-section {
@@ -349,7 +354,8 @@
   <body>
     <header>
       <div class="header-container">
-        <div class="logo">PRAXES</div>
+        <img src="https://github.com/PraxesAdministrativo/praxes-dashboard/blob/main/logo.png?raw=true" alt="Praxes" class="logo-img">
+
 
         <div class="user-section">
           <span id="user-name"></span>
@@ -817,19 +823,33 @@
 
       // Funções auxiliares
       function formatCurrency(value) {
-        if (!value) return "R$ 0";
-
-        const num =
-          typeof value === "string" ? parseFloat(value.replace(/[^\d.-]/g, "")) : value;
-
-        return new Intl.NumberFormat("pt-BR", {
-          style: "currency",
-          currency: "BRL",
-          minimumFractionDigits: 0,
-          maximumFractionDigits: 0,
-        }).format(num);
+          if (!value) return 'R$ 0';
+          
+          let num;
+          
+          if (typeof value === 'string') {
+              // Remove "R$" e espaços
+              let cleaned = value.replace(/R\$/g, '').trim();
+              
+              // Formato brasileiro: 350.000,00
+              // Remove pontos (separador de milhar) e substitui vírgula por ponto
+              cleaned = cleaned.replace(/\./g, '');  // Remove pontos
+              cleaned = cleaned.replace(',', '.');   // Vírgula vira ponto
+              
+              num = parseFloat(cleaned);
+          } else {
+              num = parseFloat(value);
+          }
+          
+          if (isNaN(num)) return 'R$ 0';
+          
+          return new Intl.NumberFormat('pt-BR', { 
+              style: 'currency', 
+              currency: 'BRL',
+              minimumFractionDigits: 0,
+              maximumFractionDigits: 0
+          }).format(num);
       }
-
       function formatPercent(value) {
         if (!value) return "0%";
         const num = typeof value === "string" ? parseFloat(value) : value;
