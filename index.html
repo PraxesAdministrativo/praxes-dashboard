@@ -1,812 +1,858 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Praxes - Dashboard do Cliente</title>
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600;700&family=Work+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600;700&family=Work+Sans:wght@300;400;600;700&display=swap"
+      rel="stylesheet"
+    />
+
     <style>
-        :root {
-            --navy-deep: #0A1628;
-            --navy-mid: #1C2B42;
-            --gold: #C9A961;
-            --cream: #F8F6F1;
-            --sage: #8B9D83;
-            --text-dark: #0A1628;
-            --text-light: #5A6B7C;
-        }
+      :root {
+        --navy-deep: #0a1628;
+        --navy-mid: #1c2b42;
+        --gold: #c9a961;
+        --cream: #f8f6f1;
+        --sage: #8b9d83;
+        --text-dark: #0a1628;
+        --text-light: #5a6b7c;
+      }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
 
-        body {
-            font-family: 'Work Sans', sans-serif;
-            background: linear-gradient(135deg, #F8F6F1 0%, #EDE9E0 100%);
-            color: var(--text-dark);
-            line-height: 1.6;
-            min-height: 100vh;
-        }
+      body {
+        font-family: "Work Sans", sans-serif;
+        background: linear-gradient(135deg, #f8f6f1 0%, #ede9e0 100%);
+        color: var(--text-dark);
+        line-height: 1.6;
+        min-height: 100vh;
+      }
 
-        /* Header */
-        header {
-            background: var(--navy-deep);
-            color: var(--cream);
-            padding: 20px 0;
-            box-shadow: 0 4px 20px rgba(10, 22, 40, 0.15);
-        }
+      /* Header */
+      header {
+        background: var(--navy-deep);
+        color: var(--cream);
+        padding: 20px 0;
+        box-shadow: 0 4px 20px rgba(10, 22, 40, 0.15);
+      }
 
+      .header-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 0 30px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .logo {
+        font-family: "Cormorant Garamond", serif;
+        font-size: 32px;
+        font-weight: 700;
+        letter-spacing: 3px;
+        color: var(--cream);
+      }
+
+      .user-section {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+      }
+
+      #user-name {
+        font-size: 15px;
+        color: var(--cream);
+      }
+
+      .user-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: var(--gold);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        color: var(--navy-deep);
+      }
+
+      .btn {
+        padding: 10px 24px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+      }
+
+      .btn-primary {
+        background: var(--gold);
+        color: var(--navy-deep);
+      }
+
+      .btn-primary:hover {
+        background: #b89550;
+        transform: translateY(-2px);
+      }
+
+      .btn-secondary {
+        background: transparent;
+        color: var(--cream);
+        border: 1px solid var(--cream);
+      }
+
+      .btn-secondary:hover {
+        background: rgba(248, 246, 241, 0.1);
+      }
+
+      /* Container */
+      .container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 40px 30px;
+      }
+
+      /* Auth Section */
+      #auth-section {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 70vh;
+        text-align: center;
+      }
+
+      #auth-section h1 {
+        font-family: "Cormorant Garamond", serif;
+        font-size: 48px;
+        margin-bottom: 20px;
+        color: var(--navy-deep);
+      }
+
+      #auth-section p {
+        font-size: 18px;
+        color: var(--text-light);
+        margin-bottom: 40px;
+        max-width: 600px;
+      }
+
+      #authorize-button {
+        padding: 16px 40px;
+        font-size: 16px;
+      }
+
+      /* Dashboard */
+      #dashboard-section {
+        display: none;
+      }
+
+      .welcome {
+        margin-bottom: 40px;
+      }
+
+      .welcome h1 {
+        font-family: "Cormorant Garamond", serif;
+        font-size: 42px;
+        margin-bottom: 10px;
+        color: var(--navy-deep);
+      }
+
+      .welcome p {
+        font-size: 17px;
+        color: var(--text-light);
+      }
+
+      /* Stats Grid */
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 24px;
+        margin-bottom: 40px;
+      }
+
+      .stat-card {
+        background: white;
+        padding: 28px;
+        border-radius: 16px;
+        box-shadow: 0 4px 16px rgba(10, 22, 40, 0.08);
+        border-left: 4px solid var(--gold);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+      }
+
+      .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 24px rgba(10, 22, 40, 0.12);
+      }
+
+      .stat-label {
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--text-light);
+        margin-bottom: 10px;
+        font-weight: 600;
+      }
+
+      .stat-value {
+        font-family: "Cormorant Garamond", serif;
+        font-size: 36px;
+        font-weight: 700;
+        color: var(--navy-deep);
+        margin-bottom: 8px;
+      }
+
+      .stat-change {
+        font-size: 14px;
+        color: var(--sage);
+      }
+
+      .stat-change.positive {
+        color: #10b981;
+      }
+
+      .stat-change.negative {
+        color: #ef4444;
+      }
+
+      /* Content Section */
+      .content-section {
+        background: white;
+        border-radius: 20px;
+        padding: 32px;
+        margin-bottom: 32px;
+        box-shadow: 0 4px 16px rgba(10, 22, 40, 0.08);
+      }
+
+      .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 2px solid var(--cream);
+      }
+
+      .section-title {
+        font-family: "Cormorant Garamond", serif;
+        font-size: 28px;
+        font-weight: 700;
+        color: var(--navy-deep);
+      }
+
+      /* Table */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      thead th {
+        text-align: left;
+        padding: 12px;
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-light);
+        font-weight: 600;
+        border-bottom: 2px solid var(--cream);
+      }
+
+      tbody td {
+        padding: 16px 12px;
+        border-bottom: 1px solid var(--cream);
+      }
+
+      tbody tr:hover {
+        background: var(--cream);
+      }
+
+      .asset-name {
+        font-weight: 600;
+        color: var(--navy-deep);
+      }
+
+      .asset-type {
+        font-size: 14px;
+        color: var(--text-light);
+      }
+
+      /* Loading */
+      .loading {
+        text-align: center;
+        padding: 40px;
+        color: var(--text-light);
+      }
+
+      .spinner {
+        border: 3px solid var(--cream);
+        border-top: 3px solid var(--gold);
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 20px;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* Error */
+      .error {
+        background: #fee;
+        border: 1px solid #edd;
+        border-radius: 8px;
+        padding: 16px;
+        margin: 20px 0;
+        color: #c33;
+      }
+
+      /* Responsive */
+      @media (max-width: 768px) {
         .header-container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 0 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .logo {
-            font-family: 'Cormorant Garamond', serif;
-            font-size: 32px;
-            font-weight: 700;
-            letter-spacing: 3px;
-            color: var(--cream);
-        }
-
-        .user-section {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-        }
-
-        #user-name {
-            font-size: 15px;
-            color: var(--cream);
-        }
-
-        .user-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: var(--gold);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            color: var(--navy-deep);
-        }
-
-        .btn {
-            padding: 10px 24px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-
-        .btn-primary {
-            background: var(--gold);
-            color: var(--navy-deep);
-        }
-
-        .btn-primary:hover {
-            background: #B89550;
-            transform: translateY(-2px);
-        }
-
-        .btn-secondary {
-            background: transparent;
-            color: var(--cream);
-            border: 1px solid var(--cream);
-        }
-
-        .btn-secondary:hover {
-            background: rgba(248, 246, 241, 0.1);
-        }
-
-        /* Container */
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 40px 30px;
-        }
-
-        /* Auth Section */
-        #auth-section {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 70vh;
-            text-align: center;
-        }
-
-        #auth-section h1 {
-            font-family: 'Cormorant Garamond', serif;
-            font-size: 48px;
-            margin-bottom: 20px;
-            color: var(--navy-deep);
-        }
-
-        #auth-section p {
-            font-size: 18px;
-            color: var(--text-light);
-            margin-bottom: 40px;
-            max-width: 600px;
-        }
-
-        #authorize-button {
-            padding: 16px 40px;
-            font-size: 16px;
-        }
-
-        /* Dashboard */
-        #dashboard-section {
-            display: none;
-        }
-
-        .welcome {
-            margin-bottom: 40px;
+          flex-direction: column;
+          gap: 20px;
         }
 
         .welcome h1 {
-            font-family: 'Cormorant Garamond', serif;
-            font-size: 42px;
-            margin-bottom: 10px;
-            color: var(--navy-deep);
-        }
-
-        .welcome p {
-            font-size: 17px;
-            color: var(--text-light);
-        }
-
-        /* Stats Grid */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 24px;
-            margin-bottom: 40px;
-        }
-
-        .stat-card {
-            background: white;
-            padding: 28px;
-            border-radius: 16px;
-            box-shadow: 0 4px 16px rgba(10, 22, 40, 0.08);
-            border-left: 4px solid var(--gold);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
-
-        .stat-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 8px 24px rgba(10, 22, 40, 0.12);
-        }
-
-        .stat-label {
-            font-size: 13px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: var(--text-light);
-            margin-bottom: 10px;
-            font-weight: 600;
+          font-size: 32px;
         }
 
         .stat-value {
-            font-family: 'Cormorant Garamond', serif;
-            font-size: 36px;
-            font-weight: 700;
-            color: var(--navy-deep);
-            margin-bottom: 8px;
+          font-size: 28px;
         }
 
-        .stat-change {
-            font-size: 14px;
-            color: var(--sage);
-        }
-
-        .stat-change.positive {
-            color: #10B981;
-        }
-
-        .stat-change.negative {
-            color: #EF4444;
-        }
-
-        /* Content Section */
-        .content-section {
-            background: white;
-            border-radius: 20px;
-            padding: 32px;
-            margin-bottom: 32px;
-            box-shadow: 0 4px 16px rgba(10, 22, 40, 0.08);
-        }
-
-        .section-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 24px;
-            padding-bottom: 16px;
-            border-bottom: 2px solid var(--cream);
-        }
-
-        .section-title {
-            font-family: 'Cormorant Garamond', serif;
-            font-size: 28px;
-            font-weight: 700;
-            color: var(--navy-deep);
-        }
-
-        /* Table */
         table {
-            width: 100%;
-            border-collapse: collapse;
+          font-size: 14px;
         }
 
-        thead th {
-            text-align: left;
-            padding: 12px;
-            font-size: 13px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: var(--text-light);
-            font-weight: 600;
-            border-bottom: 2px solid var(--cream);
-        }
-
+        thead th,
         tbody td {
-            padding: 16px 12px;
-            border-bottom: 1px solid var(--cream);
+          padding: 8px;
         }
-
-        tbody tr:hover {
-            background: var(--cream);
-        }
-
-        .asset-name {
-            font-weight: 600;
-            color: var(--navy-deep);
-        }
-
-        .asset-type {
-            font-size: 14px;
-            color: var(--text-light);
-        }
-
-        /* Loading */
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: var(--text-light);
-        }
-
-        .spinner {
-            border: 3px solid var(--cream);
-            border-top: 3px solid var(--gold);
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        /* Error */
-        .error {
-            background: #FEE;
-            border: 1px solid #EDD;
-            border-radius: 8px;
-            padding: 16px;
-            margin: 20px 0;
-            color: #C33;
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .header-container {
-                flex-direction: column;
-                gap: 20px;
-            }
-
-            .welcome h1 {
-                font-size: 32px;
-            }
-
-            .stat-value {
-                font-size: 28px;
-            }
-
-            table {
-                font-size: 14px;
-            }
-
-            thead th, tbody td {
-                padding: 8px;
-            }
-        }
+      }
     </style>
-</head>
-<body>
+  </head>
+
+  <body>
     <header>
-        <div class="header-container">
-            <div class="logo">PRAXES</div>
-            <div class="user-section">
-                <span id="user-name"></span>
-                <div class="user-avatar" id="user-avatar"></div>
-                <button class="btn btn-secondary" id="signout-button" style="display: none;">Sair</button>
-            </div>
+      <div class="header-container">
+        <div class="logo">PRAXES</div>
+
+        <div class="user-section">
+          <span id="user-name"></span>
+          <div class="user-avatar" id="user-avatar"></div>
+          <button class="btn btn-secondary" id="signout-button" style="display: none">
+            Sair
+          </button>
         </div>
+      </div>
     </header>
 
     <div class="container">
-        <!-- Auth Section -->
-        <div id="auth-section">
-            <h1>Bem-vindo à Praxes</h1>
-            <p>Sua vida financeira e patrimonial, organizada em um só lugar. Faça login com sua conta Google para acessar seu dashboard personalizado.</p>
-            <button class="btn btn-primary" id="authorize-button">
-                Entrar com Google
-            </button>
+      <!-- Auth Section -->
+      <div id="auth-section">
+        <h1>Bem-vindo à Praxes</h1>
+        <p>
+          Sua vida financeira e patrimonial, organizada em um só lugar. Faça login com sua
+          conta Google para acessar seu dashboard personalizado.
+        </p>
+        <button class="btn btn-primary" id="authorize-button">Entrar com Google</button>
+      </div>
+
+      <!-- Dashboard Section -->
+      <div id="dashboard-section">
+        <div class="welcome">
+          <h1>Bem-vindo, <span id="welcome-name">Cliente</span></h1>
+          <p>Aqui está um resumo do seu patrimônio</p>
         </div>
 
-        <!-- Dashboard Section -->
-        <div id="dashboard-section">
-            <div class="welcome">
-                <h1>Bem-vindo, <span id="welcome-name">Cliente</span></h1>
-                <p>Aqui está um resumo do seu patrimônio</p>
-            </div>
+        <!-- Stats -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">Patrimônio Total</div>
+            <div class="stat-value" id="total-patrimonio">R$ 0</div>
+            <div class="stat-change" id="patrimonio-change">Carregando...</div>
+          </div>
 
-            <!-- Stats -->
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-label">Patrimônio Total</div>
-                    <div class="stat-value" id="total-patrimonio">R$ 0</div>
-                    <div class="stat-change" id="patrimonio-change">Carregando...</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Investimentos</div>
-                    <div class="stat-value" id="total-investimentos">R$ 0</div>
-                    <div class="stat-change" id="investimentos-change">Carregando...</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Imóveis</div>
-                    <div class="stat-value" id="total-imoveis">R$ 0</div>
-                    <div class="stat-change" id="imoveis-change">Carregando...</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Renda Passiva</div>
-                    <div class="stat-value" id="renda-passiva">R$ 0</div>
-                    <div class="stat-change">por mês</div>
-                </div>
-            </div>
+          <div class="stat-card">
+            <div class="stat-label">Investimentos</div>
+            <div class="stat-value" id="total-investimentos">R$ 0</div>
+            <div class="stat-change" id="investimentos-change">Carregando...</div>
+          </div>
 
-            <!-- Investimentos -->
-            <div class="content-section">
-                <div class="section-header">
-                    <h2 class="section-title">Investimentos</h2>
-                </div>
-                <div id="investimentos-content">
-                    <div class="loading">
-                        <div class="spinner"></div>
-                        <p>Carregando seus investimentos...</p>
-                    </div>
-                </div>
-            </div>
+          <div class="stat-card">
+            <div class="stat-label">Imóveis</div>
+            <div class="stat-value" id="total-imoveis">R$ 0</div>
+            <div class="stat-change" id="imoveis-change">Carregando...</div>
+          </div>
 
-            <!-- Imóveis -->
-            <div class="content-section">
-                <div class="section-header">
-                    <h2 class="section-title">Imóveis</h2>
-                </div>
-                <div id="imoveis-content">
-                    <div class="loading">
-                        <div class="spinner"></div>
-                        <p>Carregando seus imóveis...</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Seguros & Alertas -->
-            <div class="content-section">
-                <div class="section-header">
-                    <h2 class="section-title">Próximos Vencimentos</h2>
-                </div>
-                <div id="alertas-content">
-                    <div class="loading">
-                        <div class="spinner"></div>
-                        <p>Carregando alertas...</p>
-                    </div>
-                </div>
-            </div>
+          <div class="stat-card">
+            <div class="stat-label">Renda Passiva</div>
+            <div class="stat-value" id="renda-passiva">R$ 0</div>
+            <div class="stat-change">por mês</div>
+          </div>
         </div>
+
+        <!-- Investimentos -->
+        <div class="content-section">
+          <div class="section-header">
+            <h2 class="section-title">Investimentos</h2>
+          </div>
+          <div id="investimentos-content">
+            <div class="loading">
+              <div class="spinner"></div>
+              <p>Carregando seus investimentos...</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Imóveis -->
+        <div class="content-section">
+          <div class="section-header">
+            <h2 class="section-title">Imóveis</h2>
+          </div>
+          <div id="imoveis-content">
+            <div class="loading">
+              <div class="spinner"></div>
+              <p>Carregando seus imóveis...</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Seguros & Alertas -->
+        <div class="content-section">
+          <div class="section-header">
+            <h2 class="section-title">Próximos Vencimentos</h2>
+          </div>
+          <div id="alertas-content">
+            <div class="loading">
+              <div class="spinner"></div>
+              <p>Carregando alertas...</p>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Google API -->
     <script src="https://apis.google.com/js/api.js"></script>
+
     <script>
-        // ============================================
-        // CONFIGURAÇÃO - VOCÊ PRECISA PREENCHER ISSO
-        // ============================================
-        
-        const CLIENT_ID = '609822768101-qcq1m5nao8ii9d1df9r8rctsthv6qj3g.apps.googleusercontent.com';
-        const SPREADSHEET_ID = '1_X6u1N_T7shcsY6tKexJDe4R3_Y5dcG1sqT2hTLS85Q';
-        
-        // Não mexe nisso aqui embaixo
-        const DISCOVERY_DOCS = ["https://sheets.googleapis.com/$discovery/rest?version=v4"];
-        const SCOPES = "https://www.googleapis.com/auth/spreadsheets.readonly";
+      // ============================================
+      // CONFIGURAÇÃO - VOCÊ PRECISA PREENCHER ISSO
+      // ============================================
 
-        // ============================================
-        // CÓDIGO DA APLICAÇÃO - VERSÃO CORRIGIDA
-        // ============================================
+      const CLIENT_ID =
+        "609822768101-qcq1m5nao8ii9d1df9r8rctsthv6qj3g.apps.googleusercontent.com";
+      const SPREADSHEET_ID = "1_X6u1N_T7shcsY6tKexJDe4R3_Y5dcG1sqT2hTLS85Q";
 
-        let tokenClient;
-        let gapiReady = false;
-        let gisReady = false;
+      // Não mexe nisso aqui embaixo
+      const DISCOVERY_DOCS = ["https://sheets.googleapis.com/$discovery/rest?version=v4"];
+      const SCOPES = "https://www.googleapis.com/auth/spreadsheets.readonly";
 
-        // Carrega GAPI
-        function gapiLoaded() {
-            gapi.load('client', async () => {
-                await gapi.client.init({
-                    discoveryDocs: DISCOVERY_DOCS,
-                });
-                gapiReady = true;
-                console.log('✅ GAPI inicializado');
-                maybeEnableButtons();
-            });
-        }
+      // ============================================
+      // CÓDIGO DA APLICAÇÃO - VERSÃO CORRIGIDA
+      // ============================================
 
-        // Carrega GIS
-        function gisLoaded() {
-            tokenClient = google.accounts.oauth2.initTokenClient({
-                client_id: CLIENT_ID,
-                scope: SCOPES,
-                callback: '', // definido depois
-            });
-            gisReady = true;
-            console.log('✅ GIS inicializado');
-            maybeEnableButtons();
-        }
+      let tokenClient;
+      let gapiReady = false;
+      let gisReady = false;
 
-        // Habilita botões quando tudo estiver pronto
-        function maybeEnableButtons() {
-            if (gapiReady && gisReady) {
-                document.getElementById('authorize-button').disabled = false;
-                console.log('✅ Sistema pronto! Pode fazer login.');
-            }
-        }
-
-        // Botões
-        document.getElementById('authorize-button').addEventListener('click', handleAuthClick);
-        document.getElementById('signout-button').addEventListener('click', handleSignoutClick);
-
-        function handleAuthClick() {
-          tokenClient.callback = async (resp) => {
-            if (resp.error) {
-              console.error('❌ Erro no token:', resp);
-              showError('Erro ao fazer login: ' + resp.error);
-              return;
-            }
-        
-            // ✅ ESSENCIAL: injeta o access token no GAPI
-            gapi.client.setToken({ access_token: resp.access_token });
-        
-            console.log('✅ Token setado no GAPI:', gapi.client.getToken());
-        
-            document.getElementById('signout-button').style.display = 'block';
-            document.getElementById('authorize-button').style.display = 'none';
-        
-            await loadUserData();
-          };
-        
-          tokenClient.requestAccessToken({ prompt: 'consent' });
-        }
-        
-        function handleSignoutClick() {
-            const token = gapi.client.getToken();
-            if (token !== null) {
-                google.accounts.oauth2.revoke(token.access_token);
-                gapi.client.setToken('');
-                document.getElementById('auth-section').style.display = 'flex';
-                document.getElementById('dashboard-section').style.display = 'none';
-                document.getElementById('signout-button').style.display = 'none';
-                document.getElementById('authorize-button').style.display = 'block';
-            }
-        }
-
-        async function loadUserData() {
-            try {
-                console.log('📊 Carregando dados do usuário...');
-                
-                // Mostrar dashboard
-                document.getElementById('auth-section').style.display = 'none';
-                document.getElementById('dashboard-section').style.display = 'block';
-
-                // Carregar dados
-                await Promise.all([
-                    loadResumo(),
-                    loadInvestimentos(),
-                    loadImoveis(),
-                    loadAlertas()
-                ]);
-
-                console.log('✅ Todos os dados carregados!');
-
-            } catch (error) {
-                console.error('❌ Erro ao carregar dados:', error);
-
-                const msg =
-                    error?.result?.error?.message ||
-                    error?.message ??
-                    (typof error === 'string' ? error : JSON.stringify(error));
-                
-                showError('Erro ao carregar dados: ' + error.message);
-            }
-        }
-
-        async function loadResumo() {
-            try {
-                console.log('📊 Carregando resumo...');
-                
-                const response = await gapi.client.sheets.spreadsheets.values.get({
-                    spreadsheetId: SPREADSHEET_ID,
-                    range: 'Resumo!A1:B10',
-                });
-
-                const rows = response.result.values;
-                if (!rows || rows.length === 0) {
-                    showError('Nenhum dado encontrado na aba Resumo');
-                    return;
-                }
-
-                console.log('✅ Resumo carregado:', rows.length, 'linhas');
-
-                rows.forEach(row => {
-                    const field = row[0];
-                    const value = row[1];
-                    
-                    if (field === 'Nome') {
-                        document.getElementById('welcome-name').textContent = value;
-                        document.getElementById('user-name').textContent = value;
-                        document.getElementById('user-avatar').textContent = value.substring(0, 2).toUpperCase();
-                    }
-                    else if (field === 'Patrimônio Total') {
-                        document.getElementById('total-patrimonio').textContent = formatCurrency(value);
-                    }
-                    else if (field === 'Total Investimentos') {
-                        document.getElementById('total-investimentos').textContent = formatCurrency(value);
-                    }
-                    else if (field === 'Total Imóveis') {
-                        document.getElementById('total-imoveis').textContent = formatCurrency(value);
-                    }
-                    else if (field === 'Renda Passiva Mensal') {
-                        document.getElementById('renda-passiva').textContent = formatCurrency(value);
-                    }
-                    else if (field === 'Variação Patrimônio') {
-                        const changeEl = document.getElementById('patrimonio-change');
-                        changeEl.textContent = value;
-                        changeEl.className = 'stat-change ' + (value.includes('+') ? 'positive' : 'negative');
-                    }
-                    else if (field === 'Variação Investimentos') {
-                        const changeEl = document.getElementById('investimentos-change');
-                        changeEl.textContent = value;
-                        changeEl.className = 'stat-change ' + (value.includes('+') ? 'positive' : 'negative');
-                    }
-                    else if (field === 'Variação Imóveis') {
-                        const changeEl = document.getElementById('imoveis-change');
-                        changeEl.textContent = value;
-                        changeEl.className = 'stat-change ' + (value.includes('+') ? 'positive' : 'negative');
-                    }
-                });
-
-            } catch (error) {
-                console.error('❌ Erro ao carregar resumo:', error);
-                showError('Erro ao carregar resumo: ' + error.message);
-            }
-        }
-
-        async function loadInvestimentos() {
-            try {
-                console.log('📊 Carregando investimentos...');
-                
-                const response = await gapi.client.sheets.spreadsheets.values.get({
-                    spreadsheetId: SPREADSHEET_ID,
-                    range: 'Investimentos!A2:F100',
-                });
-
-                const rows = response.result.values;
-                if (!rows || rows.length === 0) {
-                    document.getElementById('investimentos-content').innerHTML = '<p>Nenhum investimento cadastrado.</p>';
-                    return;
-                }
-
-                console.log('✅ Investimentos carregados:', rows.length, 'linhas');
-
-                let html = `
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Ativo</th>
-                                <th>Tipo</th>
-                                <th>Quantidade</th>
-                                <th>Valor Atual</th>
-                                <th>Rentabilidade</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                `;
-
-                rows.forEach(row => {
-                    if (row[0]) {
-                        const rentabilidade = parseFloat(row[4]) || 0;
-                        const rentClass = rentabilidade >= 0 ? 'positive' : 'negative';
-                        
-                        html += `
-                            <tr>
-                                <td><div class="asset-name">${row[0]}</div></td>
-                                <td><div class="asset-type">${row[1] || '-'}</div></td>
-                                <td>${row[2] || '-'}</td>
-                                <td>${formatCurrency(row[3])}</td>
-                                <td class="stat-change ${rentClass}">${formatPercent(rentabilidade)}</td>
-                            </tr>
-                        `;
-                    }
-                });
-
-                html += '</tbody></table>';
-                document.getElementById('investimentos-content').innerHTML = html;
-
-            } catch (error) {
-                console.error('❌ Erro ao carregar investimentos:', error);
-                document.getElementById('investimentos-content').innerHTML = 
-                    '<div class="error">Erro ao carregar investimentos: ' + error.message + '</div>';
-            }
-        }
-
-        async function loadImoveis() {
-            try {
-                console.log('📊 Carregando imóveis...');
-                
-                const response = await gapi.client.sheets.spreadsheets.values.get({
-                    spreadsheetId: SPREADSHEET_ID,
-                    range: 'Imóveis!A2:F100',
-                });
-
-                const rows = response.result.values;
-                if (!rows || rows.length === 0) {
-                    document.getElementById('imoveis-content').innerHTML = '<p>Nenhum imóvel cadastrado.</p>';
-                    return;
-                }
-
-                console.log('✅ Imóveis carregados:', rows.length, 'linhas');
-
-                let html = `
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Imóvel</th>
-                                <th>Localização</th>
-                                <th>Valor Mercado</th>
-                                <th>Aluguel Mensal</th>
-                                <th>Yield</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                `;
-
-                rows.forEach(row => {
-                    if (row[0]) {
-                        const yield_val = parseFloat(row[4]) || 0;
-                        
-                        html += `
-                            <tr>
-                                <td><div class="asset-name">${row[0]}</div></td>
-                                <td><div class="asset-type">${row[1] || '-'}</div></td>
-                                <td>${formatCurrency(row[2])}</td>
-                                <td>${formatCurrency(row[3])}</td>
-                                <td class="stat-change positive">${formatPercent(yield_val)}</td>
-                            </tr>
-                        `;
-                    }
-                });
-
-                html += '</tbody></table>';
-                document.getElementById('imoveis-content').innerHTML = html;
-
-            } catch (error) {
-                console.error('❌ Erro ao carregar imóveis:', error);
-                document.getElementById('imoveis-content').innerHTML = 
-                    '<div class="error">Erro ao carregar imóveis: ' + error.message + '</div>';
-            }
-        }
-
-        async function loadAlertas() {
-            try {
-                console.log('📊 Carregando alertas...');
-                
-                const response = await gapi.client.sheets.spreadsheets.values.get({
-                    spreadsheetId: SPREADSHEET_ID,
-                    range: 'Alertas!A2:C50',
-                });
-
-                const rows = response.result.values;
-                if (!rows || rows.length === 0) {
-                    document.getElementById('alertas-content').innerHTML = '<p>Nenhum alerta no momento. Tudo em dia! ✓</p>';
-                    return;
-                }
-
-                console.log('✅ Alertas carregados:', rows.length, 'linhas');
-
-                let html = `
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Tipo</th>
-                                <th>Descrição</th>
-                                <th>Vencimento</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                `;
-
-                rows.forEach(row => {
-                    if (row[0]) {
-                        html += `
-                            <tr>
-                                <td><div class="asset-name">${row[0]}</div></td>
-                                <td>${row[1] || '-'}</td>
-                                <td>${row[2] || '-'}</td>
-                            </tr>
-                        `;
-                    }
-                });
-
-                html += '</tbody></table>';
-                document.getElementById('alertas-content').innerHTML = html;
-
-            } catch (error) {
-                console.error('❌ Erro ao carregar alertas:', error);
-                document.getElementById('alertas-content').innerHTML = 
-                    '<div class="error">Erro ao carregar alertas: ' + error.message + '</div>';
-            }
-        }
-
-        // Funções auxiliares
-        function formatCurrency(value) {
-            if (!value) return 'R$ 0';
-            const num = typeof value === 'string' ? parseFloat(value.replace(/[^\d.-]/g, '')) : value;
-            return new Intl.NumberFormat('pt-BR', { 
-                style: 'currency', 
-                currency: 'BRL',
-                minimumFractionDigits: 0,
-                maximumFractionDigits: 0
-            }).format(num);
-        }
-
-        function formatPercent(value) {
-            if (!value) return '0%';
-            const num = typeof value === 'string' ? parseFloat(value) : value;
-            return (num >= 0 ? '+' : '') + num.toFixed(2) + '%';
-        }
-
-        function showError(message) {
-            console.error('❌', message);
-            alert(message);
-        }
-
-        // Inicializar quando página carregar
-        window.addEventListener('load', () => {
-            console.log('🚀 Iniciando aplicação...');
-            gapiLoaded();
+      // Carrega GAPI
+      function gapiLoaded() {
+        gapi.load("client", async () => {
+          await gapi.client.init({
+            discoveryDocs: DISCOVERY_DOCS,
+          });
+          gapiReady = true;
+          console.log("✅ GAPI inicializado");
+          maybeEnableButtons();
         });
+      }
+
+      // Carrega GIS
+      function gisLoaded() {
+        tokenClient = google.accounts.oauth2.initTokenClient({
+          client_id: CLIENT_ID,
+          scope: SCOPES,
+          callback: "", // definido depois
+        });
+        gisReady = true;
+        console.log("✅ GIS inicializado");
+        maybeEnableButtons();
+      }
+
+      // Habilita botões quando tudo estiver pronto
+      function maybeEnableButtons() {
+        if (gapiReady && gisReady) {
+          document.getElementById("authorize-button").disabled = false;
+          console.log("✅ Sistema pronto! Pode fazer login.");
+        }
+      }
+
+      // Botões
+      document.getElementById("authorize-button").addEventListener("click", handleAuthClick);
+      document.getElementById("signout-button").addEventListener("click", handleSignoutClick);
+
+      function handleAuthClick() {
+        tokenClient.callback = async (resp) => {
+          if (resp.error) {
+            console.error("❌ Erro no token:", resp);
+            showError("Erro ao fazer login: " + resp.error);
+            return;
+          }
+
+          // ✅ ESSENCIAL: injeta o access token no GAPI
+          gapi.client.setToken({ access_token: resp.access_token });
+
+          console.log("✅ Token setado no GAPI:", gapi.client.getToken());
+
+          document.getElementById("signout-button").style.display = "block";
+          document.getElementById("authorize-button").style.display = "none";
+
+          await loadUserData();
+        };
+
+        tokenClient.requestAccessToken({ prompt: "consent" });
+      }
+
+      function handleSignoutClick() {
+        const token = gapi.client.getToken();
+        if (token !== null) {
+          google.accounts.oauth2.revoke(token.access_token);
+          gapi.client.setToken("");
+          document.getElementById("auth-section").style.display = "flex";
+          document.getElementById("dashboard-section").style.display = "none";
+          document.getElementById("signout-button").style.display = "none";
+          document.getElementById("authorize-button").style.display = "block";
+        }
+      }
+
+      async function loadUserData() {
+        try {
+          console.log("📊 Carregando dados do usuário...");
+
+          // Mostrar dashboard
+          document.getElementById("auth-section").style.display = "none";
+          document.getElementById("dashboard-section").style.display = "block";
+
+          // Carregar dados
+          await Promise.all([loadResumo(), loadInvestimentos(), loadImoveis(), loadAlertas()]);
+
+          console.log("✅ Todos os dados carregados!");
+        } catch (error) {
+          console.error("❌ Erro ao carregar dados:", error);
+
+          const msg =
+            error?.result?.error?.message ||
+            error?.message ||
+            (typeof error === "string" ? error : JSON.stringify(error));
+
+          showError("Erro ao carregar dados: " + msg);
+        }
+      }
+
+      async function loadResumo() {
+        try {
+          console.log("📊 Carregando resumo...");
+
+          const response = await gapi.client.sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: "Resumo!A1:B10",
+          });
+
+          const rows = response.result.values;
+          if (!rows || rows.length === 0) {
+            showError("Nenhum dado encontrado na aba Resumo");
+            return;
+          }
+
+          console.log("✅ Resumo carregado:", rows.length, "linhas");
+
+          rows.forEach((row) => {
+            const field = row[0];
+            const value = row[1];
+
+            if (field === "Nome") {
+              document.getElementById("welcome-name").textContent = value;
+              document.getElementById("user-name").textContent = value;
+              document.getElementById("user-avatar").textContent = value
+                .substring(0, 2)
+                .toUpperCase();
+            } else if (field === "Patrimônio Total") {
+              document.getElementById("total-patrimonio").textContent =
+                formatCurrency(value);
+            } else if (field === "Total Investimentos") {
+              document.getElementById("total-investimentos").textContent =
+                formatCurrency(value);
+            } else if (field === "Total Imóveis") {
+              document.getElementById("total-imoveis").textContent = formatCurrency(value);
+            } else if (field === "Renda Passiva Mensal") {
+              document.getElementById("renda-passiva").textContent = formatCurrency(value);
+            } else if (field === "Variação Patrimônio") {
+              const changeEl = document.getElementById("patrimonio-change");
+              changeEl.textContent = value;
+              changeEl.className =
+                "stat-change " + (value.includes("+") ? "positive" : "negative");
+            } else if (field === "Variação Investimentos") {
+              const changeEl = document.getElementById("investimentos-change");
+              changeEl.textContent = value;
+              changeEl.className =
+                "stat-change " + (value.includes("+") ? "positive" : "negative");
+            } else if (field === "Variação Imóveis") {
+              const changeEl = document.getElementById("imoveis-change");
+              changeEl.textContent = value;
+              changeEl.className =
+                "stat-change " + (value.includes("+") ? "positive" : "negative");
+            }
+          });
+        } catch (error) {
+          console.error("❌ Erro ao carregar resumo:", error);
+
+          const msg =
+            error?.result?.error?.message ||
+            error?.message ||
+            (typeof error === "string" ? error : JSON.stringify(error));
+
+          showError("Erro ao carregar resumo: " + msg);
+        }
+      }
+
+      async function loadInvestimentos() {
+        try {
+          console.log("📊 Carregando investimentos...");
+
+          const response = await gapi.client.sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: "Investimentos!A2:F100",
+          });
+
+          const rows = response.result.values;
+          if (!rows || rows.length === 0) {
+            document.getElementById("investimentos-content").innerHTML =
+              "<p>Nenhum investimento cadastrado.</p>";
+            return;
+          }
+
+          console.log("✅ Investimentos carregados:", rows.length, "linhas");
+
+          let html = `
+            <table>
+              <thead>
+                <tr>
+                  <th>Ativo</th>
+                  <th>Tipo</th>
+                  <th>Quantidade</th>
+                  <th>Valor Atual</th>
+                  <th>Rentabilidade</th>
+                </tr>
+              </thead>
+              <tbody>
+          `;
+
+          rows.forEach((row) => {
+            if (row[0]) {
+              const rentabilidade = parseFloat(row[4]) || 0;
+              const rentClass = rentabilidade >= 0 ? "positive" : "negative";
+
+              html += `
+                <tr>
+                  <td><div class="asset-name">${row[0]}</div></td>
+                  <td><div class="asset-type">${row[1] || "-"}</div></td>
+                  <td>${row[2] || "-"}</td>
+                  <td>${formatCurrency(row[3])}</td>
+                  <td class="stat-change ${rentClass}">${formatPercent(rentabilidade)}</td>
+                </tr>
+              `;
+            }
+          });
+
+          html += "</tbody></table>";
+          document.getElementById("investimentos-content").innerHTML = html;
+        } catch (error) {
+          console.error("❌ Erro ao carregar investimentos:", error);
+
+          const msg =
+            error?.result?.error?.message ||
+            error?.message ||
+            (typeof error === "string" ? error : JSON.stringify(error));
+
+          document.getElementById("investimentos-content").innerHTML =
+            '<div class="error">Erro ao carregar investimentos: ' + msg + "</div>";
+        }
+      }
+
+      async function loadImoveis() {
+        try {
+          console.log("📊 Carregando imóveis...");
+
+          const response = await gapi.client.sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: "Imóveis!A2:F100",
+          });
+
+          const rows = response.result.values;
+          if (!rows || rows.length === 0) {
+            document.getElementById("imoveis-content").innerHTML =
+              "<p>Nenhum imóvel cadastrado.</p>";
+            return;
+          }
+
+          console.log("✅ Imóveis carregados:", rows.length, "linhas");
+
+          let html = `
+            <table>
+              <thead>
+                <tr>
+                  <th>Imóvel</th>
+                  <th>Localização</th>
+                  <th>Valor Mercado</th>
+                  <th>Aluguel Mensal</th>
+                  <th>Yield</th>
+                </tr>
+              </thead>
+              <tbody>
+          `;
+
+          rows.forEach((row) => {
+            if (row[0]) {
+              const yieldVal = parseFloat(row[4]) || 0;
+
+              html += `
+                <tr>
+                  <td><div class="asset-name">${row[0]}</div></td>
+                  <td><div class="asset-type">${row[1] || "-"}</div></td>
+                  <td>${formatCurrency(row[2])}</td>
+                  <td>${formatCurrency(row[3])}</td>
+                  <td class="stat-change positive">${formatPercent(yieldVal)}</td>
+                </tr>
+              `;
+            }
+          });
+
+          html += "</tbody></table>";
+          document.getElementById("imoveis-content").innerHTML = html;
+        } catch (error) {
+          console.error("❌ Erro ao carregar imóveis:", error);
+
+          const msg =
+            error?.result?.error?.message ||
+            error?.message ||
+            (typeof error === "string" ? error : JSON.stringify(error));
+
+          document.getElementById("imoveis-content").innerHTML =
+            '<div class="error">Erro ao carregar imóveis: ' + msg + "</div>";
+        }
+      }
+
+      async function loadAlertas() {
+        try {
+          console.log("📊 Carregando alertas...");
+
+          const response = await gapi.client.sheets.spreadsheets.values.get({
+            spreadsheetId: SPREADSHEET_ID,
+            range: "Alertas!A2:C50",
+          });
+
+          const rows = response.result.values;
+          if (!rows || rows.length === 0) {
+            document.getElementById("alertas-content").innerHTML =
+              "<p>Nenhum alerta no momento. Tudo em dia! ✓</p>";
+            return;
+          }
+
+          console.log("✅ Alertas carregados:", rows.length, "linhas");
+
+          let html = `
+            <table>
+              <thead>
+                <tr>
+                  <th>Tipo</th>
+                  <th>Descrição</th>
+                  <th>Vencimento</th>
+                </tr>
+              </thead>
+              <tbody>
+          `;
+
+          rows.forEach((row) => {
+            if (row[0]) {
+              html += `
+                <tr>
+                  <td><div class="asset-name">${row[0]}</div></td>
+                  <td>${row[1] || "-"}</td>
+                  <td>${row[2] || "-"}</td>
+                </tr>
+              `;
+            }
+          });
+
+          html += "</tbody></table>";
+          document.getElementById("alertas-content").innerHTML = html;
+        } catch (error) {
+          console.error("❌ Erro ao carregar alertas:", error);
+
+          const msg =
+            error?.result?.error?.message ||
+            error?.message ||
+            (typeof error === "string" ? error : JSON.stringify(error));
+
+          document.getElementById("alertas-content").innerHTML =
+            '<div class="error">Erro ao carregar alertas: ' + msg + "</div>";
+        }
+      }
+
+      // Funções auxiliares
+      function formatCurrency(value) {
+        if (!value) return "R$ 0";
+
+        const num =
+          typeof value === "string" ? parseFloat(value.replace(/[^\d.-]/g, "")) : value;
+
+        return new Intl.NumberFormat("pt-BR", {
+          style: "currency",
+          currency: "BRL",
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 0,
+        }).format(num);
+      }
+
+      function formatPercent(value) {
+        if (!value) return "0%";
+        const num = typeof value === "string" ? parseFloat(value) : value;
+        return (num >= 0 ? "+" : "") + num.toFixed(2) + "%";
+      }
+
+      function showError(message) {
+        console.error("❌", message);
+        alert(message);
+      }
+
+      // Inicializar quando página carregar
+      window.addEventListener("load", () => {
+        console.log("🚀 Iniciando aplicação...");
+        gapiLoaded();
+      });
     </script>
-    <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
-</body>
+
+    <script
+      async
+      defer
+      src="https://accounts.google.com/gsi/client"
+      onload="gisLoaded()"
+    ></script>
+  </body>
 </html>
