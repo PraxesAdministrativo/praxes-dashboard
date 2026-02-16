@@ -52,14 +52,6 @@
         align-items: center;
       }
 
-      .logo {
-          font-family: 'Montserrat', sans-serif;
-          font-size: 32px;
-          font-weight: 700;
-          letter-spacing: 2px;
-          color: var(--branco);
-      }
-      
       .logo-img {
           height: 55px;
           width: auto;
@@ -216,7 +208,7 @@
 
       .stat-change {
         font-size: 14px;
-        color: var(--sage);
+        color: var(--text-light);
       }
 
       .stat-change.positive {
@@ -242,7 +234,7 @@
         align-items: center;
         margin-bottom: 24px;
         padding-bottom: 16px;
-        border-bottom: 2px solid var(--cream);
+        border-bottom: 2px solid var(--cinza-claro);
       }
 
       .section-title {
@@ -279,21 +271,21 @@
         letter-spacing: 0.5px;
         color: var(--text-light);
         font-weight: 600;
-        border-bottom: 2px solid var(--cream);
+        border-bottom: 2px solid var(--cinza-claro);
       }
 
       tbody td {
         padding: 16px 12px;
-        border-bottom: 1px solid var(--cream);
+        border-bottom: 1px solid var(--cinza-claro);
       }
 
       tbody tr:hover {
-        background: var(--cream);
+        background: var(--cinza-claro);
       }
 
       .asset-name {
         font-weight: 600;
-        color: var(--navy-deep);
+        color: var(--azul-principal);
       }
 
       .asset-type {
@@ -309,8 +301,8 @@
       }
 
       .spinner {
-        border: 3px solid var(--cream);
-        border-top: 3px solid var(--gold);
+        border: 3px solid var(--cinza-claro);
+        border-top: 3px solid var(--azul-secundario);
         border-radius: 50%;
         width: 40px;
         height: 40px;
@@ -368,8 +360,6 @@
     <header>
       <div class="header-container">
         <img src="https://github.com/PraxesAdministrativo/praxes-dashboard/blob/main/logo.png?raw=true" alt="Praxes" class="logo-img">
-
-
         <div class="user-section">
           <span id="user-name"></span>
           <div class="user-avatar" id="user-avatar"></div>
@@ -466,121 +456,148 @@
       </div>
     </div>
 
-    <!-- Google API -->
+    <!-- Supabase Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- Google Sheets API -->
     <script src="https://apis.google.com/js/api.js"></script>
 
     <script>
       // ============================================
-      // CONFIGURAÇÃO - VOCÊ PRECISA PREENCHER ISSO
+      // CONFIGURAÇÃO SUPABASE
       // ============================================
-
-      const CLIENT_ID =
-        "609822768101-qcq1m5nao8ii9d1df9r8rctsthv6qj3g.apps.googleusercontent.com";
-      const SPREADSHEET_ID = "1_X6W1N_T7shcsY6tKexJDe4R3_Y5dcGlSqT2hTLS85Q";
-
-      // Não mexe nisso aqui embaixo
-      const DISCOVERY_DOCS = ["https://sheets.googleapis.com/$discovery/rest?version=v4"];
-      const SCOPES = "https://www.googleapis.com/auth/spreadsheets.readonly";
+      
+      const SUPABASE_URL = 'https://urckolcywijllkdyjcgc.supabase.co';
+      const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVyY2tvbGN5d2lqbGxrZHlqY2djIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyNzU1NDAsImV4cCI6MjA4Njg1MTU0MH0.79Zmto6Dns_2KQWlx6msHaQ98bneTAT74qd2vv5aSLU';
+      
+      const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      
+      // Variável global para armazenar ID da planilha
+      let SPREADSHEET_ID = null;
 
       // ============================================
-      // CÓDIGO DA APLICAÇÃO - VERSÃO CORRIGIDA
+      // AUTENTICAÇÃO E FLUXO PRINCIPAL
       // ============================================
-
-      let tokenClient;
-      let gapiReady = false;
-      let gisReady = false;
-
-      // Carrega GAPI
-      function gapiLoaded() {
-        gapi.load("client", async () => {
-          await gapi.client.init({
-            discoveryDocs: DISCOVERY_DOCS,
-          });
-          gapiReady = true;
-          console.log("✅ GAPI inicializado");
-          maybeEnableButtons();
-        });
-      }
-
-      // Carrega GIS
-      function gisLoaded() {
-        tokenClient = google.accounts.oauth2.initTokenClient({
-          client_id: CLIENT_ID,
-          scope: SCOPES,
-          callback: "", // definido depois
-        });
-        gisReady = true;
-        console.log("✅ GIS inicializado");
-        maybeEnableButtons();
-      }
-
-      // Habilita botões quando tudo estiver pronto
-      function maybeEnableButtons() {
-        if (gapiReady && gisReady) {
-          document.getElementById("authorize-button").disabled = false;
-          console.log("✅ Sistema pronto! Pode fazer login.");
-        }
-      }
 
       // Botões
-      document.getElementById("authorize-button").addEventListener("click", handleAuthClick);
-      document.getElementById("signout-button").addEventListener("click", handleSignoutClick);
-
-      function handleAuthClick() {
-        tokenClient.callback = async (resp) => {
-          if (resp.error) {
-            console.error("❌ Erro no token:", resp);
-            showError("Erro ao fazer login: " + resp.error);
-            return;
+      document.getElementById('authorize-button').addEventListener('click', handleAuthClick);
+      document.getElementById('signout-button').addEventListener('click', handleSignoutClick);
+    
+      async function handleAuthClick() {
+          try {
+              const { data, error } = await supabase.auth.signInWithOAuth({
+                  provider: 'google',
+                  options: {
+                      redirectTo: window.location.origin,
+                      queryParams: {
+                          access_type: 'offline',
+                          prompt: 'consent',
+                      }
+                  }
+              });
+      
+              if (error) throw error;
+              
+          } catch (error) {
+              console.error('❌ Erro no login:', error);
+              showError('Erro ao fazer login: ' + error.message);
           }
-
-          // ✅ ESSENCIAL: injeta o access token no GAPI
-          gapi.client.setToken({ access_token: resp.access_token });
-
-          console.log("✅ Token setado no GAPI:", gapi.client.getToken());
-
-          document.getElementById("signout-button").style.display = "block";
-          document.getElementById("authorize-button").style.display = "none";
-
-          await loadUserData();
-        };
-
-        tokenClient.requestAccessToken({ prompt: "consent" });
       }
-
-      function handleSignoutClick() {
-        const token = gapi.client.getToken();
-        if (token !== null) {
-          google.accounts.oauth2.revoke(token.access_token);
-          gapi.client.setToken("");
-          document.getElementById("auth-section").style.display = "flex";
-          document.getElementById("dashboard-section").style.display = "none";
-          document.getElementById("signout-button").style.display = "none";
-          document.getElementById("authorize-button").style.display = "block";
-        }
+      
+      async function handleSignoutClick() {
+          await supabase.auth.signOut();
+          document.getElementById('auth-section').style.display = 'flex';
+          document.getElementById('dashboard-section').style.display = 'none';
+          document.getElementById('signout-button').style.display = 'none';
+          document.getElementById('authorize-button').style.display = 'block';
+          SPREADSHEET_ID = null;
       }
+      
+      // Detectar quando usuário voltar após login
+      supabase.auth.onAuthStateChange(async (event, session) => {
+          console.log('🔐 Auth event:', event);
+          
+          if (event === 'SIGNED_IN' && session) {
+              const userEmail = session.user.email;
+              console.log('✅ Usuário logado:', userEmail);
+              
+              // Buscar dados do cliente no Supabase
+              const { data: client, error } = await supabase
+                  .from('clients')
+                  .select('spreadsheet_id, name')
+                  .eq('email', userEmail)
+                  .single();
+              
+              if (error || !client) {
+                  console.error('❌ Cliente não encontrado:', error);
+                  showError('Acesso negado! Seu email não está autorizado.\n\nContato: contato@praxes.com.br');
+                  handleSignoutClick();
+                  return;
+              }
+              
+              console.log('📊 Cliente encontrado:', client.name);
+              SPREADSHEET_ID = client.spreadsheet_id;
+              
+              // Inicializar Google Sheets API
+              if (!window.gapiInitialized) {
+                  await new Promise((resolve) => {
+                      gapi.load('client', async () => {
+                          await gapi.client.init({
+                              apiKey: 'AIzaSyDummyKey',
+                              discoveryDocs: ["https://sheets.googleapis.com/$discovery/rest?version=v4"],
+                          });
+                          window.gapiInitialized = true;
+                          console.log('✅ Google Sheets API inicializado');
+                          resolve();
+                      });
+                  });
+              }
+              
+              // Mostrar dashboard
+              document.getElementById('auth-section').style.display = 'none';
+              document.getElementById('dashboard-section').style.display = 'block';
+              document.getElementById('signout-button').style.display = 'block';
+              document.getElementById('authorize-button').style.display = 'none';
+              
+              // Carregar dados
+              await loadUserData();
+          }
+      });
+      
+      // Verificar se já está logado ao carregar página
+      window.addEventListener('load', async () => {
+          console.log('🚀 Iniciando aplicação...');
+          
+          const { data: { session } } = await supabase.auth.getSession();
+          
+          if (session) {
+              console.log('✅ Sessão ativa detectada');
+              // O onAuthStateChange vai cuidar do resto
+          } else {
+              console.log('❌ Nenhuma sessão ativa');
+          }
+      });
+
+      // ============================================
+      // FUNÇÕES DE CARREGAMENTO DE DADOS
+      // ============================================
 
       async function loadUserData() {
         try {
           console.log("📊 Carregando dados do usuário...");
 
-          // Mostrar dashboard
-          document.getElementById("auth-section").style.display = "none";
-          document.getElementById("dashboard-section").style.display = "block";
-
           // Carregar dados
-          await Promise.all([loadResumo(), loadInvestimentos(), loadImoveis(), loadAlertas()]);
+          await Promise.all([
+            loadResumo(), 
+            loadInvestimentos(), 
+            loadImoveis(), 
+            loadAlertas()
+          ]);
 
           console.log("✅ Todos os dados carregados!");
         } catch (error) {
           console.error("❌ Erro ao carregar dados:", error);
-
-          const msg =
-            error?.result?.error?.message ||
-            error?.message ||
-            (typeof error === "string" ? error : JSON.stringify(error));
-
-          showError("Erro ao carregar dados: " + msg);
+          showError("Erro ao carregar dados: " + (error.message || error));
         }
       }
 
@@ -608,15 +625,11 @@
             if (field === "Nome") {
               document.getElementById("welcome-name").textContent = value;
               document.getElementById("user-name").textContent = value;
-              document.getElementById("user-avatar").textContent = value
-                .substring(0, 2)
-                .toUpperCase();
+              document.getElementById("user-avatar").textContent = value.substring(0, 2).toUpperCase();
             } else if (field === "Patrimônio Total") {
-              document.getElementById("total-patrimonio").textContent =
-                formatCurrency(value);
+              document.getElementById("total-patrimonio").textContent = formatCurrency(value);
             } else if (field === "Total Investimentos") {
-              document.getElementById("total-investimentos").textContent =
-                formatCurrency(value);
+              document.getElementById("total-investimentos").textContent = formatCurrency(value);
             } else if (field === "Total Imóveis") {
               document.getElementById("total-imoveis").textContent = formatCurrency(value);
             } else if (field === "Renda Passiva Mensal") {
@@ -624,29 +637,20 @@
             } else if (field === "Variação Patrimônio") {
               const changeEl = document.getElementById("patrimonio-change");
               changeEl.textContent = value;
-              changeEl.className =
-                "stat-change " + (value.includes("+") ? "positive" : "negative");
+              changeEl.className = "stat-change " + (value.includes("+") ? "positive" : "negative");
             } else if (field === "Variação Investimentos") {
               const changeEl = document.getElementById("investimentos-change");
               changeEl.textContent = value;
-              changeEl.className =
-                "stat-change " + (value.includes("+") ? "positive" : "negative");
+              changeEl.className = "stat-change " + (value.includes("+") ? "positive" : "negative");
             } else if (field === "Variação Imóveis") {
               const changeEl = document.getElementById("imoveis-change");
               changeEl.textContent = value;
-              changeEl.className =
-                "stat-change " + (value.includes("+") ? "positive" : "negative");
+              changeEl.className = "stat-change " + (value.includes("+") ? "positive" : "negative");
             }
           });
         } catch (error) {
           console.error("❌ Erro ao carregar resumo:", error);
-
-          const msg =
-            error?.result?.error?.message ||
-            error?.message ||
-            (typeof error === "string" ? error : JSON.stringify(error));
-
-          showError("Erro ao carregar resumo: " + msg);
+          showError("Erro ao carregar resumo: " + (error.message || error));
         }
       }
 
@@ -661,8 +665,7 @@
 
           const rows = response.result.values;
           if (!rows || rows.length === 0) {
-            document.getElementById("investimentos-content").innerHTML =
-              "<p>Nenhum investimento cadastrado.</p>";
+            document.getElementById("investimentos-content").innerHTML = "<p>Nenhum investimento cadastrado.</p>";
             return;
           }
 
@@ -703,14 +706,8 @@
           document.getElementById("investimentos-content").innerHTML = html;
         } catch (error) {
           console.error("❌ Erro ao carregar investimentos:", error);
-
-          const msg =
-            error?.result?.error?.message ||
-            error?.message ||
-            (typeof error === "string" ? error : JSON.stringify(error));
-
-          document.getElementById("investimentos-content").innerHTML =
-            '<div class="error">Erro ao carregar investimentos: ' + msg + "</div>";
+          document.getElementById("investimentos-content").innerHTML = 
+            '<div class="error">Erro ao carregar investimentos: ' + (error.message || error) + "</div>";
         }
       }
 
@@ -725,8 +722,7 @@
 
           const rows = response.result.values;
           if (!rows || rows.length === 0) {
-            document.getElementById("imoveis-content").innerHTML =
-              "<p>Nenhum imóvel cadastrado.</p>";
+            document.getElementById("imoveis-content").innerHTML = "<p>Nenhum imóvel cadastrado.</p>";
             return;
           }
 
@@ -766,14 +762,8 @@
           document.getElementById("imoveis-content").innerHTML = html;
         } catch (error) {
           console.error("❌ Erro ao carregar imóveis:", error);
-
-          const msg =
-            error?.result?.error?.message ||
-            error?.message ||
-            (typeof error === "string" ? error : JSON.stringify(error));
-
-          document.getElementById("imoveis-content").innerHTML =
-            '<div class="error">Erro ao carregar imóveis: ' + msg + "</div>";
+          document.getElementById("imoveis-content").innerHTML = 
+            '<div class="error">Erro ao carregar imóveis: ' + (error.message || error) + "</div>";
         }
       }
 
@@ -788,7 +778,7 @@
 
           const rows = response.result.values;
           if (!rows || rows.length === 0) {
-            document.getElementById("alertas-content").innerHTML =
+            document.getElementById("alertas-content").innerHTML = 
               "<p>Nenhum alerta no momento. Tudo em dia! ✓</p>";
             return;
           }
@@ -823,18 +813,15 @@
           document.getElementById("alertas-content").innerHTML = html;
         } catch (error) {
           console.error("❌ Erro ao carregar alertas:", error);
-
-          const msg =
-            error?.result?.error?.message ||
-            error?.message ||
-            (typeof error === "string" ? error : JSON.stringify(error));
-
-          document.getElementById("alertas-content").innerHTML =
-            '<div class="error">Erro ao carregar alertas: ' + msg + "</div>";
+          document.getElementById("alertas-content").innerHTML = 
+            '<div class="error">Erro ao carregar alertas: ' + (error.message || error) + "</div>";
         }
       }
 
-      // Funções auxiliares
+      // ============================================
+      // FUNÇÕES AUXILIARES
+      // ============================================
+
       function formatCurrency(value) {
           if (!value) return 'R$ 0';
           
@@ -863,6 +850,7 @@
               maximumFractionDigits: 0
           }).format(num);
       }
+
       function formatPercent(value) {
         if (!value) return "0%";
         const num = typeof value === "string" ? parseFloat(value) : value;
@@ -871,21 +859,14 @@
 
       function showError(message) {
         console.error("❌", message);
-        alert(message);
+        
+        // Mensagem mais amigável
+        const friendlyMessage = message.includes('Acesso negado') 
+            ? 'Seu email não tem acesso autorizado ao sistema.\n\nEntre em contato: contato@praxes.com.br'
+            : message;
+        
+        alert(friendlyMessage);
       }
-
-      // Inicializar quando página carregar
-      window.addEventListener("load", () => {
-        console.log("🚀 Iniciando aplicação...");
-        gapiLoaded();
-      });
     </script>
-
-    <script
-      async
-      defer
-      src="https://accounts.google.com/gsi/client"
-      onload="gisLoaded()"
-    ></script>
   </body>
 </html>
