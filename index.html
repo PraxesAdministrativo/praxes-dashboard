@@ -470,7 +470,8 @@
       const SUPABASE_URL = 'https://urckolcywijllkdyjcgc.supabase.co';
       const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVyY2tvbGN5d2lqbGxrZHlqY2djIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyNzU1NDAsImV4cCI6MjA4Njg1MTU0MH0.79Zmto6Dns_2KQWlx6msHaQ98bneTAT74qd2vv5aSLU';
       
-      const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      window.supabase_client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      const supabase = window.supabase_client;
       
       // Variável global para armazenar ID da planilha
       let SPREADSHEET_ID = null;
