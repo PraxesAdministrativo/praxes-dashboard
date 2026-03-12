@@ -879,9 +879,9 @@
           const tipo = row[1] || '';
           const grupo = row[2] || '';
           const subgrupo = row[3] || '';
-          const valorCompra = parseFloat(row[5]) || 0;
-          const valorAtual = parseFloat(row[7]) || 0;
-          const aluguel = parseFloat(row[9]) || 0;
+          const valorCompra = parseFloat(String(row[5] || '0').replace(/[^\d.-]/g, '')) || 0;
+          const valorAtual = parseFloat(String(row[7] || '0').replace(/[^\d.-]/g, '')) || 0;
+          const aluguel = parseFloat(String(row[9] || '0').replace(/[^\d.-]/g, '')) || 0;
           
           const variacao = valorCompra > 0 ? ((valorAtual - valorCompra) / valorCompra * 100).toFixed(1) : 0;
           const variacaoClass = variacao >= 0 ? 'positive' : 'negative';
@@ -1019,16 +1019,20 @@
       const mode = btn.getAttribute('data-mode') || 'add';
       const index = parseInt(btn.getAttribute('data-index') || '-1');
       
+      const nome = data.get('nome');
+      const valorAtual = data.get('valor_atual');
+      const dataAvaliacao = new Date().toISOString().split('T')[0];
+      
       const row = [
-        data.get('nome'),
+        nome,
         data.get('tipo'),
         data.get('grupo'),
         data.get('subgrupo'),
         data.get('endereco'),
         data.get('valor_compra'),
         data.get('data_compra'),
-        data.get('valor_atual'),
-        new Date().toISOString().split('T')[0],
+        valorAtual,
+        dataAvaliacao,
         data.get('aluguel') || 0,
         data.get('inquilino') || '',
         '',
@@ -1046,12 +1050,33 @@
         if (mode === 'edit') {
           // UPDATE
           const rowNumber = index + 2;
+          const oldValor = imoveisData[index][7];
+          
           await gapi.client.sheets.spreadsheets.values.update({
             spreadsheetId: imoveisSheetId,
             range: `Lista!A${rowNumber}:T${rowNumber}`,
             valueInputOption: 'USER_ENTERED',
             resource: { values: [row] }
           });
+          
+          // Se valor mudou, adiciona no histórico
+          if (oldValor !== valorAtual) {
+            const historicoRow = [
+              nome,
+              dataAvaliacao,
+              valorAtual,
+              'Atualização Manual',
+              'Valor atualizado via dashboard'
+            ];
+            
+            await gapi.client.sheets.spreadsheets.values.append({
+              spreadsheetId: imoveisSheetId,
+              range: 'Historico_Valores!A:E',
+              valueInputOption: 'USER_ENTERED',
+              resource: { values: [historicoRow] }
+            });
+          }
+          
           alert('✅ Imóvel atualizado com sucesso!');
         } else {
           // CREATE
@@ -1061,6 +1086,41 @@
             valueInputOption: 'USER_ENTERED',
             resource: { values: [row] }
           });
+          
+          // Adiciona valor de compra no histórico
+          const historicoCompra = [
+            nome,
+            data.get('data_compra'),
+            data.get('valor_compra'),
+            'Compra',
+            'Valor de aquisição'
+          ];
+          
+          await gapi.client.sheets.spreadsheets.values.append({
+            spreadsheetId: imoveisSheetId,
+            range: 'Historico_Valores!A:E',
+            valueInputOption: 'USER_ENTERED',
+            resource: { values: [historicoCompra] }
+          });
+          
+          // Se valor atual é diferente do valor de compra, adiciona também
+          if (valorAtual !== data.get('valor_compra')) {
+            const historicoAtual = [
+              nome,
+              dataAvaliacao,
+              valorAtual,
+              'Avaliação Inicial',
+              'Valor atual na data de cadastro'
+            ];
+            
+            await gapi.client.sheets.spreadsheets.values.append({
+              spreadsheetId: imoveisSheetId,
+              range: 'Historico_Valores!A:E',
+              valueInputOption: 'USER_ENTERED',
+              resource: { values: [historicoAtual] }
+            });
+          }
+          
           alert('✅ Imóvel adicionado com sucesso!');
         }
         
