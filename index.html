@@ -1,441 +1,998 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Praxes - Dashboard do Cliente</title>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&display=swap" rel="stylesheet" />
-    <style>
-      :root {
-          --azul-principal: #0f3d57;
-          --azul-secundario: #2e6b8e;
-          --azul-terciario: #629ec1;
-          --branco: #FFFFFF;
-          --cinza-claro: #F5F5F5;
-          --text-dark: #0f3d57;
-          --text-light: #2e6b8e;
-      }
-      * { margin: 0; padding: 0; box-sizing: border-box; }
-      body {
-          font-family: 'Montserrat', sans-serif;
-          background: var(--branco);
-          color: var(--text-dark);
-          line-height: 1.6;
-          min-height: 100vh;
-      }
-      header {
-          background: var(--azul-principal);
-          color: var(--branco);
-          padding: 20px 0;
-          box-shadow: 0 4px 20px rgba(15, 61, 87, 0.15);
-      }
-      .header-container {
-        max-width: 1400px;
-        margin: 0 auto;
-        padding: 0 30px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-      }
-      .logo-img { height: 55px; width: auto; }
-      .user-section { display: flex; align-items: center; gap: 20px; }
-      #user-name { font-size: 15px; color: var(--branco); }
-      .user-avatar {
-          width: 40px; height: 40px; border-radius: 50%;
-          background: var(--azul-terciario);
-          display: flex; align-items: center; justify-content: center;
-          font-weight: 700; color: var(--branco);
-      }
-      .btn {
-        padding: 10px 24px; border: none; border-radius: 8px;
-        cursor: pointer; font-size: 14px; font-weight: 600;
-        transition: all 0.3s ease;
-      }
-      .btn-primary {
-          background: var(--azul-secundario);
-          color: var(--branco);
-      }
-      .btn-primary:hover {
-          background: var(--azul-terciario);
-          transform: translateY(-2px);
-      }
-      .btn-secondary {
-          background: transparent;
-          color: var(--branco);
-          border: 1px solid var(--branco);
-      }
-      .btn-secondary:hover { background: rgba(255, 255, 255, 0.1); }
-      .container { max-width: 1400px; margin: 0 auto; padding: 40px 30px; }
-      #auth-section {
-        display: flex; flex-direction: column; align-items: center;
-        justify-content: center; min-height: 70vh; text-align: center;
-      }
-      #auth-section h1 {
-          font-family: 'Montserrat', sans-serif;
-          font-size: 48px; margin-bottom: 20px;
-          color: var(--azul-principal);
-      }
-      #auth-section p {
-        font-size: 18px; color: var(--text-light);
-        margin-bottom: 40px; max-width: 600px;
-      }
-      #authorize-button { padding: 16px 40px; font-size: 16px; }
-      #dashboard-section { display: none; }
-      .welcome { margin-bottom: 40px; }
-      .welcome h1 {
-          font-family: 'Montserrat', sans-serif;
-          font-size: 42px; margin-bottom: 10px;
-          color: var(--azul-principal);
-      }
-      .welcome p { font-size: 17px; color: var(--text-light); }
-      .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-        gap: 24px; margin-bottom: 40px;
-      }
-      .stat-card {
-          background: white; padding: 28px; border-radius: 16px;
-          box-shadow: 0 4px 16px rgba(15, 61, 87, 0.08);
-          border-left: 4px solid var(--azul-secundario);
-          transition: transform 0.3s ease, box-shadow 0.3s ease;
-      }
-      .stat-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 8px 24px rgba(10, 22, 40, 0.12);
-      }
-      .stat-label {
-        font-size: 13px; text-transform: uppercase; letter-spacing: 1px;
-        color: var(--text-light); margin-bottom: 10px; font-weight: 600;
-      }
-      .stat-value {
-          font-family: 'Montserrat', sans-serif;
-          font-size: 36px; font-weight: 700;
-          color: var(--azul-principal); margin-bottom: 8px;
-      }
-      .stat-change { font-size: 14px; color: var(--text-light); }
-      .stat-change.positive { color: #10b981; }
-      .stat-change.negative { color: #ef4444; }
-      .content-section {
-        background: white; border-radius: 20px; padding: 32px;
-        margin-bottom: 32px; box-shadow: 0 4px 16px rgba(10, 22, 40, 0.08);
-      }
-      .section-header {
-        display: flex; justify-content: space-between; align-items: center;
-        margin-bottom: 24px; padding-bottom: 16px;
-        border-bottom: 2px solid var(--cinza-claro);
-      }
-      .section-title {
-          font-family: 'Montserrat', sans-serif;
-          font-size: 28px; font-weight: 700;
-          color: var(--azul-principal);
-      }
-      table { width: 100%; border-collapse: collapse; }
-      thead th {
-        text-align: left; padding: 12px; font-size: 13px;
-        text-transform: uppercase; letter-spacing: 0.5px;
-        color: var(--text-light); font-weight: 600;
-        border-bottom: 2px solid var(--cinza-claro);
-      }
-      tbody td { padding: 16px 12px; border-bottom: 1px solid var(--cinza-claro); }
-      tbody tr:hover { background: var(--cinza-claro); }
-      .asset-name { font-weight: 600; color: var(--azul-principal); }
-      .asset-type { font-size: 14px; color: var(--text-light); }
-      .loading { text-align: center; padding: 40px; color: var(--text-light); }
-      .spinner {
-        border: 3px solid var(--cinza-claro);
-        border-top: 3px solid var(--azul-secundario);
-        border-radius: 50%; width: 40px; height: 40px;
-        animation: spin 1s linear infinite; margin: 0 auto 20px;
-      }
-      @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-      }
-      .error {
-        background: #fee; border: 1px solid #edd;
-        border-radius: 8px; padding: 16px; margin: 20px 0; color: #c33;
-      }
-      @media (max-width: 768px) {
-        .header-container { flex-direction: column; gap: 20px; }
-        .welcome h1 { font-size: 32px; }
-        .stat-value { font-size: 28px; }
-      }
-    </style>
-  </head>
-  <body>
-    <header>
-      <div class="header-container">
-        <img src="https://github.com/PraxesAdministrativo/praxes-dashboard/blob/main/logo.png?raw=true" alt="Praxes" class="logo-img">
-        <div class="user-section">
-          <span id="user-name"></span>
-          <div class="user-avatar" id="user-avatar"></div>
-          <button class="btn btn-secondary" id="signout-button" style="display: none">Sair</button>
-        </div>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Praxes - Portal do Cliente</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --azul-principal: #0f3d57;
+      --azul-secundario: #2e6b8e;
+      --azul-terciario: #629ec1;
+      --branco: #FFFFFF;
+      --cinza-claro: #F5F5F5;
+      --text-dark: #0f3d57;
+      --text-light: #2e6b8e;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Montserrat', sans-serif;
+      background: var(--cinza-claro);
+      color: var(--text-dark);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* LAYOUT PRINCIPAL */
+    .app-container {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* SIDEBAR */
+    .sidebar {
+      width: 260px;
+      background: var(--azul-principal);
+      color: var(--branco);
+      position: fixed;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      overflow-y: auto;
+      z-index: 1000;
+      box-shadow: 4px 0 20px rgba(0,0,0,0.1);
+    }
+    .sidebar-header {
+      padding: 30px 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .sidebar-logo {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: var(--branco);
+      text-align: center;
+    }
+    .sidebar-nav {
+      padding: 20px 0;
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      padding: 14px 24px;
+      color: rgba(255,255,255,0.8);
+      cursor: pointer;
+      transition: all 0.3s;
+      border-left: 4px solid transparent;
+      text-decoration: none;
+    }
+    .nav-item:hover {
+      background: rgba(255,255,255,0.05);
+      color: var(--branco);
+      border-left-color: var(--azul-terciario);
+    }
+    .nav-item.active {
+      background: rgba(255,255,255,0.1);
+      color: var(--branco);
+      border-left-color: var(--branco);
+      font-weight: 600;
+    }
+    .nav-icon {
+      font-size: 20px;
+      margin-right: 12px;
+      width: 24px;
+    }
+    .sidebar-footer {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 20px;
+      border-top: 1px solid rgba(255,255,255,0.1);
+    }
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .user-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--azul-terciario);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 14px;
+    }
+    .user-name {
+      flex: 1;
+      font-size: 14px;
+    }
+    .btn-signout {
+      width: 100%;
+      padding: 10px;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: var(--branco);
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.3s;
+    }
+    .btn-signout:hover {
+      background: rgba(255,255,255,0.15);
+    }
+
+    /* MAIN CONTENT */
+    .main-content {
+      margin-left: 260px;
+      flex: 1;
+      background: var(--cinza-claro);
+    }
+    .top-bar {
+      background: var(--branco);
+      padding: 20px 40px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .page-title {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--azul-principal);
+    }
+    .content-wrapper {
+      padding: 40px;
+    }
+
+    /* AUTH SCREEN */
+    #auth-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      text-align: center;
+      background: var(--branco);
+    }
+    #auth-section h1 {
+      font-size: 48px;
+      margin-bottom: 20px;
+      color: var(--azul-principal);
+    }
+    #auth-section p {
+      font-size: 18px;
+      color: var(--text-light);
+      margin-bottom: 40px;
+      max-width: 600px;
+    }
+    .btn-primary {
+      padding: 16px 40px;
+      font-size: 16px;
+      background: var(--azul-secundario);
+      color: var(--branco);
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s;
+    }
+    .btn-primary:hover {
+      background: var(--azul-terciario);
+      transform: translateY(-2px);
+    }
+
+    /* PÁGINAS */
+    .page {
+      display: none;
+    }
+    .page.active {
+      display: block;
+    }
+
+    /* DASHBOARD */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+      margin-bottom: 40px;
+    }
+    .stat-card {
+      background: white;
+      padding: 28px;
+      border-radius: 16px;
+      box-shadow: 0 4px 16px rgba(15, 61, 87, 0.08);
+      border-left: 4px solid var(--azul-secundario);
+      transition: transform 0.3s ease;
+    }
+    .stat-card:hover {
+      transform: translateY(-4px);
+    }
+    .stat-label {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-light);
+      margin-bottom: 10px;
+      font-weight: 600;
+    }
+    .stat-value {
+      font-size: 36px;
+      font-weight: 700;
+      color: var(--azul-principal);
+      margin-bottom: 8px;
+    }
+    .stat-change {
+      font-size: 14px;
+      color: var(--text-light);
+    }
+    .stat-change.positive { color: #10b981; }
+    .stat-change.negative { color: #ef4444; }
+
+    /* IMÓVEIS */
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+    }
+    .btn-add {
+      padding: 12px 24px;
+      background: var(--azul-secundario);
+      color: var(--branco);
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 14px;
+      transition: all 0.3s;
+    }
+    .btn-add:hover {
+      background: var(--azul-terciario);
+    }
+    .filters {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 30px;
+    }
+    .filter-btn {
+      padding: 8px 16px;
+      background: var(--branco);
+      border: 2px solid var(--cinza-claro);
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.3s;
+    }
+    .filter-btn:hover {
+      border-color: var(--azul-secundario);
+    }
+    .filter-btn.active {
+      background: var(--azul-secundario);
+      color: var(--branco);
+      border-color: var(--azul-secundario);
+    }
+    .imoveis-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+      gap: 24px;
+    }
+    .imovel-card {
+      background: var(--branco);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+      transition: all 0.3s;
+    }
+    .imovel-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    }
+    .imovel-image {
+      width: 100%;
+      height: 200px;
+      background: linear-gradient(135deg, var(--azul-principal) 0%, var(--azul-terciario) 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 60px;
+    }
+    .imovel-body {
+      padding: 20px;
+    }
+    .imovel-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--azul-principal);
+      margin-bottom: 8px;
+    }
+    .imovel-meta {
+      font-size: 13px;
+      color: var(--text-light);
+      margin-bottom: 16px;
+    }
+    .imovel-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 16px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--cinza-claro);
+    }
+    .imovel-stat-item {
+      display: flex;
+      flex-direction: column;
+    }
+    .imovel-stat-label {
+      font-size: 11px;
+      color: var(--text-light);
+      margin-bottom: 4px;
+    }
+    .imovel-stat-value {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--azul-principal);
+    }
+    .imovel-actions {
+      display: flex;
+      gap: 8px;
+    }
+    .btn-action {
+      flex: 1;
+      padding: 8px 12px;
+      border: 1px solid var(--cinza-claro);
+      background: var(--branco);
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.3s;
+    }
+    .btn-action:hover {
+      background: var(--cinza-claro);
+    }
+
+    /* LOADING */
+    .loading {
+      text-align: center;
+      padding: 60px;
+      color: var(--text-light);
+    }
+    .spinner {
+      border: 3px solid var(--cinza-claro);
+      border-top: 3px solid var(--azul-secundario);
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 20px;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* MODAL */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 2000;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal.active {
+      display: flex;
+    }
+    .modal-content {
+      background: var(--branco);
+      border-radius: 12px;
+      width: 90%;
+      max-width: 600px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    .modal-header {
+      padding: 24px;
+      border-bottom: 1px solid var(--cinza-claro);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .modal-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--azul-principal);
+    }
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 28px;
+      cursor: pointer;
+      color: var(--text-light);
+      line-height: 1;
+    }
+    .modal-body {
+      padding: 24px;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    .form-label {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-dark);
+      margin-bottom: 8px;
+    }
+    .form-input, .form-select {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid var(--cinza-claro);
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: 'Montserrat', sans-serif;
+      transition: all 0.3s;
+    }
+    .form-input:focus, .form-select:focus {
+      outline: none;
+      border-color: var(--azul-secundario);
+    }
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .modal-footer {
+      padding: 20px 24px;
+      border-top: 1px solid var(--cinza-claro);
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+    }
+    .btn-cancel {
+      padding: 10px 24px;
+      background: var(--cinza-claro);
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .btn-save {
+      padding: 10px 24px;
+      background: var(--azul-secundario);
+      color: var(--branco);
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- AUTH SECTION -->
+  <div id="auth-section">
+    <h1>Bem-vindo à Praxes</h1>
+    <p>Sua vida financeira e patrimonial, organizada em um só lugar.</p>
+    <button class="btn-primary" id="authorize-button">Entrar com Google</button>
+  </div>
+
+  <!-- APP CONTAINER -->
+  <div class="app-container" id="app-container" style="display: none;">
+    
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">PRAXES</div>
       </div>
-    </header>
-    <div class="container">
-      <div id="auth-section">
-        <h1>Bem-vindo à Praxes</h1>
-        <p>Sua vida financeira e patrimonial, organizada em um só lugar. Faça login com sua conta Google para acessar seu dashboard personalizado.</p>
-        <button class="btn btn-primary" id="authorize-button">Entrar com Google</button>
+      <nav class="sidebar-nav">
+        <div class="nav-item active" data-page="dashboard">
+          <span class="nav-icon">🏠</span>
+          <span>Dashboard</span>
+        </div>
+        <div class="nav-item" data-page="investimentos">
+          <span class="nav-icon">💰</span>
+          <span>Investimentos</span>
+        </div>
+        <div class="nav-item" data-page="imoveis">
+          <span class="nav-icon">🏘️</span>
+          <span>Imóveis</span>
+        </div>
+        <div class="nav-item" data-page="relatorios">
+          <span class="nav-icon">📊</span>
+          <span>Relatórios</span>
+        </div>
+        <div class="nav-item" data-page="documentos">
+          <span class="nav-icon">📁</span>
+          <span>Documentos</span>
+        </div>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <div class="user-avatar" id="sidebar-avatar">LB</div>
+          <div class="user-name" id="sidebar-name">Cliente</div>
+        </div>
+        <button class="btn-signout" id="signout-button">Sair</button>
       </div>
-      <div id="dashboard-section">
-        <div class="welcome">
-          <h1>Bem-vindo, <span id="welcome-name">Cliente</span></h1>
-          <p>Aqui está um resumo do seu patrimônio</p>
-        </div>
-        <div class="stats-grid">
-          <div class="stat-card">
-            <div class="stat-label">Patrimônio Total</div>
-            <div class="stat-value" id="total-patrimonio">R$ 0</div>
-            <div class="stat-change" id="patrimonio-change">Carregando...</div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+      <div class="top-bar">
+        <h1 class="page-title" id="top-title">Dashboard</h1>
+      </div>
+      <div class="content-wrapper">
+
+        <!-- DASHBOARD PAGE -->
+        <div class="page active" id="page-dashboard">
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-label">Patrimônio Total</div>
+              <div class="stat-value" id="total-patrimonio">R$ 0</div>
+              <div class="stat-change" id="patrimonio-change">Carregando...</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Investimentos</div>
+              <div class="stat-value" id="total-investimentos">R$ 0</div>
+              <div class="stat-change" id="investimentos-change">Carregando...</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Imóveis</div>
+              <div class="stat-value" id="total-imoveis">R$ 0</div>
+              <div class="stat-change" id="imoveis-change">Carregando...</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Renda Passiva</div>
+              <div class="stat-value" id="renda-passiva">R$ 0</div>
+              <div class="stat-change">por mês</div>
+            </div>
           </div>
-          <div class="stat-card">
-            <div class="stat-label">Investimentos</div>
-            <div class="stat-value" id="total-investimentos">R$ 0</div>
-            <div class="stat-change" id="investimentos-change">Carregando...</div>
+        </div>
+
+        <!-- IMOVEIS PAGE -->
+        <div class="page" id="page-imoveis">
+          <div class="page-header">
+            <h2 style="font-size: 24px; color: var(--text-dark);">Meus Imóveis</h2>
+            <button class="btn-add" id="btn-add-imovel">+ Adicionar Imóvel</button>
           </div>
-          <div class="stat-card">
-            <div class="stat-label">Imóveis</div>
-            <div class="stat-value" id="total-imoveis">R$ 0</div>
-            <div class="stat-change" id="imoveis-change">Carregando...</div>
+          <div class="filters">
+            <button class="filter-btn active" data-filter="todos">Todos</button>
+            <button class="filter-btn" data-filter="investimento">Investimento</button>
+            <button class="filter-btn" data-filter="pessoal">Bem Pessoal</button>
           </div>
-          <div class="stat-card">
-            <div class="stat-label">Renda Passiva</div>
-            <div class="stat-value" id="renda-passiva">R$ 0</div>
-            <div class="stat-change">por mês</div>
+          <div class="imoveis-grid" id="imoveis-grid">
+            <div class="loading">
+              <div class="spinner"></div>
+              <p>Carregando imóveis...</p>
+            </div>
           </div>
         </div>
-        <div class="content-section">
-          <div class="section-header"><h2 class="section-title">Investimentos</h2></div>
-          <div id="investimentos-content"><div class="loading"><div class="spinner"></div><p>Carregando seus investimentos...</p></div></div>
+
+        <!-- OUTRAS PÁGINAS (placeholders) -->
+        <div class="page" id="page-investimentos">
+          <h2>Investimentos</h2>
+          <p>Em desenvolvimento...</p>
         </div>
-        <div class="content-section">
-          <div class="section-header"><h2 class="section-title">Imóveis</h2></div>
-          <div id="imoveis-content"><div class="loading"><div class="spinner"></div><p>Carregando seus imóveis...</p></div></div>
+        <div class="page" id="page-relatorios">
+          <h2>Relatórios</h2>
+          <p>Em desenvolvimento...</p>
         </div>
-        <div class="content-section">
-          <div class="section-header"><h2 class="section-title">Próximos Vencimentos</h2></div>
-          <div id="alertas-content"><div class="loading"><div class="spinner"></div><p>Carregando alertas...</p></div></div>
+        <div class="page" id="page-documentos">
+          <h2>Documentos</h2>
+          <p>Em desenvolvimento...</p>
         </div>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- MODAL ADD IMOVEL -->
+  <div class="modal" id="modal-add-imovel">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">Adicionar Imóvel</h3>
+        <button class="modal-close" onclick="closeModal('modal-add-imovel')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-add-imovel">
+          <div class="form-group">
+            <label class="form-label">Nome do Imóvel *</label>
+            <input type="text" class="form-input" name="nome" required placeholder="Ex: Apartamento Trindade">
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Tipo *</label>
+              <select class="form-select" name="tipo" required>
+                <option value="">Selecione...</option>
+                <option value="Apartamento">Apartamento</option>
+                <option value="Casa">Casa</option>
+                <option value="Terreno">Terreno</option>
+                <option value="Comercial">Comercial</option>
+                <option value="Galpão">Galpão</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Grupo *</label>
+              <select class="form-select" name="grupo" required>
+                <option value="">Selecione...</option>
+                <option value="Investimento">Investimento</option>
+                <option value="Bem Pessoal">Bem Pessoal</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Subgrupo *</label>
+            <select class="form-select" name="subgrupo" required>
+              <option value="">Selecione...</option>
+              <option value="Carteira Locação">Carteira Locação</option>
+              <option value="Carteira Valorização">Carteira Valorização</option>
+              <option value="Uso Próprio">Uso Próprio</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Endereço Completo *</label>
+            <input type="text" class="form-input" name="endereco" required placeholder="Rua, número, bairro, cidade">
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Valor de Compra *</label>
+              <input type="number" class="form-input" name="valor_compra" required placeholder="750000">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Data da Compra *</label>
+              <input type="date" class="form-input" name="data_compra" required>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Valor Atual *</label>
+              <input type="number" class="form-input" name="valor_atual" required placeholder="850000">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Aluguel Mensal</label>
+              <input type="number" class="form-input" name="aluguel" placeholder="3500">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Inquilino Atual</label>
+            <input type="text" class="form-input" name="inquilino" placeholder="Nome do inquilino">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="closeModal('modal-add-imovel')">Cancelar</button>
+        <button class="btn-save" onclick="saveImovel()">Salvar</button>
       </div>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://apis.google.com/js/api.js"></script>
-    <script>
-      (function() {
-        console.log('🔥 Praxes Dashboard v2.0 - Build 20261217');
-        
-        const cfg = {
-          supabaseUrl: 'https://urckolcywijllkdyjcgc.supabase.co',
-          supabaseKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVyY2tvbGN5d2lqbGxrZHlqY2djIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyNzU1NDAsImV4cCI6MjA4Njg1MTU0MH0.79Zmto6Dns_2KQWlx6msHaQ98bneTAT74qd2vv5aSLU',
-          redirectUrl: 'https://praxes-dashboard.vercel.app'
-        };
-        
-        const db = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey);
-        let sheetId = null;
-        
-        async function doLogin() {
-          try {
-            const { error } = await db.auth.signInWithOAuth({
-              provider: 'google',
-              options: {
-                redirectTo: cfg.redirectUrl,
-                queryParams: { access_type: 'offline', prompt: 'consent' }
-              }
-            });
-            if (error) throw error;
-          } catch (e) {
-            console.error('❌ Login error:', e);
-            alert('Erro ao fazer login: ' + e.message);
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://apis.google.com/js/api.js"></script>
+  <script>
+    console.log('🔥 Praxes v3.0 - Sidebar + Imóveis');
+    
+    const cfg = {
+      supabaseUrl: 'https://urckolcywijllkdyjcgc.supabase.co',
+      supabaseKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVyY2tvbGN5d2lqbGxrZHlqY2djIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyNzU1NDAsImV4cCI6MjA4Njg1MTU0MH0.79Zmto6Dns_2KQWlx6msHaQ98bneTAT74qd2vv5aSLU',
+      redirectUrl: 'https://praxes-dashboard.vercel.app',
+      apiKey: 'AIzaSyCeUbBYphDkSepCED3ssP4J12AR3tCebxU'
+    };
+    
+    const db = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey);
+    let resumoSheetId = null;
+    let imoveisSheetId = null;
+    let currentUser = null;
+
+    // NAVEGAÇÃO
+    function navigateTo(pageName) {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      
+      document.getElementById('page-' + pageName).classList.add('active');
+      document.querySelector(`.nav-item[data-page="${pageName}"]`).classList.add('active');
+      
+      const titles = {
+        dashboard: 'Dashboard',
+        investimentos: 'Investimentos',
+        imoveis: 'Imóveis',
+        relatorios: 'Relatórios',
+        documentos: 'Documentos'
+      };
+      document.getElementById('top-title').textContent = titles[pageName] || 'Praxes';
+      
+      if (pageName === 'imoveis') {
+        loadImoveis();
+      }
+    }
+
+    // MODAL
+    function openModal(id) {
+      document.getElementById(id).classList.add('active');
+    }
+    function closeModal(id) {
+      document.getElementById(id).classList.remove('active');
+    }
+
+    // LOGIN
+    async function doLogin() {
+      try {
+        const { error } = await db.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: cfg.redirectUrl,
+            queryParams: { access_type: 'offline', prompt: 'consent' }
           }
+        });
+        if (error) throw error;
+      } catch (e) {
+        console.error('❌', e);
+        alert('Erro ao fazer login: ' + e.message);
+      }
+    }
+    
+    async function doLogout() {
+      await db.auth.signOut();
+      document.getElementById('auth-section').style.display = 'flex';
+      document.getElementById('app-container').style.display = 'none';
+      resumoSheetId = null;
+      imoveisSheetId = null;
+    }
+    
+    db.auth.onAuthStateChange(async (event, session) => {
+      console.log('🔐', event);
+      if (event === 'SIGNED_IN' && session) {
+        const email = session.user.email;
+        currentUser = email;
+        console.log('✅ User:', email);
+        
+        const { data: client, error } = await db
+          .from('clients')
+          .select('spreadsheet_id, name, imoveis_sheet_id')
+          .eq('email', email)
+          .single();
+        
+        if (error || !client) {
+          console.error('❌ Not found:', error);
+          alert('Acesso negado! Email não autorizado.');
+          doLogout();
+          return;
         }
         
-        async function doLogout() {
-          await db.auth.signOut();
-          document.getElementById('auth-section').style.display = 'flex';
-          document.getElementById('dashboard-section').style.display = 'none';
-          document.getElementById('signout-button').style.display = 'none';
-          document.getElementById('authorize-button').style.display = 'block';
-          sheetId = null;
-        }
+        console.log('📊 Client:', client.name);
+        resumoSheetId = client.spreadsheet_id;
+        imoveisSheetId = client.imoveis_sheet_id || '1FL7TlnRqTAkBUDM5ICMFvo5-6ezV92zPFAWevyEJT90';
         
-        db.auth.onAuthStateChange(async (event, session) => {
-          console.log('🔐', event);
-          if (event === 'SIGNED_IN' && session) {
-            const email = session.user.email;
-            console.log('✅ User:', email);
-            
-            const { data: client, error } = await db
-              .from('clients')
-              .select('spreadsheet_id, name')
-              .eq('email', email)
-              .single();
-            
-            if (error || !client) {
-              console.error('❌ Not found:', error);
-              alert('Acesso negado! Email não autorizado.\n\nContato: contato@praxes.com.br');
-              doLogout();
-              return;
-            }
-            
-            console.log('📊 Client:', client.name);
-            sheetId = client.spreadsheet_id;
-            
-            if (!window.gInit) {
-              await new Promise((ok) => {
-                gapi.load('client', async () => {
-                  await gapi.client.init({
-                    apiKey: 'AIzaSyCeUbBYphDkSepCED3ssP4J12AR3tCebxU',
-                    discoveryDocs: ["https://sheets.googleapis.com/$discovery/rest?version=v4"]
-                  });
-                  window.gInit = true;
-                  console.log('✅ Sheets API ready');
-                  ok();
-                });
+        if (!window.gInit) {
+          await new Promise((ok) => {
+            gapi.load('client', async () => {
+              await gapi.client.init({
+                apiKey: cfg.apiKey,
+                discoveryDocs: ["https://sheets.googleapis.com/$discovery/rest?version=v4"]
               });
-            }
-            
-            document.getElementById('auth-section').style.display = 'none';
-            document.getElementById('dashboard-section').style.display = 'block';
-            document.getElementById('signout-button').style.display = 'block';
-            document.getElementById('authorize-button').style.display = 'none';
-            loadData();
+              window.gInit = true;
+              console.log('✅ Sheets API ready');
+              ok();
+            });
+          });
+        }
+        
+        document.getElementById('auth-section').style.display = 'none';
+        document.getElementById('app-container').style.display = 'flex';
+        
+        document.getElementById('sidebar-name').textContent = client.name;
+        document.getElementById('sidebar-avatar').textContent = client.name.substring(0, 2).toUpperCase();
+        
+        loadDashboard();
+      }
+    });
+
+    // LOAD DASHBOARD
+    async function loadDashboard() {
+      try {
+        const response = await gapi.client.sheets.spreadsheets.values.get({
+          spreadsheetId: resumoSheetId,
+          range: "Resumo!A1:B10"
+        });
+        const rows = response.result.values;
+        if (!rows) return;
+        
+        rows.forEach(([k, v]) => {
+          if (k === "Patrimônio Total") {
+            document.getElementById("total-patrimonio").textContent = fmt(v);
+          } else if (k === "Total Investimentos") {
+            document.getElementById("total-investimentos").textContent = fmt(v);
+          } else if (k === "Total Imóveis") {
+            document.getElementById("total-imoveis").textContent = fmt(v);
+          } else if (k === "Renda Passiva Mensal") {
+            document.getElementById("renda-passiva").textContent = fmt(v);
+          } else if (k === "Variação Patrimônio") {
+            const el = document.getElementById("patrimonio-change");
+            el.textContent = v;
+            el.className = "stat-change " + (v.includes("+") ? "positive" : "negative");
+          } else if (k === "Variação Investimentos") {
+            const el = document.getElementById("investimentos-change");
+            el.textContent = v;
+            el.className = "stat-change " + (v.includes("+") ? "positive" : "negative");
+          } else if (k === "Variação Imóveis") {
+            const el = document.getElementById("imoveis-change");
+            el.textContent = v;
+            el.className = "stat-change " + (v.includes("+") ? "positive" : "negative");
           }
         });
-        
-        async function loadData() {
-          try {
-            await Promise.all([loadResumo(), loadInv(), loadImv(), loadAlt()]);
-          } catch (e) {
-            console.error('❌', e);
-            alert('Erro ao carregar: ' + (e.message || e));
-          }
-        }
-        
-        async function loadResumo() {
-          const r = await gapi.client.sheets.spreadsheets.values.get({
-            spreadsheetId: sheetId, range: "Resumo!A1:B10"
-          });
-          const rows = r.result.values;
-          if (!rows) return;
-          rows.forEach(([k, v]) => {
-            if (k === "Nome") {
-              document.getElementById("welcome-name").textContent = v;
-              document.getElementById("user-name").textContent = v;
-              document.getElementById("user-avatar").textContent = v.substring(0, 2).toUpperCase();
-            } else if (k === "Patrimônio Total") {
-              document.getElementById("total-patrimonio").textContent = fmt(v);
-            } else if (k === "Total Investimentos") {
-              document.getElementById("total-investimentos").textContent = fmt(v);
-            } else if (k === "Total Imóveis") {
-              document.getElementById("total-imoveis").textContent = fmt(v);
-            } else if (k === "Renda Passiva Mensal") {
-              document.getElementById("renda-passiva").textContent = fmt(v);
-            } else if (k === "Variação Patrimônio") {
-              const el = document.getElementById("patrimonio-change");
-              el.textContent = v;
-              el.className = "stat-change " + (v.includes("+") ? "positive" : "negative");
-            } else if (k === "Variação Investimentos") {
-              const el = document.getElementById("investimentos-change");
-              el.textContent = v;
-              el.className = "stat-change " + (v.includes("+") ? "positive" : "negative");
-            } else if (k === "Variação Imóveis") {
-              const el = document.getElementById("imoveis-change");
-              el.textContent = v;
-              el.className = "stat-change " + (v.includes("+") ? "positive" : "negative");
-            }
-          });
-        }
-        
-        async function loadInv() {
-          const r = await gapi.client.sheets.spreadsheets.values.get({
-            spreadsheetId: sheetId, range: "Investimentos!A2:F100"
-          });
-          const rows = r.result.values;
-          if (!rows || !rows.length) {
-            document.getElementById("investimentos-content").innerHTML = "<p>Nenhum investimento.</p>";
-            return;
-          }
-          let h = '<table><thead><tr><th>Ativo</th><th>Tipo</th><th>Quantidade</th><th>Valor</th><th>Rent.</th></tr></thead><tbody>';
-          rows.forEach(row => {
-            if (row[0]) {
-              const rt = parseFloat(row[4]) || 0;
-              const cls = rt >= 0 ? "positive" : "negative";
-              h += `<tr><td><div class="asset-name">${row[0]}</div></td><td><div class="asset-type">${row[1]||"-"}</div></td><td>${row[2]||"-"}</td><td>${fmt(row[3])}</td><td class="stat-change ${cls}">${pct(rt)}</td></tr>`;
-            }
-          });
-          h += '</tbody></table>';
-          document.getElementById("investimentos-content").innerHTML = h;
-        }
-        
-        async function loadImv() {
-          const r = await gapi.client.sheets.spreadsheets.values.get({
-            spreadsheetId: sheetId, range: "Imóveis!A2:F100"
-          });
-          const rows = r.result.values;
-          if (!rows || !rows.length) {
-            document.getElementById("imoveis-content").innerHTML = "<p>Nenhum imóvel.</p>";
-            return;
-          }
-          let h = '<table><thead><tr><th>Imóvel</th><th>Local</th><th>Valor</th><th>Aluguel</th><th>Yield</th></tr></thead><tbody>';
-          rows.forEach(row => {
-            if (row[0]) {
-              const y = parseFloat(row[4]) || 0;
-              h += `<tr><td><div class="asset-name">${row[0]}</div></td><td><div class="asset-type">${row[1]||"-"}</div></td><td>${fmt(row[2])}</td><td>${fmt(row[3])}</td><td class="stat-change positive">${pct(y)}</td></tr>`;
-            }
-          });
-          h += '</tbody></table>';
-          document.getElementById("imoveis-content").innerHTML = h;
-        }
-        
-        async function loadAlt() {
-          const r = await gapi.client.sheets.spreadsheets.values.get({
-            spreadsheetId: sheetId, range: "Alertas!A2:C50"
-          });
-          const rows = r.result.values;
-          if (!rows || !rows.length) {
-            document.getElementById("alertas-content").innerHTML = "<p>Nenhum alerta! ✓</p>";
-            return;
-          }
-          let h = '<table><thead><tr><th>Tipo</th><th>Descrição</th><th>Venc.</th></tr></thead><tbody>';
-          rows.forEach(row => {
-            if (row[0]) {
-              h += `<tr><td><div class="asset-name">${row[0]}</div></td><td>${row[1]||"-"}</td><td>${row[2]||"-"}</td></tr>`;
-            }
-          });
-          h += '</tbody></table>';
-          document.getElementById("alertas-content").innerHTML = h;
-        }
-        
-        function fmt(v) {
-          if (!v) return 'R$ 0';
-          let n;
-          if (typeof v === 'string') {
-            let c = v.replace(/R\$/g, '').trim();
-            c = c.replace(/\./g, '').replace(',', '.');
-            n = parseFloat(c);
-          } else {
-            n = parseFloat(v);
-          }
-          if (isNaN(n)) return 'R$ 0';
-          return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
-        }
-        
-        function pct(v) {
-          if (!v) return "0%";
-          const n = typeof v === "string" ? parseFloat(v) : v;
-          return (n >= 0 ? "+" : "") + n.toFixed(2) + "%";
-        }
-        
-        window.addEventListener('load', async () => {
-          console.log('🚀 Ready');
-          document.getElementById('authorize-button').addEventListener('click', doLogin);
-          document.getElementById('signout-button').addEventListener('click', doLogout);
-          const { data: { session } } = await db.auth.getSession();
-          console.log(session ? '✅ Active session' : '❌ No session');
+      } catch (e) {
+        console.error('❌', e);
+      }
+    }
+
+    // LOAD IMOVEIS
+    async function loadImoveis() {
+      try {
+        const response = await gapi.client.sheets.spreadsheets.values.get({
+          spreadsheetId: imoveisSheetId,
+          range: "Lista!A2:T100"
         });
-      })();
-    </script>
-  </body>
+        const rows = response.result.values;
+        
+        const grid = document.getElementById('imoveis-grid');
+        
+        if (!rows || !rows.length) {
+          grid.innerHTML = '<p style="text-align:center; padding: 60px; color: #999;">Nenhum imóvel cadastrado. Clique em "Adicionar Imóvel" para começar!</p>';
+          return;
+        }
+        
+        let html = '';
+        rows.forEach(row => {
+          if (!row[0]) return;
+          
+          const nome = row[0];
+          const tipo = row[1] || '';
+          const grupo = row[2] || '';
+          const subgrupo = row[3] || '';
+          const valorCompra = parseFloat(row[5]) || 0;
+          const valorAtual = parseFloat(row[7]) || 0;
+          const aluguel = parseFloat(row[9]) || 0;
+          
+          const variacao = valorCompra > 0 ? ((valorAtual - valorCompra) / valorCompra * 100).toFixed(1) : 0;
+          const variacaoClass = variacao >= 0 ? 'positive' : 'negative';
+          const variacaoSymbol = variacao >= 0 ? '+' : '';
+          
+          const emoji = tipo === 'Apartamento' ? '🏢' : tipo === 'Casa' ? '🏡' : tipo === 'Terreno' ? '🏞️' : '🏠';
+          
+          html += `
+            <div class="imovel-card">
+              <div class="imovel-image">${emoji}</div>
+              <div class="imovel-body">
+                <div class="imovel-title">${nome}</div>
+                <div class="imovel-meta">${grupo} • ${subgrupo}</div>
+                <div class="imovel-stats">
+                  <div class="imovel-stat-item">
+                    <div class="imovel-stat-label">Valor Atual</div>
+                    <div class="imovel-stat-value">${fmt(valorAtual)}</div>
+                  </div>
+                  <div class="imovel-stat-item">
+                    <div class="imovel-stat-label">Valorização</div>
+                    <div class="imovel-stat-value stat-change ${variacaoClass}">${variacaoSymbol}${variacao}%</div>
+                  </div>
+                  ${aluguel > 0 ? `
+                  <div class="imovel-stat-item" style="grid-column: span 2;">
+                    <div class="imovel-stat-label">Aluguel Mensal</div>
+                    <div class="imovel-stat-value">${fmt(aluguel)}</div>
+                  </div>
+                  ` : ''}
+                </div>
+                <div class="imovel-actions">
+                  <button class="btn-action">Ver Detalhes</button>
+                  <button class="btn-action">📁 Docs</button>
+                  <button class="btn-action">✏️</button>
+                </div>
+              </div>
+            </div>
+          `;
+        });
+        
+        grid.innerHTML = html;
+      } catch (e) {
+        console.error('❌', e);
+        document.getElementById('imoveis-grid').innerHTML = '<p style="text-align:center; padding: 60px; color: red;">Erro ao carregar imóveis: ' + e.message + '</p>';
+      }
+    }
+
+    // SAVE IMOVEL
+    async function saveImovel() {
+      const form = document.getElementById('form-add-imovel');
+      const data = new FormData(form);
+      
+      const row = [
+        data.get('nome'),
+        data.get('tipo'),
+        data.get('grupo'),
+        data.get('subgrupo'),
+        data.get('endereco'),
+        data.get('valor_compra'),
+        data.get('data_compra'),
+        data.get('valor_atual'),
+        new Date().toISOString().split('T')[0],
+        data.get('aluguel') || 0,
+        data.get('inquilino') || '',
+        '',
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        '',
+        ''
+      ];
+      
+      try {
+        await gapi.client.sheets.spreadsheets.values.append({
+          spreadsheetId: imoveisSheetId,
+          range: 'Lista!A:T',
+          valueInputOption: 'USER_ENTERED',
+          resource: { values: [row] }
+        });
+        
+        closeModal('modal-add-imovel');
+        form.reset();
+        loadImoveis();
+        alert('Imóvel adicionado com sucesso!');
+      } catch (e) {
+        console.error('❌', e);
+        alert('Erro ao salvar: ' + e.message);
+      }
+    }
+
+    function fmt(v) {
+      if (!v) return 'R$ 0';
+      let n;
+      if (typeof v === 'string') {
+        let c = v.replace(/R\$/g, '').trim();
+        c = c.replace(/\./g, '').replace(',', '.');
+        n = parseFloat(c);
+      } else {
+        n = parseFloat(v);
+      }
+      if (isNaN(n)) return 'R$ 0';
+      return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
+    }
+
+    // EVENT LISTENERS
+    window.addEventListener('load', async () => {
+      console.log('🚀 Ready');
+      
+      document.getElementById('authorize-button').addEventListener('click', doLogin);
+      document.getElementById('signout-button').addEventListener('click', doLogout);
+      document.getElementById('btn-add-imovel').addEventListener('click', () => openModal('modal-add-imovel'));
+      
+      document.querySelectorAll('.nav-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const page = item.getAttribute('data-page');
+          navigateTo(page);
+        });
+      });
+      
+      document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          // TODO: filtrar imóveis
+        });
+      });
+      
+      const { data: { session } } = await db.auth.getSession();
+      console.log(session ? '✅ Active session' : '❌ No session');
+    });
+  </script>
+</body>
 </html>
