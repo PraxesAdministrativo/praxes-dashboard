@@ -1145,36 +1145,61 @@
     // LOAD DASHBOARD
     async function loadDashboard() {
       try {
+        // Carrega resumo
         const response = await gapi.client.sheets.spreadsheets.values.get({
           spreadsheetId: resumoSheetId,
           range: "Resumo!A1:B10"
         });
         const rows = response.result.values;
-        if (!rows) return;
+        if (rows) {
+          rows.forEach(([k, v]) => {
+            if (k === "Patrimônio Total") {
+              document.getElementById("total-patrimonio").textContent = fmt(v);
+            } else if (k === "Total Investimentos") {
+              document.getElementById("total-investimentos").textContent = fmt(v);
+            } else if (k === "Renda Passiva Mensal") {
+              document.getElementById("renda-passiva").textContent = fmt(v);
+            } else if (k === "Variação Patrimônio") {
+              const el = document.getElementById("patrimonio-change");
+              el.textContent = v;
+              el.className = "stat-change " + (v.includes("+") ? "positive" : "negative");
+            } else if (k === "Variação Investimentos") {
+              const el = document.getElementById("investimentos-change");
+              el.textContent = v;
+              el.className = "stat-change " + (v.includes("+") ? "positive" : "negative");
+            }
+          });
+        }
         
-        rows.forEach(([k, v]) => {
-          if (k === "Patrimônio Total") {
-            document.getElementById("total-patrimonio").textContent = fmt(v);
-          } else if (k === "Total Investimentos") {
-            document.getElementById("total-investimentos").textContent = fmt(v);
-          } else if (k === "Total Imóveis") {
-            document.getElementById("total-imoveis").textContent = fmt(v);
-          } else if (k === "Renda Passiva Mensal") {
-            document.getElementById("renda-passiva").textContent = fmt(v);
-          } else if (k === "Variação Patrimônio") {
-            const el = document.getElementById("patrimonio-change");
-            el.textContent = v;
-            el.className = "stat-change " + (v.includes("+") ? "positive" : "negative");
-          } else if (k === "Variação Investimentos") {
-            const el = document.getElementById("investimentos-change");
-            el.textContent = v;
-            el.className = "stat-change " + (v.includes("+") ? "positive" : "negative");
-          } else if (k === "Variação Imóveis") {
-            const el = document.getElementById("imoveis-change");
-            el.textContent = v;
-            el.className = "stat-change " + (v.includes("+") ? "positive" : "negative");
+        // Calcula total de imóveis automaticamente
+        const imoveisResponse = await gapi.client.sheets.spreadsheets.values.get({
+          spreadsheetId: imoveisSheetId,
+          range: "Lista!A2:H100"
+        });
+        const imoveisRows = imoveisResponse.result.values || [];
+        
+        let totalImoveis = 0;
+        let valorCompraTotal = 0;
+        
+        imoveisRows.forEach(row => {
+          if (row[0]) { // Se tem nome
+            const valorAtual = parseFloat(String(row[7] || '0').replace(/[^\d.-]/g, '')) || 0;
+            const valorCompra = parseFloat(String(row[5] || '0').replace(/[^\d.-]/g, '')) || 0;
+            totalImoveis += valorAtual;
+            valorCompraTotal += valorCompra;
           }
         });
+        
+        document.getElementById("total-imoveis").textContent = fmt(totalImoveis);
+        
+        // Calcula variação dos imóveis
+        if (valorCompraTotal > 0) {
+          const variacaoImoveis = ((totalImoveis - valorCompraTotal) / valorCompraTotal * 100).toFixed(1);
+          const el = document.getElementById("imoveis-change");
+          el.textContent = (variacaoImoveis >= 0 ? '+' : '') + variacaoImoveis + '%';
+          el.className = "stat-change " + (variacaoImoveis >= 0 ? "positive" : "negative");
+        }
+        
       } catch (e) {
         console.error('❌', e);
       }
@@ -1182,6 +1207,7 @@
 
     // LOAD IMOVEIS
     let imoveisData = [];
+    let currentFilter = 'todos';
     
     async function loadImoveis() {
       try {
@@ -1192,70 +1218,95 @@
         const rows = response.result.values;
         
         imoveisData = rows || [];
+        renderImoveis();
         
-        const grid = document.getElementById('imoveis-grid');
-        
-        if (!rows || !rows.length) {
-          grid.innerHTML = '<p style="text-align:center; padding: 60px; color: #999;">Nenhum imóvel cadastrado. Clique em "Adicionar Imóvel" para começar!</p>';
-          return;
-        }
-        
-        let html = '';
-        rows.forEach((row, index) => {
-          if (!row[0]) return;
-          
-          const nome = row[0];
-          const tipo = row[1] || '';
-          const grupo = row[2] || '';
-          const subgrupo = row[3] || '';
-          const valorCompra = parseFloat(String(row[5] || '0').replace(/[^\d.-]/g, '')) || 0;
-          const valorAtual = parseFloat(String(row[7] || '0').replace(/[^\d.-]/g, '')) || 0;
-          const aluguel = parseFloat(String(row[9] || '0').replace(/[^\d.-]/g, '')) || 0;
-          
-          const variacao = valorCompra > 0 ? ((valorAtual - valorCompra) / valorCompra * 100).toFixed(1) : 0;
-          const variacaoClass = variacao >= 0 ? 'positive' : 'negative';
-          const variacaoSymbol = variacao >= 0 ? '+' : '';
-          
-          const emoji = tipo === 'Apartamento' ? '🏢' : tipo === 'Casa' ? '🏡' : tipo === 'Terreno' ? '🏞️' : '🏠';
-          
-          html += `
-            <div class="imovel-card">
-              <div class="imovel-image">${emoji}</div>
-              <div class="imovel-body">
-                <div class="imovel-title">${nome}</div>
-                <div class="imovel-meta">${grupo} • ${subgrupo}</div>
-                <div class="imovel-stats">
-                  <div class="imovel-stat-item">
-                    <div class="imovel-stat-label">Valor Atual</div>
-                    <div class="imovel-stat-value">${fmt(valorAtual)}</div>
-                  </div>
-                  <div class="imovel-stat-item">
-                    <div class="imovel-stat-label">Valorização</div>
-                    <div class="imovel-stat-value stat-change ${variacaoClass}">${variacaoSymbol}${variacao}%</div>
-                  </div>
-                  ${aluguel > 0 ? `
-                  <div class="imovel-stat-item" style="grid-column: span 2;">
-                    <div class="imovel-stat-label">Aluguel Mensal</div>
-                    <div class="imovel-stat-value">${fmt(aluguel)}</div>
-                  </div>
-                  ` : ''}
-                </div>
-                <div class="imovel-actions">
-                  <button class="btn-action" onclick="viewImovelDetalhes(${index})">Ver Detalhes</button>
-                  <button class="btn-action" onclick="viewImovelDocs(${index})">📁 Docs</button>
-                  <button class="btn-action" onclick="editImovel(${index})">✏️</button>
-                  <button class="btn-action" onclick="confirmDeleteImovel(${index})" style="color: #ef4444;">🗑️</button>
-                </div>
-              </div>
-            </div>
-          `;
-        });
-        
-        grid.innerHTML = html;
       } catch (e) {
         console.error('❌', e);
         document.getElementById('imoveis-grid').innerHTML = '<p style="text-align:center; padding: 60px; color: red;">Erro ao carregar imóveis: ' + e.message + '</p>';
       }
+    }
+    
+    function renderImoveis() {
+      const grid = document.getElementById('imoveis-grid');
+      
+      if (!imoveisData || !imoveisData.length) {
+        grid.innerHTML = '<p style="text-align:center; padding: 60px; color: #999;">Nenhum imóvel cadastrado. Clique em "Adicionar Imóvel" para começar!</p>';
+        return;
+      }
+      
+      // Filtra por grupo
+      let filtered = imoveisData;
+      if (currentFilter === 'investimento') {
+        filtered = imoveisData.filter(row => row[2] === 'Investimento');
+      } else if (currentFilter === 'pessoal') {
+        filtered = imoveisData.filter(row => row[2] === 'Bem Pessoal');
+      }
+      
+      if (filtered.length === 0) {
+        grid.innerHTML = '<p style="text-align:center; padding: 60px; color: #999;">Nenhum imóvel encontrado com esse filtro.</p>';
+        return;
+      }
+      
+      let html = '';
+      filtered.forEach((row) => {
+        if (!row[0]) return;
+        
+        // Encontra índice original para editar/excluir
+        const index = imoveisData.indexOf(row);
+        
+        const nome = row[0];
+        const tipo = row[1] || '';
+        const grupo = row[2] || '';
+        const subgrupo = row[3] || '';
+        const valorCompra = parseFloat(String(row[5] || '0').replace(/[^\d.-]/g, '')) || 0;
+        const valorAtual = parseFloat(String(row[7] || '0').replace(/[^\d.-]/g, '')) || 0;
+        const aluguel = parseFloat(String(row[9] || '0').replace(/[^\d.-]/g, '')) || 0;
+        
+        const variacao = valorCompra > 0 ? ((valorAtual - valorCompra) / valorCompra * 100).toFixed(1) : 0;
+        const variacaoClass = variacao >= 0 ? 'positive' : 'negative';
+        const variacaoSymbol = variacao >= 0 ? '+' : '';
+        
+        const emoji = tipo === 'Apartamento' ? '🏢' : tipo === 'Casa' ? '🏡' : tipo === 'Terreno' ? '🏞️' : '🏠';
+        
+        html += `
+          <div class="imovel-card">
+            <div class="imovel-image">${emoji}</div>
+            <div class="imovel-body">
+              <div class="imovel-title">${nome}</div>
+              <div class="imovel-meta">${grupo} • ${subgrupo}</div>
+              <div class="imovel-stats">
+                <div class="imovel-stat-item">
+                  <div class="imovel-stat-label">Valor Atual</div>
+                  <div class="imovel-stat-value">${fmt(valorAtual)}</div>
+                </div>
+                <div class="imovel-stat-item">
+                  <div class="imovel-stat-label">Valorização</div>
+                  <div class="imovel-stat-value stat-change ${variacaoClass}">${variacaoSymbol}${variacao}%</div>
+                </div>
+                ${aluguel > 0 ? `
+                <div class="imovel-stat-item" style="grid-column: span 2;">
+                  <div class="imovel-stat-label">Aluguel Mensal</div>
+                  <div class="imovel-stat-value">${fmt(aluguel)}</div>
+                </div>
+                ` : ''}
+              </div>
+              <div class="imovel-actions">
+                <button class="btn-action" onclick="viewImovelDetalhes(${index})">Ver Detalhes</button>
+                <button class="btn-action" onclick="viewImovelDocs(${index})">📁 Docs</button>
+                <button class="btn-action" onclick="editImovel(${index})">✏️</button>
+                <button class="btn-action" onclick="confirmDeleteImovel(${index})" style="color: #ef4444;">🗑️</button>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+      
+      grid.innerHTML = html;
+    }
+    
+    function setFilter(filter) {
+      currentFilter = filter;
+      renderImoveis();
     }
 
     // EDIT IMOVEL
@@ -1913,7 +1964,8 @@
         btn.addEventListener('click', () => {
           document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
           btn.classList.add('active');
-          // TODO: filtrar imóveis
+          const filter = btn.getAttribute('data-filter');
+          setFilter(filter);
         });
       });
       
