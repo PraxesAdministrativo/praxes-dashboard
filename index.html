@@ -1111,10 +1111,12 @@
               await gapi.client.init({
                 apiKey: cfg.apiKey,
                 discoveryDocs: [
-                  "https://sheets.googleapis.com/$discovery/rest?version=v4",
-                  "https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"
+                  "https://sheets.googleapis.com/$discovery/rest?version=v4"
                 ]
               });
+              
+              // Carrega Drive API separadamente
+              await gapi.client.load('drive', 'v3');
               
               // Define o access token do Google OAuth
               const provider_token = session.provider_token;
