@@ -730,7 +730,11 @@
           provider: 'google',
           options: {
             redirectTo: cfg.redirectUrl,
-            queryParams: { access_type: 'offline', prompt: 'consent' }
+            queryParams: { 
+              access_type: 'offline', 
+              prompt: 'consent',
+              scope: 'openid email profile https://www.googleapis.com/auth/spreadsheets'
+            }
           }
         });
         if (error) throw error;
@@ -769,8 +773,13 @@
         }
         
         console.log('📊 Client:', client.name);
+        console.log('📋 Resumo Sheet:', client.spreadsheet_id);
+        console.log('🏘️ Imoveis Sheet:', client.imoveis_sheet_id);
+        
         resumoSheetId = client.spreadsheet_id;
         imoveisSheetId = client.imoveis_sheet_id || '1FL7TlnRqTAkBUDM5ICMFvo5-6ezV92zPFAWevyEJT90';
+        
+        console.log('✅ Using Imoveis Sheet:', imoveisSheetId);
         
         if (!window.gInit) {
           await new Promise((ok) => {
@@ -779,6 +788,14 @@
                 apiKey: cfg.apiKey,
                 discoveryDocs: ["https://sheets.googleapis.com/$discovery/rest?version=v4"]
               });
+              
+              // Define o access token do Google OAuth
+              const provider_token = session.provider_token;
+              if (provider_token) {
+                gapi.client.setToken({ access_token: provider_token });
+                console.log('✅ Google OAuth token set');
+              }
+              
               window.gInit = true;
               console.log('✅ Sheets API ready');
               ok();
