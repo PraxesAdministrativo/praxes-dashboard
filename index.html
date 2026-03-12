@@ -1699,7 +1699,8 @@
         
         const accessToken = gapi.client.getToken().access_token;
         
-        const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name', {
+        // Adiciona supportsAllDrives na URL
+        const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name&supportsAllDrives=true', {
           method: 'POST',
           headers: {
             'Authorization': 'Bearer ' + accessToken
@@ -1707,7 +1708,10 @@
           body: formData
         });
         
-        if (!response.ok) throw new Error('Upload failed');
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error?.message || 'Upload failed');
+        }
         
         console.log('✅ Upload:', file.name);
         await loadDocumentos(currentDriveFolderId);
