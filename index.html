@@ -671,7 +671,7 @@
       </div>
       <div class="modal-footer">
         <button class="btn-cancel" onclick="closeModal('modal-add-imovel')">Cancelar</button>
-        <button class="btn-save" onclick="saveImovel()">Salvar</button>
+        <button class="btn-save" id="btn-save-imovel" onclick="saveImovel()">Salvar</button>
       </div>
     </div>
   </div>
@@ -852,6 +852,8 @@
     }
 
     // LOAD IMOVEIS
+    let imoveisData = [];
+    
     async function loadImoveis() {
       try {
         const response = await gapi.client.sheets.spreadsheets.values.get({
@@ -859,6 +861,8 @@
           range: "Lista!A2:T100"
         });
         const rows = response.result.values;
+        
+        imoveisData = rows || [];
         
         const grid = document.getElementById('imoveis-grid');
         
@@ -868,7 +872,7 @@
         }
         
         let html = '';
-        rows.forEach(row => {
+        rows.forEach((row, index) => {
           if (!row[0]) return;
           
           const nome = row[0];
@@ -908,9 +912,10 @@
                   ` : ''}
                 </div>
                 <div class="imovel-actions">
-                  <button class="btn-action">Ver Detalhes</button>
-                  <button class="btn-action">📁 Docs</button>
-                  <button class="btn-action">✏️</button>
+                  <button class="btn-action" onclick="viewImovelDetalhes(${index})">Ver Detalhes</button>
+                  <button class="btn-action" onclick="viewImovelDocs(${index})">📁 Docs</button>
+                  <button class="btn-action" onclick="editImovel(${index})">✏️</button>
+                  <button class="btn-action" onclick="confirmDeleteImovel(${index})" style="color: #ef4444;">🗑️</button>
                 </div>
               </div>
             </div>
@@ -924,10 +929,95 @@
       }
     }
 
+    // EDIT IMOVEL
+    function editImovel(index) {
+      const row = imoveisData[index];
+      if (!row) return;
+      
+      const form = document.getElementById('form-add-imovel');
+      form.elements['nome'].value = row[0] || '';
+      form.elements['tipo'].value = row[1] || '';
+      form.elements['grupo'].value = row[2] || '';
+      form.elements['subgrupo'].value = row[3] || '';
+      form.elements['endereco'].value = row[4] || '';
+      form.elements['valor_compra'].value = row[5] || '';
+      form.elements['data_compra'].value = row[6] || '';
+      form.elements['valor_atual'].value = row[7] || '';
+      form.elements['aluguel'].value = row[9] || '';
+      form.elements['inquilino'].value = row[10] || '';
+      
+      document.querySelector('#modal-add-imovel .modal-title').textContent = 'Editar Imóvel';
+      document.getElementById('btn-save-imovel').setAttribute('data-index', index);
+      document.getElementById('btn-save-imovel').setAttribute('data-mode', 'edit');
+      
+      openModal('modal-add-imovel');
+    }
+
+    // DELETE IMOVEL
+    function confirmDeleteImovel(index) {
+      const row = imoveisData[index];
+      if (!row) return;
+      
+      const nome = row[0];
+      
+      if (confirm(`⚠️ ATENÇÃO!\n\nDeseja realmente excluir o imóvel "${nome}"?\n\nEsta ação NÃO pode ser desfeita!`)) {
+        deleteImovel(index);
+      }
+    }
+    
+    async function deleteImovel(index) {
+      try {
+        const rowNumber = index + 2; // +2 porque começa na linha 2 (linha 1 é header)
+        
+        // Precisa do sheetId da aba Lista
+        const sheetMetadata = await gapi.client.sheets.spreadsheets.get({
+          spreadsheetId: imoveisSheetId
+        });
+        
+        const listaSheet = sheetMetadata.result.sheets.find(s => s.properties.title === 'Lista');
+        const sheetId = listaSheet.properties.sheetId;
+        
+        await gapi.client.sheets.spreadsheets.batchUpdate({
+          spreadsheetId: imoveisSheetId,
+          resource: {
+            requests: [{
+              deleteDimension: {
+                range: {
+                  sheetId: sheetId,
+                  dimension: 'ROWS',
+                  startIndex: rowNumber - 1,
+                  endIndex: rowNumber
+                }
+              }
+            }]
+          }
+        });
+        
+        loadImoveis();
+        alert('✅ Imóvel excluído com sucesso!');
+      } catch (e) {
+        console.error('❌', e);
+        alert('Erro ao excluir: ' + e.message);
+      }
+    }
+    
+    // VIEW DETALHES (placeholder)
+    function viewImovelDetalhes(index) {
+      alert('Página de detalhes em desenvolvimento! (Parte 2B)');
+    }
+    
+    // VIEW DOCS (placeholder)
+    function viewImovelDocs(index) {
+      alert('Documentos em desenvolvimento! (Parte 2C - Google Drive)');
+    }
+
     // SAVE IMOVEL
     async function saveImovel() {
       const form = document.getElementById('form-add-imovel');
       const data = new FormData(form);
+      const btn = document.getElementById('btn-save-imovel');
+      const mode = btn.getAttribute('data-mode') || 'add';
+      const index = parseInt(btn.getAttribute('data-index') || '-1');
       
       const row = [
         data.get('nome'),
@@ -953,17 +1043,33 @@
       ];
       
       try {
-        await gapi.client.sheets.spreadsheets.values.append({
-          spreadsheetId: imoveisSheetId,
-          range: 'Lista!A:T',
-          valueInputOption: 'USER_ENTERED',
-          resource: { values: [row] }
-        });
+        if (mode === 'edit') {
+          // UPDATE
+          const rowNumber = index + 2;
+          await gapi.client.sheets.spreadsheets.values.update({
+            spreadsheetId: imoveisSheetId,
+            range: `Lista!A${rowNumber}:T${rowNumber}`,
+            valueInputOption: 'USER_ENTERED',
+            resource: { values: [row] }
+          });
+          alert('✅ Imóvel atualizado com sucesso!');
+        } else {
+          // CREATE
+          await gapi.client.sheets.spreadsheets.values.append({
+            spreadsheetId: imoveisSheetId,
+            range: 'Lista!A:T',
+            valueInputOption: 'USER_ENTERED',
+            resource: { values: [row] }
+          });
+          alert('✅ Imóvel adicionado com sucesso!');
+        }
         
         closeModal('modal-add-imovel');
         form.reset();
+        btn.removeAttribute('data-mode');
+        btn.removeAttribute('data-index');
+        document.querySelector('#modal-add-imovel .modal-title').textContent = 'Adicionar Imóvel';
         loadImoveis();
-        alert('Imóvel adicionado com sucesso!');
       } catch (e) {
         console.error('❌', e);
         alert('Erro ao salvar: ' + e.message);
