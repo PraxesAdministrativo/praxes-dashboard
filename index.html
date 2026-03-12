@@ -1612,19 +1612,20 @@
     
     async function createImovelFolder(nomeImovel) {
       try {
-        // Cria pasta dentro da pasta "6. Imóveis" do cliente
+        // Cria pasta dentro da pasta "6. Imóveis" do cliente (suporta Shared Drive)
         const folderMetadata = {
           name: nomeImovel.replace(/[/\\?%*:|"<>]/g, '_'),
           mimeType: 'application/vnd.google-apps.folder',
-          parents: [imoveisFolderId]  // Pasta pai do cliente
+          parents: [imoveisFolderId]
         };
         
         const response = await gapi.client.drive.files.create({
           resource: folderMetadata,
-          fields: 'id, webViewLink'
+          fields: 'id, webViewLink',
+          supportsAllDrives: true  // CRÍTICO para Shared Drives
         });
         
-        console.log('✅ Pasta criada:', response.result.id);
+        console.log('✅ Pasta criada no Shared Drive:', response.result.id);
         console.log('🔗 Link:', response.result.webViewLink);
         return response.result.id;
       } catch (e) {
@@ -1640,7 +1641,9 @@
         const response = await gapi.client.drive.files.list({
           q: `'${folderId}' in parents and trashed=false`,
           fields: 'files(id, name, mimeType, size, createdTime, webViewLink, webContentLink)',
-          orderBy: 'createdTime desc'
+          orderBy: 'createdTime desc',
+          supportsAllDrives: true,  // Para Shared Drives
+          includeItemsFromAllDrives: true  // Para Shared Drives
         });
         
         const files = response.result.files || [];
@@ -1718,7 +1721,10 @@
       if (!confirm(`Deseja realmente excluir "${fileName}"?`)) return;
       
       try {
-        await gapi.client.drive.files.delete({ fileId });
+        await gapi.client.drive.files.delete({ 
+          fileId,
+          supportsAllDrives: true  // Para Shared Drives
+        });
         console.log('✅ Deletado:', fileName);
         await loadDocumentos(currentDriveFolderId);
       } catch (e) {
