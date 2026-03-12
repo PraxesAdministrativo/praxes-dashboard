@@ -1011,6 +1011,7 @@
     const db = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey);
     let resumoSheetId = null;
     let imoveisSheetId = null;
+    let imoveisFolderId = null;
     let currentUser = null;
 
     // NAVEGAÇÃO
@@ -1081,7 +1082,7 @@
         
         const { data: client, error } = await db
           .from('clients')
-          .select('spreadsheet_id, name, imoveis_sheet_id')
+          .select('spreadsheet_id, name, imoveis_sheet_id, imoveis_folder_id')
           .eq('email', email)
           .single();
         
@@ -1095,11 +1096,14 @@
         console.log('📊 Client:', client.name);
         console.log('📋 Resumo Sheet:', client.spreadsheet_id);
         console.log('🏘️ Imoveis Sheet:', client.imoveis_sheet_id);
+        console.log('📁 Imoveis Folder:', client.imoveis_folder_id);
         
         resumoSheetId = client.spreadsheet_id;
         imoveisSheetId = client.imoveis_sheet_id || '1FL7TlnRqTAkBUDM5ICMFvo5-6ezV92zPFAWevyEJT90';
+        imoveisFolderId = client.imoveis_folder_id || '1fhcguz-nrayJ0kAS-y1j9LQggs5wbD7i';
         
         console.log('✅ Using Imoveis Sheet:', imoveisSheetId);
+        console.log('✅ Using Imoveis Folder:', imoveisFolderId);
         
         if (!window.gInit) {
           await new Promise((ok) => {
@@ -1606,18 +1610,20 @@
     
     async function createImovelFolder(nomeImovel) {
       try {
-        // Cria pasta no Drive
+        // Cria pasta dentro da pasta "6. Imóveis" do cliente
         const folderMetadata = {
           name: nomeImovel.replace(/[/\\?%*:|"<>]/g, '_'),
-          mimeType: 'application/vnd.google-apps.folder'
+          mimeType: 'application/vnd.google-apps.folder',
+          parents: [imoveisFolderId]  // Pasta pai do cliente
         };
         
         const response = await gapi.client.drive.files.create({
           resource: folderMetadata,
-          fields: 'id'
+          fields: 'id, webViewLink'
         });
         
         console.log('✅ Pasta criada:', response.result.id);
+        console.log('🔗 Link:', response.result.webViewLink);
         return response.result.id;
       } catch (e) {
         console.error('❌', e);
