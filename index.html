@@ -1004,13 +1004,16 @@
             <!-- GRÁFICO DE EVOLUÇÃO -->
             <div class="carteira-grafico">
               <div class="carteira-grafico-titulo">📊 Evolução do Patrimônio</div>
-              <div style="display: grid; grid-template-columns: 70% 30%; gap: 20px; align-items: start;">
-                <div class="carteira-chart-container" style="height: 300px;">
-                  <canvas id="chart-carteira"></canvas>
-                </div>
-                <div style="height: 250px; display: flex; align-items: center;">
-                  <canvas id="chart-titularidade"></canvas>
-                </div>
+              <div class="carteira-chart-container" style="height: 300px;">
+                <canvas id="chart-carteira"></canvas>
+              </div>
+            </div>
+
+            <!-- GRÁFICO DE TITULARIDADE -->
+            <div class="carteira-grafico" style="margin-top: 20px;">
+              <div class="carteira-grafico-titulo">🥧 Distribuição por Titularidade</div>
+              <div style="height: 300px; max-width: 400px; margin: 0 auto;">
+                <canvas id="chart-titularidade"></canvas>
               </div>
             </div>
 
