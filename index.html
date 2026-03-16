@@ -1390,7 +1390,7 @@
       const row = imoveisData[index];
       if (!row) return;
       
-      // Carrega dados
+      // Carrega dados básicos
       const nome = row[0];
       const tipo = row[1] || '';
       const grupo = row[2] || '';
@@ -1408,10 +1408,47 @@
       const quartos = row[16] || '';
       const vagas = row[17] || '';
       
+      // Carrega dados avançados
+      const despesasRec = await loadDespesasRecorrentes(nome);
+      const despesasExt = await loadDespesasExtraordinarias(nome);
+      const ocupacao = await loadOcupacao(nome);
+      
+      // CÁLCULOS AVANÇADOS
+      const anos = calcularAnosDesdeCompra(dataCompra);
+      const cagr = calcularCAGR(valorCompra, valorAtual, anos);
+      
+      // Despesas
+      const despesasMensais = despesasRec.reduce((sum, d) => sum + d.valorMensal, 0);
+      const despesasAnuais = despesasMensais * 12;
+      const despesasExtraTotal = despesasExt.reduce((sum, d) => sum + d.valor, 0);
+      
+      // Yields
+      const yieldBruto = valorAtual > 0 && aluguel > 0 ? ((aluguel * 12) / valorAtual * 100).toFixed(2) : 0;
+      const yieldLiquido = valorAtual > 0 && aluguel > 0 ? (((aluguel * 12) - despesasAnuais) / valorAtual * 100).toFixed(2) : 0;
+      
+      // Cash Flow
+      const cashFlowMensal = aluguel - despesasMensais;
+      const mesesDecorridos = Math.max(anos * 12, 1);
+      const cashFlowAcumulado = cashFlowMensal * mesesDecorridos;
+      
+      // Total Investido e Total Return
+      const totalInvestido = valorCompra + despesasExtraTotal;
+      const aluguelAcumulado = aluguel > 0 ? aluguel * mesesDecorridos : 0;
+      const totalReturn = totalInvestido > 0 ? (((valorAtual - totalInvestido + aluguelAcumulado) / totalInvestido) * 100).toFixed(1) : 0;
+      
+      // Payback
+      const payback = cashFlowMensal > 0 ? (totalInvestido / cashFlowMensal).toFixed(0) : 0;
+      
+      // Taxa de Ocupação
+      const taxaOcupacao = calcularTaxaOcupacao(ocupacao);
+      
+      // Custo por m²
+      const custoM2 = areaTotal > 0 ? (valorAtual / areaTotal).toFixed(0) : 0;
+      
+      // Variação
       const variacao = valorCompra > 0 ? ((valorAtual - valorCompra) / valorCompra * 100).toFixed(1) : 0;
       const variacaoClass = variacao >= 0 ? 'positive' : 'negative';
       const variacaoSymbol = variacao >= 0 ? '+' : '';
-      const yield_anual = valorAtual > 0 && aluguel > 0 ? ((aluguel * 12) / valorAtual * 100).toFixed(2) : 0;
       
       // Header
       document.getElementById('detalhes-nome').textContent = nome;
@@ -1431,63 +1468,142 @@
           <span class="detalhes-label">Valorização</span>
           <span class="detalhes-value stat-change ${variacaoClass}">${variacaoSymbol}${variacao}%</span>
         </div>
+        <div class="detalhes-item">
+          <span class="detalhes-label">CAGR</span>
+          <span class="detalhes-value stat-change ${cagr >= 0 ? 'positive' : 'negative'}">${cagr >= 0 ? '+' : ''}${cagr}% a.a.</span>
+        </div>
         ${aluguel > 0 ? `
         <div class="detalhes-item">
           <span class="detalhes-label">Aluguel Mensal</span>
           <span class="detalhes-value">${fmt(aluguel)}</span>
         </div>
         <div class="detalhes-item">
-          <span class="detalhes-label">Yield Anual</span>
-          <span class="detalhes-value stat-change positive">${yield_anual}%</span>
+          <span class="detalhes-label">Yield Líquido</span>
+          <span class="detalhes-value stat-change ${yieldLiquido > 0 ? 'positive' : 'negative'}">${yieldLiquido}% a.a.</span>
         </div>
         ` : ''}
       `;
       
-      // Informações completas
+      // Análise Financeira + Informações
       document.getElementById('detalhes-info').innerHTML = `
-        <div class="info-row">
-          <span class="info-label">Endereço</span>
-          <span class="info-value">${endereco || '-'}</span>
+        <div style="background: var(--cinza-claro); padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+          <h4 style="font-size: 16px; font-weight: 700; color: var(--azul-principal); margin-bottom: 16px; border-bottom: 2px solid var(--azul-secundario); padding-bottom: 8px;">💰 Análise Financeira</h4>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div class="info-row">
+              <span class="info-label">Yield Bruto</span>
+              <span class="info-value">${yieldBruto}% a.a.</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Yield Líquido</span>
+              <span class="info-value">${yieldLiquido}% a.a.</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">CAGR (Valorização)</span>
+              <span class="info-value">${cagr}% a.a.</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Total Return</span>
+              <span class="info-value stat-change ${totalReturn >= 0 ? 'positive' : 'negative'}">${totalReturn >= 0 ? '+' : ''}${totalReturn}%</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Cash Flow Mensal</span>
+              <span class="info-value stat-change ${cashFlowMensal >= 0 ? 'positive' : 'negative'}">${fmt(cashFlowMensal)}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">CF Acumulado</span>
+              <span class="info-value">${fmt(cashFlowAcumulado)}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Payback</span>
+              <span class="info-value">${payback > 0 ? payback + ' meses' : '-'}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Taxa de Ocupação</span>
+              <span class="info-value">${taxaOcupacao}%</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Total Investido</span>
+              <span class="info-value">${fmt(totalInvestido)}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Custo por m²</span>
+              <span class="info-value">${custoM2 > 0 ? 'R$ ' + Number(custoM2).toLocaleString('pt-BR') + '/m²' : '-'}</span>
+            </div>
+          </div>
         </div>
-        <div class="info-row">
-          <span class="info-label">Data de Compra</span>
-          <span class="info-value">${dataCompra ? new Date(dataCompra).toLocaleDateString('pt-BR') : '-'}</span>
+        
+        <div style="background: var(--cinza-claro); padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+          <h4 style="font-size: 16px; font-weight: 700; color: var(--azul-principal); margin-bottom: 16px; border-bottom: 2px solid var(--azul-secundario); padding-bottom: 8px;">📊 Despesas Anuais</h4>
+          ${despesasRec.length > 0 ? despesasRec.map(d => `
+            <div class="info-row">
+              <span class="info-label">${d.tipo}</span>
+              <span class="info-value">${fmt(d.valorMensal * 12)} (${fmt(d.valorMensal)}/mês)</span>
+            </div>
+          `).join('') : '<p style="text-align: center; color: #999;">Nenhuma despesa recorrente cadastrada</p>'}
+          ${despesasRec.length > 0 ? `
+            <div class="info-row" style="border-top: 2px solid var(--azul-secundario); margin-top: 12px; padding-top: 12px; font-weight: 700;">
+              <span class="info-label">TOTAL ANUAL</span>
+              <span class="info-value">${fmt(despesasAnuais)}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">TOTAL MENSAL</span>
+              <span class="info-value">${fmt(despesasMensais)}</span>
+            </div>
+          ` : ''}
         </div>
-        ${areaTotal ? `
-        <div class="info-row">
-          <span class="info-label">Área Total</span>
-          <span class="info-value">${areaTotal} m²</span>
-        </div>` : ''}
-        ${areaUtil ? `
-        <div class="info-row">
-          <span class="info-label">Área Útil</span>
-          <span class="info-value">${areaUtil} m²</span>
-        </div>` : ''}
-        ${quartos ? `
-        <div class="info-row">
-          <span class="info-label">Quartos</span>
-          <span class="info-value">${quartos}</span>
-        </div>` : ''}
-        ${vagas ? `
-        <div class="info-row">
-          <span class="info-label">Vagas</span>
-          <span class="info-value">${vagas}</span>
-        </div>` : ''}
-        ${inquilino ? `
-        <div class="info-row">
-          <span class="info-label">Inquilino</span>
-          <span class="info-value">${inquilino}</span>
-        </div>` : ''}
-        ${iptu > 0 ? `
-        <div class="info-row">
-          <span class="info-label">IPTU Anual</span>
-          <span class="info-value">${fmt(iptu)}</span>
-        </div>` : ''}
-        ${condominio > 0 ? `
-        <div class="info-row">
-          <span class="info-label">Condomínio Mensal</span>
-          <span class="info-value">${fmt(condominio)}</span>
-        </div>` : ''}
+        
+        ${despesasExt.length > 0 ? `
+        <div style="background: var(--cinza-claro); padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+          <h4 style="font-size: 16px; font-weight: 700; color: var(--azul-principal); margin-bottom: 16px; border-bottom: 2px solid var(--azul-secundario); padding-bottom: 8px;">🔧 Despesas Extraordinárias</h4>
+          ${despesasExt.map(d => `
+            <div class="info-row">
+              <span class="info-label">${d.tipo} (${new Date(d.data).toLocaleDateString('pt-BR')})</span>
+              <span class="info-value">${fmt(d.valor)}</span>
+            </div>
+          `).join('')}
+          <div class="info-row" style="border-top: 2px solid var(--azul-secundario); margin-top: 12px; padding-top: 12px; font-weight: 700;">
+            <span class="info-label">TOTAL</span>
+            <span class="info-value">${fmt(despesasExtraTotal)}</span>
+          </div>
+        </div>
+        ` : ''}
+        
+        <div>
+          <h4 style="font-size: 16px; font-weight: 700; color: var(--azul-principal); margin-bottom: 16px; border-bottom: 2px solid var(--cinza-claro); padding-bottom: 8px;">📋 Informações do Imóvel</h4>
+          <div class="info-row">
+            <span class="info-label">Endereço</span>
+            <span class="info-value">${endereco || '-'}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Data de Compra</span>
+            <span class="info-value">${dataCompra ? new Date(dataCompra).toLocaleDateString('pt-BR') : '-'}</span>
+          </div>
+          ${areaTotal ? `
+          <div class="info-row">
+            <span class="info-label">Área Total</span>
+            <span class="info-value">${areaTotal} m²</span>
+          </div>` : ''}
+          ${areaUtil ? `
+          <div class="info-row">
+            <span class="info-label">Área Útil</span>
+            <span class="info-value">${areaUtil} m²</span>
+          </div>` : ''}
+          ${quartos ? `
+          <div class="info-row">
+            <span class="info-label">Quartos</span>
+            <span class="info-value">${quartos}</span>
+          </div>` : ''}
+          ${vagas ? `
+          <div class="info-row">
+            <span class="info-label">Vagas</span>
+            <span class="info-value">${vagas}</span>
+          </div>` : ''}
+          ${inquilino ? `
+          <div class="info-row">
+            <span class="info-label">Inquilino Atual</span>
+            <span class="info-value">${inquilino}</span>
+          </div>` : ''}
+        </div>
       `;
       
       // Carrega histórico
@@ -1620,6 +1736,98 @@
     
     function confirmDeleteImovelFromDetalhes() {
       confirmDeleteImovel(currentImovelIndex);
+    }
+    
+    // ========== CÁLCULOS AVANÇADOS ==========
+    
+    async function loadDespesasRecorrentes(nomeImovel) {
+      try {
+        const response = await gapi.client.sheets.spreadsheets.values.get({
+          spreadsheetId: imoveisSheetId,
+          range: "Despesas_Recorrentes!A2:E100"
+        });
+        const rows = response.result.values || [];
+        return rows.filter(r => r[0] === nomeImovel).map(r => ({
+          tipo: r[1],
+          valorMensal: parseFloat(String(r[2] || '0').replace(/[^\d.-]/g, '')) || 0
+        }));
+      } catch (e) {
+        console.error('❌', e);
+        return [];
+      }
+    }
+    
+    async function loadDespesasExtraordinarias(nomeImovel) {
+      try {
+        const response = await gapi.client.sheets.spreadsheets.values.get({
+          spreadsheetId: imoveisSheetId,
+          range: "Despesas_Extraordinarias!A2:F100"
+        });
+        const rows = response.result.values || [];
+        return rows.filter(r => r[0] === nomeImovel).map(r => ({
+          data: r[1],
+          tipo: r[2],
+          valor: parseFloat(String(r[3] || '0').replace(/[^\d.-]/g, '')) || 0,
+          categoria: r[4]
+        }));
+      } catch (e) {
+        console.error('❌', e);
+        return [];
+      }
+    }
+    
+    async function loadOcupacao(nomeImovel) {
+      try {
+        const response = await gapi.client.sheets.spreadsheets.values.get({
+          spreadsheetId: imoveisSheetId,
+          range: "Ocupacao!A2:G100"
+        });
+        const rows = response.result.values || [];
+        return rows.filter(r => r[0] === nomeImovel).map(r => ({
+          dataInicio: r[1],
+          dataFim: r[2],
+          inquilino: r[3],
+          valorAluguel: parseFloat(String(r[4] || '0').replace(/[^\d.-]/g, '')) || 0,
+          status: r[5]
+        }));
+      } catch (e) {
+        console.error('❌', e);
+        return [];
+      }
+    }
+    
+    function calcularCAGR(valorInicial, valorFinal, anos) {
+      if (valorInicial <= 0 || anos <= 0) return 0;
+      return ((Math.pow(valorFinal / valorInicial, 1 / anos) - 1) * 100).toFixed(2);
+    }
+    
+    function calcularAnosDesdeCompra(dataCompra) {
+      if (!dataCompra) return 0;
+      const inicio = new Date(dataCompra);
+      const hoje = new Date();
+      const diff = hoje - inicio;
+      return diff / (365.25 * 24 * 60 * 60 * 1000);
+    }
+    
+    function calcularTaxaOcupacao(periodos) {
+      if (!periodos || periodos.length === 0) return 0;
+      
+      let totalMeses = 0;
+      let mesesOcupados = 0;
+      
+      periodos.forEach(p => {
+        const inicio = new Date(p.dataInicio);
+        let fim = p.dataFim && p.status !== 'Ocupado' ? new Date(p.dataFim) : new Date();
+        
+        const meses = (fim - inicio) / (30.44 * 24 * 60 * 60 * 1000);
+        totalMeses += meses;
+        
+        if (p.status === 'Ocupado' || p.status === 'Finalizado') {
+          mesesOcupados += meses;
+        }
+      });
+      
+      return totalMeses > 0 ? ((mesesOcupados / totalMeses) * 100).toFixed(1) : 0;
     }
     
     // VIEW DOCS (placeholder)
