@@ -1741,21 +1741,80 @@
     let imoveisData = [];
     let currentFilter = 'todos';
     
-    async function loadImoveis() {
+    // CACHE GLOBAL - armazena dados de todas as abas
+    let dataCache = {
+      historico: [],
+      despesasRec: [],
+      despesasExt: [],
+      ocupacao: []
+    };
+    
+    // Recarrega apenas uma aba específica do cache
+    async function reloadCacheTab(tabName) {
       try {
+        const ranges = {
+          'historico': 'Historico_Valores!A2:E100',
+          'despesasRec': 'Despesas_Recorrentes!A2:E100',
+          'despesasExt': 'Despesas_Extraordinarias!A2:F100',
+          'ocupacao': 'Ocupacao!A2:G100'
+        };
+        
+        if (!ranges[tabName]) return;
+        
         const response = await gapi.client.sheets.spreadsheets.values.get({
           spreadsheetId: imoveisSheetId,
-          range: "Lista!A2:S100"
+          range: ranges[tabName]
         });
-        const rows = response.result.values;
         
-        imoveisData = rows || [];
+        dataCache[tabName] = response.result.values || [];
+        console.log(`✅ Cache atualizado: ${tabName}`);
+      } catch (e) {
+        console.error(`❌ Erro ao recarregar cache ${tabName}:`, e);
+      }
+    }
+    
+    // FUNÇÃO OTIMIZADA - Carrega TODAS as abas de uma vez
+    async function loadAllDataOptimized() {
+      try {
+        const response = await gapi.client.sheets.spreadsheets.values.batchGet({
+          spreadsheetId: imoveisSheetId,
+          ranges: [
+            'Lista!A2:S100',
+            'Historico_Valores!A2:E100',
+            'Despesas_Recorrentes!A2:E100',
+            'Despesas_Extraordinarias!A2:F100',
+            'Ocupacao!A2:G100'
+          ]
+        });
+        
+        const [lista, historico, despRec, despExt, ocupacao] = response.result.valueRanges;
+        
+        // Armazena no cache
+        imoveisData = lista.values || [];
+        dataCache.historico = historico.values || [];
+        dataCache.despesasRec = despRec.values || [];
+        dataCache.despesasExt = despExt.values || [];
+        dataCache.ocupacao = ocupacao.values || [];
+        
+        console.log('✅ Dados carregados (otimizado):', {
+          imoveis: imoveisData.length,
+          historico: dataCache.historico.length,
+          despesasRec: dataCache.despesasRec.length,
+          despesasExt: dataCache.despesasExt.length,
+          ocupacao: dataCache.ocupacao.length
+        });
+        
         renderImoveis();
         
       } catch (e) {
-        console.error('❌', e);
+        console.error('❌ Erro ao carregar dados:', e);
         document.getElementById('imoveis-grid').innerHTML = '<p style="text-align:center; padding: 60px; color: red;">Erro ao carregar imóveis: ' + e.message + '</p>';
       }
+    }
+    
+    async function loadImoveis() {
+      // Usa a versão otimizada
+      await loadAllDataOptimized();
     }
     
     function renderImoveis() {
@@ -1971,20 +2030,16 @@
     
     async function renderCarteiraChart(imoveis) {
       try {
-        // Busca histórico de TODOS os imóveis filtrados
+        // Busca histórico de TODOS os imóveis filtrados (do cache!)
         const todosHistoricos = [];
+        const allHistoricoRows = dataCache.historico || [];
         
         for (const row of imoveis) {
           if (!row[0]) continue;
           const nome = row[0];
           
-          const response = await gapi.client.sheets.spreadsheets.values.get({
-            spreadsheetId: imoveisSheetId,
-            range: "Historico_Valores!A2:E100"
-          });
-          const rows = response.result.values || [];
-          
-          const historico = rows.filter(r => r[0] === nome).map(r => ({
+          // Filtra do cache em vez de fazer chamada à API
+          const historico = allHistoricoRows.filter(r => r[0] === nome).map(r => ({
             imovel: r[0],
             data: r[1],
             valor: parseFloat(String(r[2] || '0').replace(/[^\d.-]/g, '')) || 0
@@ -2539,11 +2594,8 @@
     
     async function loadHistoricoValores(nomeImovel) {
       try {
-        const response = await gapi.client.sheets.spreadsheets.values.get({
-          spreadsheetId: imoveisSheetId,
-          range: "Historico_Valores!A2:E100"
-        });
-        const rows = response.result.values || [];
+        // Usa cache em vez de fazer chamada à API
+        const rows = dataCache.historico || [];
         
         // Filtra histórico deste imóvel
         const historico = rows.filter(r => r[0] === nomeImovel).map(r => ({
@@ -2663,60 +2715,36 @@
     // ========== CÁLCULOS AVANÇADOS ==========
     
     async function loadDespesasRecorrentes(nomeImovel) {
-      try {
-        const response = await gapi.client.sheets.spreadsheets.values.get({
-          spreadsheetId: imoveisSheetId,
-          range: "Despesas_Recorrentes!A2:E100"
-        });
-        const rows = response.result.values || [];
-        return rows.filter(r => r[0] === nomeImovel).map(r => ({
-          tipo: r[1],
-          valorMensal: parseFloat(String(r[2] || '0').replace(/[^\d.-]/g, '')) || 0,
-          vencimentoDia: r[3] || ''
-        }));
-      } catch (e) {
-        console.error('❌', e);
-        return [];
-      }
+      // Usa cache em vez de fazer chamada à API
+      const rows = dataCache.despesasRec || [];
+      return rows.filter(r => r[0] === nomeImovel).map(r => ({
+        tipo: r[1],
+        valorMensal: parseFloat(String(r[2] || '0').replace(/[^\d.-]/g, '')) || 0,
+        vencimentoDia: r[3] || ''
+      }));
     }
     
     async function loadDespesasExtraordinarias(nomeImovel) {
-      try {
-        const response = await gapi.client.sheets.spreadsheets.values.get({
-          spreadsheetId: imoveisSheetId,
-          range: "Despesas_Extraordinarias!A2:F100"
-        });
-        const rows = response.result.values || [];
-        return rows.filter(r => r[0] === nomeImovel).map(r => ({
-          data: r[1],
-          tipo: r[2],
-          valor: parseFloat(String(r[3] || '0').replace(/[^\d.-]/g, '')) || 0,
-          categoria: r[4]
-        }));
-      } catch (e) {
-        console.error('❌', e);
-        return [];
-      }
+      // Usa cache em vez de fazer chamada à API
+      const rows = dataCache.despesasExt || [];
+      return rows.filter(r => r[0] === nomeImovel).map(r => ({
+        data: r[1],
+        tipo: r[2],
+        valor: parseFloat(String(r[3] || '0').replace(/[^\d.-]/g, '')) || 0,
+        categoria: r[4]
+      }));
     }
     
     async function loadOcupacao(nomeImovel) {
-      try {
-        const response = await gapi.client.sheets.spreadsheets.values.get({
-          spreadsheetId: imoveisSheetId,
-          range: "Ocupacao!A2:G100"
-        });
-        const rows = response.result.values || [];
-        return rows.filter(r => r[0] === nomeImovel).map(r => ({
-          dataInicio: r[1],
-          dataFim: r[2],
-          inquilino: r[3],
-          valorAluguel: parseFloat(String(r[4] || '0').replace(/[^\d.-]/g, '')) || 0,
-          status: r[5]
-        }));
-      } catch (e) {
-        console.error('❌', e);
-        return [];
-      }
+      // Usa cache em vez de fazer chamada à API
+      const rows = dataCache.ocupacao || [];
+      return rows.filter(r => r[0] === nomeImovel).map(r => ({
+        dataInicio: r[1],
+        dataFim: r[2],
+        inquilino: r[3],
+        valorAluguel: parseFloat(String(r[4] || '0').replace(/[^\d.-]/g, '')) || 0,
+        status: r[5]
+      }));
     }
     
     function calcularCAGR(valorInicial, valorFinal, anos) {
@@ -2884,6 +2912,7 @@
         alert('✅ Despesa recorrente adicionada!');
         closeModal('modal-despesa-rec');
         form.reset();
+        await reloadCacheTab('despesasRec');  // Recarrega cache
         loadTabDespesas();
         
         // Recarrega detalhes para atualizar cálculos
@@ -2951,6 +2980,7 @@
         alert('✅ Despesa extraordinária adicionada!');
         closeModal('modal-despesa-ext');
         form.reset();
+        await reloadCacheTab('despesasExt');  // Recarrega cache
         loadTabDespesas();
         viewImovelDetalhes(currentImovelIndex);
       } catch (e) {
@@ -3016,6 +3046,7 @@
         alert('✅ Período de ocupação adicionado!');
         closeModal('modal-ocupacao');
         form.reset();
+        await reloadCacheTab('ocupacao');  // Recarrega cache
         loadTabOcupacao();
         viewImovelDetalhes(currentImovelIndex);
       } catch (e) {
@@ -3047,6 +3078,7 @@
         });
         
         alert('✅ Período excluído!');
+        await reloadCacheTab('ocupacao');  // Recarrega cache
         loadTabOcupacao();
         viewImovelDetalhes(currentImovelIndex);  // RECARREGA!
       } catch (e) {
