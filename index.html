@@ -1004,11 +1004,11 @@
             <!-- GRÁFICO DE EVOLUÇÃO -->
             <div class="carteira-grafico">
               <div class="carteira-grafico-titulo">📊 Evolução do Patrimônio</div>
-              <div style="display: grid; grid-template-columns: 70% 30%; gap: 20px;">
-                <div class="carteira-chart-container">
+              <div style="display: grid; grid-template-columns: 70% 30%; gap: 20px; align-items: start;">
+                <div class="carteira-chart-container" style="height: 300px;">
                   <canvas id="chart-carteira"></canvas>
                 </div>
-                <div class="carteira-chart-container">
+                <div style="height: 250px; display: flex; align-items: center;">
                   <canvas id="chart-titularidade"></canvas>
                 </div>
               </div>
@@ -2157,7 +2157,8 @@
           },
           options: {
             responsive: true,
-            maintainAspectRatio: false,
+            maintainAspectRatio: true,
+            aspectRatio: 1,
             plugins: {
               legend: {
                 position: 'bottom',
