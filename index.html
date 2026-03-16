@@ -1786,19 +1786,25 @@
       const valorCompra = parseFloat(String(row[5] || '0').replace(/[^\d.-]/g, '')) || 0;
       const dataCompra = row[6] || '';
       const valorAtual = parseFloat(String(row[7] || '0').replace(/[^\d.-]/g, '')) || 0;
-      const aluguel = parseFloat(String(row[9] || '0').replace(/[^\d.-]/g, '')) || 0;
-      const inquilino = row[10] || '';
-      const iptu = parseFloat(String(row[12] || '0').replace(/[^\d.-]/g, '')) || 0;
-      const condominio = parseFloat(String(row[13] || '0').replace(/[^\d.-]/g, '')) || 0;
-      const areaTotal = row[14] || '';
-      const areaUtil = row[15] || '';
-      const quartos = row[16] || '';
-      const vagas = row[17] || '';
+      
+      // Busca aluguel e inquilino da aba Ocupacao
+      const ocupacao = await loadOcupacao(nome);
+      const ocupacaoAtual = ocupacao.find(o => o.status === 'Ocupado');
+      const aluguel = ocupacaoAtual ? ocupacaoAtual.valorAluguel : 0;
+      const inquilino = ocupacaoAtual ? ocupacaoAtual.inquilino : '';
+      
+      const iptu = parseFloat(String(row[9] || '0').replace(/[^\d.-]/g, '')) || 0;
+      const condominio = parseFloat(String(row[10] || '0').replace(/[^\d.-]/g, '')) || 0;
+      const areaTotal = row[11] || '';
+      const areaUtil = row[12] || '';
+      const quartos = row[13] || '';
+      const suites = row[14] || '';
+      const vagas = row[15] || '';
+      const observacoes = row[16] || '';
       
       // Carrega dados avançados
       const despesasRec = await loadDespesasRecorrentes(nome);
       const despesasExt = await loadDespesasExtraordinarias(nome);
-      const ocupacao = await loadOcupacao(nome);
       
       // CÁLCULOS AVANÇADOS
       const anos = calcularAnosDesdeCompra(dataCompra);
@@ -2537,7 +2543,7 @@
       if (!row) return;
       
       const nomeImovel = row[0];
-      let driveFolderId = row[19]; // Coluna T (índice 19)
+      let driveFolderId = row[17]; // Coluna R (índice 17)
       
       document.getElementById('modal-docs-title').textContent = `Documentos: ${nomeImovel}`;
       
@@ -2550,12 +2556,12 @@
           const rowNumber = index + 2;
           await gapi.client.sheets.spreadsheets.values.update({
             spreadsheetId: imoveisSheetId,
-            range: `Lista!T${rowNumber}`,
+            range: `Lista!R${rowNumber}`,
             valueInputOption: 'USER_ENTERED',
             resource: { values: [[driveFolderId]] }
           });
           
-          imoveisData[index][19] = driveFolderId;
+          imoveisData[index][17] = driveFolderId;
         } catch (e) {
           console.error('❌ Erro ao criar pasta:', e);
           alert('Erro ao criar pasta no Drive: ' + e.message);
