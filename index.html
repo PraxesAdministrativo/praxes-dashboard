@@ -762,16 +762,32 @@
       letter-spacing: 1px;
       margin-bottom: 24px;
     }
+    .carteira-grafico {
+      background: var(--cinza-claro);
+      padding: 24px;
+      border-radius: 8px;
+      margin-bottom: 24px;
+    }
+    .carteira-grafico-titulo {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--azul-principal);
+      margin-bottom: 16px;
+    }
+    .carteira-chart-container {
+      position: relative;
+      height: 300px;
+    }
     .carteira-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 20px;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
     }
     .carteira-card {
       background: var(--cinza-claro);
-      padding: 20px;
-      border-radius: 8px;
-      border-left: 4px solid var(--azul-secundario);
+      padding: 14px;
+      border-radius: 6px;
+      border-left: 3px solid var(--azul-secundario);
       transition: all 0.3s;
     }
     .carteira-card:hover {
@@ -779,20 +795,20 @@
       box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
     .carteira-label {
-      font-size: 12px;
+      font-size: 10px;
       color: var(--text-light);
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
     }
     .carteira-valor {
-      font-size: 28px;
+      font-size: 20px;
       font-weight: 700;
       color: var(--azul-principal);
-      margin-bottom: 4px;
+      margin-bottom: 2px;
     }
     .carteira-subtitulo {
-      font-size: 11px;
+      font-size: 10px;
       color: var(--text-light);
     }
 
@@ -979,6 +995,16 @@
           <!-- RESUMO CONSOLIDADO -->
           <div class="carteira-resumo" id="carteira-resumo">
             <div class="carteira-titulo">💰 Visão Consolidada da Carteira</div>
+            
+            <!-- GRÁFICO DE EVOLUÇÃO -->
+            <div class="carteira-grafico">
+              <div class="carteira-grafico-titulo">📊 Evolução do Patrimônio</div>
+              <div class="carteira-chart-container">
+                <canvas id="chart-carteira"></canvas>
+              </div>
+            </div>
+
+            <!-- CARDS DE MÉTRICAS -->
             <div class="carteira-grid" id="carteira-stats"></div>
           </div>
 
@@ -1857,7 +1883,10 @@
       const despesasMediasEstimadas = totalAluguel * 0.25; // 25% das receitas
       const cashFlowMensal = totalAluguel - despesasMediasEstimadas;
       
-      // Renderiza
+      // CRIA GRÁFICO DE EVOLUÇÃO
+      await renderCarteiraChart(imoveis);
+      
+      // Renderiza cards
       const variacaoClass = valorizacao >= 0 ? 'positive' : 'negative';
       const variacaoSymbol = valorizacao >= 0 ? '+' : '';
       
@@ -1909,6 +1938,152 @@
           <div class="carteira-subtitulo">Valorização total</div>
         </div>
       `;
+    }
+    
+    let carteiraChart = null;
+    
+    async function renderCarteiraChart(imoveis) {
+      try {
+        // Busca histórico de TODOS os imóveis filtrados
+        const todosHistoricos = [];
+        
+        for (const row of imoveis) {
+          if (!row[0]) continue;
+          const nome = row[0];
+          
+          const response = await gapi.client.sheets.spreadsheets.values.get({
+            spreadsheetId: imoveisSheetId,
+            range: "Historico_Valores!A2:E100"
+          });
+          const rows = response.result.values || [];
+          
+          const historico = rows.filter(r => r[0] === nome).map(r => ({
+            imovel: r[0],
+            data: r[1],
+            valor: parseFloat(String(r[2] || '0').replace(/[^\d.-]/g, '')) || 0
+          }));
+          
+          todosHistoricos.push(...historico);
+        }
+        
+        // Agrupa por data e soma valores
+        const porData = {};
+        todosHistoricos.forEach(h => {
+          if (!porData[h.data]) {
+            porData[h.data] = {};
+          }
+          if (!porData[h.data][h.imovel]) {
+            porData[h.data][h.imovel] = h.valor;
+          }
+        });
+        
+        // Ordena datas
+        const datas = Object.keys(porData).sort((a, b) => new Date(a) - new Date(b));
+        
+        // Para cada data, soma os valores de todos os imóveis
+        const timeline = [];
+        const imoveisUnicos = [...new Set(imoveis.map(r => r[0]))];
+        
+        datas.forEach(data => {
+          let total = 0;
+          imoveisUnicos.forEach(nomeImovel => {
+            // Pega o último valor conhecido até esta data
+            let valorNaData = 0;
+            for (const d of datas) {
+              if (new Date(d) <= new Date(data) && porData[d][nomeImovel]) {
+                valorNaData = porData[d][nomeImovel];
+              }
+            }
+            total += valorNaData;
+          });
+          
+          timeline.push({ data, valor: total });
+        });
+        
+        if (timeline.length === 0) {
+          document.querySelector('.carteira-grafico').style.display = 'none';
+          return;
+        }
+        
+        document.querySelector('.carteira-grafico').style.display = 'block';
+        
+        const labels = timeline.map(t => new Date(t.data).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }));
+        const valores = timeline.map(t => t.valor);
+        
+        const ctx = document.getElementById('chart-carteira');
+        
+        if (carteiraChart) {
+          carteiraChart.destroy();
+        }
+        
+        carteiraChart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: 'Patrimônio Total',
+              data: valores,
+              borderColor: '#2e6b8e',
+              backgroundColor: 'rgba(46, 107, 142, 0.1)',
+              borderWidth: 3,
+              fill: true,
+              tension: 0.4,
+              pointRadius: 6,
+              pointHoverRadius: 8,
+              pointBackgroundColor: '#2e6b8e',
+              pointBorderColor: '#fff',
+              pointBorderWidth: 2
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                display: false
+              },
+              tooltip: {
+                backgroundColor: '#0f3d57',
+                titleColor: '#fff',
+                bodyColor: '#fff',
+                padding: 12,
+                displayColors: false,
+                callbacks: {
+                  label: function(context) {
+                    return 'R$ ' + context.parsed.y.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+                  }
+                }
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: false,
+                ticks: {
+                  callback: function(value) {
+                    return 'R$ ' + (value / 1000).toFixed(0) + 'k';
+                  },
+                  color: '#666'
+                },
+                grid: {
+                  color: '#e5e5e5'
+                }
+              },
+              x: {
+                ticks: {
+                  color: '#666'
+                },
+                grid: {
+                  display: false
+                }
+              }
+            }
+          }
+        });
+        
+      } catch (e) {
+        console.error('❌ Erro ao criar gráfico:', e);
+        document.querySelector('.carteira-grafico').style.display = 'none';
+      }
     }
     
     function setFilter(filter) {
