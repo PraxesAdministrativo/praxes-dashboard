@@ -1004,8 +1004,13 @@
             <!-- GRÁFICO DE EVOLUÇÃO -->
             <div class="carteira-grafico">
               <div class="carteira-grafico-titulo">📊 Evolução do Patrimônio</div>
-              <div class="carteira-chart-container">
-                <canvas id="chart-carteira"></canvas>
+              <div style="display: grid; grid-template-columns: 70% 30%; gap: 20px;">
+                <div class="carteira-chart-container">
+                  <canvas id="chart-carteira"></canvas>
+                </div>
+                <div class="carteira-chart-container">
+                  <canvas id="chart-titularidade"></canvas>
+                </div>
               </div>
             </div>
 
@@ -1209,6 +1214,16 @@
               </select>
             </div>
             <div class="form-group">
+              <label class="form-label">Titularidade *</label>
+              <select class="form-select" name="titularidade" required>
+                <option value="">Selecione...</option>
+                <option value="Holding">Holding</option>
+                <option value="Pessoa Física">Pessoa Física (PF)</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
               <label class="form-label">Grupo *</label>
               <select class="form-select" name="grupo" required>
                 <option value="">Selecione...</option>
@@ -1216,15 +1231,15 @@
                 <option value="Bem Pessoal">Bem Pessoal</option>
               </select>
             </div>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Subgrupo *</label>
-            <select class="form-select" name="subgrupo" required>
-              <option value="">Selecione...</option>
-              <option value="Carteira Locação">Carteira Locação</option>
-              <option value="Carteira Valorização">Carteira Valorização</option>
-              <option value="Uso Próprio">Uso Próprio</option>
-            </select>
+            <div class="form-group">
+              <label class="form-label">Subgrupo *</label>
+              <select class="form-select" name="subgrupo" required>
+                <option value="">Selecione...</option>
+                <option value="Carteira Locação">Carteira Locação</option>
+                <option value="Carteira Valorização">Carteira Valorização</option>
+                <option value="Uso Próprio">Uso Próprio</option>
+              </select>
+            </div>
           </div>
           <div class="form-group">
             <label class="form-label">Endereço Completo *</label>
@@ -1727,7 +1742,7 @@
       try {
         const response = await gapi.client.sheets.spreadsheets.values.get({
           spreadsheetId: imoveisSheetId,
-          range: "Lista!A2:R100"
+          range: "Lista!A2:S100"
         });
         const rows = response.result.values;
         
@@ -1891,6 +1906,9 @@
       // CRIA GRÁFICO DE EVOLUÇÃO
       await renderCarteiraChart(imoveis);
       
+      // CRIA GRÁFICO DE TITULARIDADE (PF vs Holding)
+      await renderTitularidadeChart(imoveis);
+      
       // Renderiza cards
       const variacaoClass = valorizacao >= 0 ? 'positive' : 'negative';
       const variacaoSymbol = valorizacao >= 0 ? '+' : '';
@@ -1946,6 +1964,7 @@
     }
     
     let carteiraChart = null;
+    let titularidadeChart = null;
     
     async function renderCarteiraChart(imoveis) {
       try {
@@ -2091,6 +2110,102 @@
       }
     }
     
+    async function renderTitularidadeChart(imoveis) {
+      try {
+        // Agrupa por titularidade
+        let totalHolding = 0;
+        let totalPF = 0;
+        
+        for (const row of imoveis) {
+          if (!row[0]) continue;
+          
+          const titularidade = row[18] || 'Pessoa Física'; // Coluna S (índice 18)
+          const valorAtual = parseFloat(String(row[7] || '0').replace(/[^\d.-]/g, '')) || 0;
+          
+          if (titularidade === 'Holding') {
+            totalHolding += valorAtual;
+          } else {
+            totalPF += valorAtual;
+          }
+        }
+        
+        const total = totalHolding + totalPF;
+        
+        if (total === 0) {
+          return;
+        }
+        
+        const percHolding = ((totalHolding / total) * 100).toFixed(1);
+        const percPF = ((totalPF / total) * 100).toFixed(1);
+        
+        const ctx = document.getElementById('chart-titularidade');
+        
+        if (titularidadeChart) {
+          titularidadeChart.destroy();
+        }
+        
+        titularidadeChart = new Chart(ctx, {
+          type: 'doughnut',
+          data: {
+            labels: ['Holding', 'Pessoa Física'],
+            datasets: [{
+              data: [totalHolding, totalPF],
+              backgroundColor: ['#2e6b8e', '#5a9ec4'],
+              borderColor: ['#fff', '#fff'],
+              borderWidth: 3
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: 'bottom',
+                labels: {
+                  padding: 15,
+                  font: {
+                    size: 11,
+                    family: 'Montserrat'
+                  },
+                  color: '#666',
+                  generateLabels: function(chart) {
+                    const data = chart.data;
+                    return data.labels.map((label, i) => {
+                      const value = data.datasets[0].data[i];
+                      const perc = i === 0 ? percHolding : percPF;
+                      return {
+                        text: `${label} (${perc}%)`,
+                        fillStyle: data.datasets[0].backgroundColor[i],
+                        hidden: false,
+                        index: i
+                      };
+                    });
+                  }
+                }
+              },
+              tooltip: {
+                backgroundColor: '#0f3d57',
+                titleColor: '#fff',
+                bodyColor: '#fff',
+                padding: 12,
+                callbacks: {
+                  label: function(context) {
+                    const label = context.label || '';
+                    const value = context.parsed || 0;
+                    const perc = context.dataIndex === 0 ? percHolding : percPF;
+                    return `${label}: R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 0 })} (${perc}%)`;
+                  }
+                }
+              }
+            }
+          }
+        });
+        
+      } catch (e) {
+        console.error('❌ Erro ao criar gráfico de titularidade:', e);
+      }
+    }
+    
     function setFilter(filter) {
       currentFilter = filter;
       renderImoveis();
@@ -2118,6 +2233,7 @@
       form.elements['suites'].value = row[14] || '';
       form.elements['vagas'].value = row[15] || '';
       form.elements['observacoes'].value = row[16] || '';
+      form.elements['titularidade'].value = row[18] || 'Pessoa Física';
       
       document.querySelector('#modal-add-imovel .modal-title').textContent = 'Editar Imóvel';
       document.getElementById('btn-save-imovel').setAttribute('data-index', index);
@@ -3271,7 +3387,8 @@
         data.get('suites') || 0,
         data.get('vagas') || 0,
         data.get('observacoes') || '',
-        ''  // Drive_Folder_ID
+        '',  // Drive_Folder_ID
+        data.get('titularidade') || 'Pessoa Física'  // Titularidade
       ];
       
       try {
@@ -3282,7 +3399,7 @@
           
           await gapi.client.sheets.spreadsheets.values.update({
             spreadsheetId: imoveisSheetId,
-            range: `Lista!A${rowNumber}:R${rowNumber}`,
+            range: `Lista!A${rowNumber}:S${rowNumber}`,
             valueInputOption: 'USER_ENTERED',
             resource: { values: [row] }
           });
@@ -3310,7 +3427,7 @@
           // CREATE
           await gapi.client.sheets.spreadsheets.values.append({
             spreadsheetId: imoveisSheetId,
-            range: 'Lista!A:R',
+            range: 'Lista!A:S',
             valueInputOption: 'USER_ENTERED',
             resource: { values: [row] }
           });
