@@ -1144,26 +1144,54 @@
           <div class="form-row">
             <div class="form-group">
               <label class="form-label">Valor de Compra *</label>
-              <input type="number" class="form-input" name="valor_compra" required placeholder="750000">
+              <input type="number" class="form-input" name="valor_compra" required placeholder="750000" step="0.01">
             </div>
             <div class="form-group">
               <label class="form-label">Data da Compra *</label>
               <input type="date" class="form-input" name="data_compra" required>
             </div>
           </div>
+          <div class="form-group">
+            <label class="form-label">Valor Atual (Avaliação) *</label>
+            <input type="number" class="form-input" name="valor_atual" required placeholder="850000" step="0.01">
+          </div>
           <div class="form-row">
             <div class="form-group">
-              <label class="form-label">Valor Atual *</label>
-              <input type="number" class="form-input" name="valor_atual" required placeholder="850000">
+              <label class="form-label">Área Total (m²)</label>
+              <input type="number" class="form-input" name="area_total" placeholder="85" step="0.01">
             </div>
             <div class="form-group">
-              <label class="form-label">Aluguel Mensal</label>
-              <input type="number" class="form-input" name="aluguel" placeholder="3500">
+              <label class="form-label">Área Útil (m²)</label>
+              <input type="number" class="form-input" name="area_util" placeholder="72" step="0.01">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Quartos</label>
+              <input type="number" class="form-input" name="quartos" placeholder="3">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Suítes</label>
+              <input type="number" class="form-input" name="suites" placeholder="1">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Vagas</label>
+              <input type="number" class="form-input" name="vagas" placeholder="2">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">IPTU Anual</label>
+              <input type="number" class="form-input" name="iptu_anual" placeholder="2400" step="0.01">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Condomínio Mensal</label>
+              <input type="number" class="form-input" name="condominio_mensal" placeholder="400" step="0.01">
             </div>
           </div>
           <div class="form-group">
-            <label class="form-label">Inquilino Atual</label>
-            <input type="text" class="form-input" name="inquilino" placeholder="Nome do inquilino">
+            <label class="form-label">Observações</label>
+            <input type="text" class="form-input" name="observacoes" placeholder="Informações adicionais">
           </div>
         </form>
       </div>
@@ -1562,7 +1590,7 @@
       try {
         const response = await gapi.client.sheets.spreadsheets.values.get({
           spreadsheetId: imoveisSheetId,
-          range: "Lista!A2:T100"
+          range: "Lista!A2:R100"
         });
         const rows = response.result.values;
         
@@ -1609,7 +1637,8 @@
         const subgrupo = row[3] || '';
         const valorCompra = parseFloat(String(row[5] || '0').replace(/[^\d.-]/g, '')) || 0;
         const valorAtual = parseFloat(String(row[7] || '0').replace(/[^\d.-]/g, '')) || 0;
-        const aluguel = parseFloat(String(row[9] || '0').replace(/[^\d.-]/g, '')) || 0;
+        // Aluguel agora vem da aba Ocupacao (será implementado depois)
+        const aluguel = 0;  // TODO: buscar da aba Ocupacao
         
         const variacao = valorCompra > 0 ? ((valorAtual - valorCompra) / valorCompra * 100).toFixed(1) : 0;
         const variacaoClass = variacao >= 0 ? 'positive' : 'negative';
@@ -2700,17 +2729,15 @@
         data.get('data_compra'),
         valorAtual,
         dataAvaliacao,
-        data.get('aluguel') || 0,
-        data.get('inquilino') || '',
-        '',
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        '',
-        ''
+        data.get('iptu_anual') || 0,
+        data.get('condominio_mensal') || 0,
+        data.get('area_total') || 0,
+        data.get('area_util') || 0,
+        data.get('quartos') || 0,
+        data.get('suites') || 0,
+        data.get('vagas') || 0,
+        data.get('observacoes') || '',
+        ''  // Drive_Folder_ID
       ];
       
       try {
@@ -2721,7 +2748,7 @@
           
           await gapi.client.sheets.spreadsheets.values.update({
             spreadsheetId: imoveisSheetId,
-            range: `Lista!A${rowNumber}:T${rowNumber}`,
+            range: `Lista!A${rowNumber}:R${rowNumber}`,
             valueInputOption: 'USER_ENTERED',
             resource: { values: [row] }
           });
@@ -2749,7 +2776,7 @@
           // CREATE
           await gapi.client.sheets.spreadsheets.values.append({
             spreadsheetId: imoveisSheetId,
-            range: 'Lista!A:T',
+            range: 'Lista!A:R',
             valueInputOption: 'USER_ENTERED',
             resource: { values: [row] }
           });
