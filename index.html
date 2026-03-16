@@ -633,6 +633,119 @@
       }
     }
 
+    /* TABS SISTEMA */
+    .tabs-container {
+      margin-bottom: 24px;
+    }
+    .tabs-header {
+      display: flex;
+      gap: 4px;
+      border-bottom: 2px solid var(--cinza-claro);
+      margin-bottom: 24px;
+    }
+    .tab-btn {
+      padding: 12px 24px;
+      background: transparent;
+      border: none;
+      border-bottom: 3px solid transparent;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-light);
+      transition: all 0.3s;
+    }
+    .tab-btn:hover {
+      color: var(--azul-secundario);
+    }
+    .tab-btn.active {
+      color: var(--azul-principal);
+      border-bottom-color: var(--azul-secundario);
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+
+    /* GESTÃO TABELAS */
+    .gestao-section {
+      background: var(--branco);
+      padding: 24px;
+      border-radius: 12px;
+      margin-bottom: 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .gestao-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .gestao-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--azul-principal);
+    }
+    .btn-add-small {
+      padding: 8px 16px;
+      background: var(--azul-secundario);
+      color: var(--branco);
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.3s;
+    }
+    .btn-add-small:hover {
+      background: var(--azul-principal);
+    }
+    .gestao-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .gestao-table th {
+      background: var(--cinza-claro);
+      padding: 12px;
+      text-align: left;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-dark);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .gestao-table td {
+      padding: 12px;
+      border-bottom: 1px solid var(--cinza-claro);
+      font-size: 14px;
+      color: var(--text-dark);
+    }
+    .gestao-table tr:hover {
+      background: var(--cinza-claro);
+    }
+    .gestao-actions {
+      display: flex;
+      gap: 8px;
+    }
+    .btn-icon {
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      font-size: 16px;
+      padding: 4px 8px;
+      transition: all 0.2s;
+    }
+    .btn-icon:hover {
+      transform: scale(1.2);
+    }
+    .empty-state {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-light);
+      font-size: 14px;
+    }
+
     /* DOCUMENTOS */
     .docs-list {
       margin-top: 20px;
@@ -844,27 +957,122 @@
             <div class="detalhes-grid" id="detalhes-stats"></div>
           </div>
 
-          <div class="detalhes-content">
-            <div>
-              <div class="detalhes-section">
-                <h3 class="detalhes-section-title">📊 Evolução de Valorização</h3>
-                <div class="chart-container">
-                  <canvas id="chart-valorizacao"></canvas>
+          <!-- SISTEMA DE ABAS -->
+          <div class="tabs-container">
+            <div class="tabs-header">
+              <button class="tab-btn active" onclick="switchTab('geral')">📊 Visão Geral</button>
+              <button class="tab-btn" onclick="switchTab('despesas')">💰 Despesas</button>
+              <button class="tab-btn" onclick="switchTab('ocupacao')">👥 Ocupação</button>
+              <button class="tab-btn" onclick="switchTab('documentos')">📁 Documentos</button>
+            </div>
+
+            <!-- ABA: VISÃO GERAL -->
+            <div class="tab-content active" id="tab-geral">
+              <div class="detalhes-content">
+                <div>
+                  <div class="detalhes-section">
+                    <h3 class="detalhes-section-title">📊 Evolução de Valorização</h3>
+                    <div class="chart-container">
+                      <canvas id="chart-valorizacao"></canvas>
+                    </div>
+                  </div>
+                  
+                  <div class="detalhes-section" style="margin-top: 24px;">
+                    <h3 class="detalhes-section-title">📋 Análise Completa</h3>
+                    <div id="detalhes-info"></div>
+                  </div>
                 </div>
-              </div>
-              
-              <div class="detalhes-section" style="margin-top: 24px;">
-                <h3 class="detalhes-section-title">📋 Informações Completas</h3>
-                <div id="detalhes-info"></div>
+
+                <div>
+                  <div class="detalhes-section">
+                    <h3 class="detalhes-section-title">📅 Histórico de Valores</h3>
+                    <div class="historico-list" id="detalhes-historico"></div>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div>
-              <div class="detalhes-section">
-                <h3 class="detalhes-section-title">📅 Histórico de Valores</h3>
-                <div class="historico-list" id="detalhes-historico"></div>
+            <!-- ABA: DESPESAS -->
+            <div class="tab-content" id="tab-despesas">
+              <!-- Despesas Recorrentes -->
+              <div class="gestao-section">
+                <div class="gestao-header">
+                  <h3 class="gestao-title">📊 Despesas Recorrentes</h3>
+                  <button class="btn-add-small" onclick="openModalDespesaRec()">+ Adicionar</button>
+                </div>
+                <table class="gestao-table" id="table-despesas-rec">
+                  <thead>
+                    <tr>
+                      <th>Tipo</th>
+                      <th>Valor Mensal</th>
+                      <th>Vencimento</th>
+                      <th>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tbody-despesas-rec">
+                    <tr><td colspan="4" class="empty-state">Carregando...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Despesas Extraordinárias -->
+              <div class="gestao-section">
+                <div class="gestao-header">
+                  <h3 class="gestao-title">🔧 Despesas Extraordinárias</h3>
+                  <button class="btn-add-small" onclick="openModalDespesaExt()">+ Adicionar</button>
+                </div>
+                <table class="gestao-table" id="table-despesas-ext">
+                  <thead>
+                    <tr>
+                      <th>Data</th>
+                      <th>Tipo</th>
+                      <th>Valor</th>
+                      <th>Categoria</th>
+                      <th>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tbody-despesas-ext">
+                    <tr><td colspan="5" class="empty-state">Carregando...</td></tr>
+                  </tbody>
+                </table>
               </div>
             </div>
+
+            <!-- ABA: OCUPAÇÃO -->
+            <div class="tab-content" id="tab-ocupacao">
+              <div class="gestao-section">
+                <div class="gestao-header">
+                  <h3 class="gestao-title">👥 Histórico de Ocupação</h3>
+                  <button class="btn-add-small" onclick="openModalOcupacao()">+ Adicionar</button>
+                </div>
+                <table class="gestao-table" id="table-ocupacao">
+                  <thead>
+                    <tr>
+                      <th>Período</th>
+                      <th>Inquilino</th>
+                      <th>Aluguel</th>
+                      <th>Status</th>
+                      <th>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tbody-ocupacao">
+                    <tr><td colspan="5" class="empty-state">Carregando...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- ABA: DOCUMENTOS -->
+            <div class="tab-content" id="tab-documentos">
+              <div class="gestao-section">
+                <div class="gestao-header">
+                  <h3 class="gestao-title">📁 Documentos do Imóvel</h3>
+                  <button class="btn-add-small" onclick="viewImovelDocsFromTab()">Gerenciar</button>
+                </div>
+                <p style="color: var(--text-light); padding: 20px;">Clique em "Gerenciar" para fazer upload, visualizar e excluir documentos.</p>
+              </div>
+            </div>
+
           </div>
         </div>
 
@@ -990,6 +1198,147 @@
       </div>
       <div class="modal-footer">
         <button class="btn-cancel" onclick="closeModal('modal-documentos')">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DESPESA RECORRENTE -->
+  <div class="modal" id="modal-despesa-rec">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">Adicionar Despesa Recorrente</h3>
+        <button class="modal-close" onclick="closeModal('modal-despesa-rec')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-despesa-rec">
+          <div class="form-group">
+            <label class="form-label">Tipo de Despesa *</label>
+            <select class="form-select" name="tipo" required>
+              <option value="">Selecione...</option>
+              <option value="IPTU">IPTU</option>
+              <option value="Condomínio">Condomínio</option>
+              <option value="Seguro">Seguro</option>
+              <option value="Administração">Administração</option>
+              <option value="Manutenção Preventiva">Manutenção Preventiva</option>
+              <option value="Outros">Outros</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Valor Mensal *</label>
+              <input type="number" class="form-input" name="valor_mensal" required placeholder="200" step="0.01">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Dia Vencimento</label>
+              <input type="number" class="form-input" name="vencimento_dia" min="1" max="31" placeholder="10">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Observações</label>
+            <input type="text" class="form-input" name="observacoes" placeholder="Detalhes adicionais">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="closeModal('modal-despesa-rec')">Cancelar</button>
+        <button class="btn-save" onclick="saveDespesaRec()">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DESPESA EXTRAORDINÁRIA -->
+  <div class="modal" id="modal-despesa-ext">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">Adicionar Despesa Extraordinária</h3>
+        <button class="modal-close" onclick="closeModal('modal-despesa-ext')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-despesa-ext">
+          <div class="form-group">
+            <label class="form-label">Data *</label>
+            <input type="date" class="form-input" name="data" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Tipo de Despesa *</label>
+            <input type="text" class="form-input" name="tipo" required placeholder="Ex: Reforma Completa, Troca de ar-condicionado">
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Valor *</label>
+              <input type="number" class="form-input" name="valor" required placeholder="35000" step="0.01">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Categoria *</label>
+              <select class="form-select" name="categoria" required>
+                <option value="">Selecione...</option>
+                <option value="Reforma">Reforma</option>
+                <option value="Manutenção Corretiva">Manutenção Corretiva</option>
+                <option value="Vacância">Vacância</option>
+                <option value="Inadimplência">Inadimplência</option>
+                <option value="Outros">Outros</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Observações</label>
+            <input type="text" class="form-input" name="observacoes" placeholder="Detalhes adicionais">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="closeModal('modal-despesa-ext')">Cancelar</button>
+        <button class="btn-save" onclick="saveDespesaExt()">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL OCUPAÇÃO -->
+  <div class="modal" id="modal-ocupacao">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">Adicionar Período de Ocupação</h3>
+        <button class="modal-close" onclick="closeModal('modal-ocupacao')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-ocupacao">
+          <div class="form-group">
+            <label class="form-label">Inquilino *</label>
+            <input type="text" class="form-input" name="inquilino" required placeholder="Nome do inquilino">
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Data Início *</label>
+              <input type="date" class="form-input" name="data_inicio" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Data Fim</label>
+              <input type="date" class="form-input" name="data_fim">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Valor Aluguel *</label>
+              <input type="number" class="form-input" name="valor_aluguel" required placeholder="3500" step="0.01">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Status *</label>
+              <select class="form-select" name="status" required>
+                <option value="Ocupado">Ocupado</option>
+                <option value="Finalizado">Finalizado</option>
+                <option value="Vago">Vago</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Observações</label>
+            <input type="text" class="form-input" name="observacoes" placeholder="Detalhes do contrato">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="closeModal('modal-ocupacao')">Cancelar</button>
+        <button class="btn-save" onclick="saveOcupacao()">Salvar</button>
       </div>
     </div>
   </div>
@@ -1390,6 +1739,9 @@
       const row = imoveisData[index];
       if (!row) return;
       
+      // Salva nome do imóvel
+      currentImovelNome = row[0];
+      
       // Carrega dados básicos
       const nome = row[0];
       const tipo = row[1] || '';
@@ -1749,7 +2101,8 @@
         const rows = response.result.values || [];
         return rows.filter(r => r[0] === nomeImovel).map(r => ({
           tipo: r[1],
-          valorMensal: parseFloat(String(r[2] || '0').replace(/[^\d.-]/g, '')) || 0
+          valorMensal: parseFloat(String(r[2] || '0').replace(/[^\d.-]/g, '')) || 0,
+          vencimentoDia: r[3] || ''
         }));
       } catch (e) {
         console.error('❌', e);
@@ -1828,6 +2181,317 @@
       });
       
       return totalMeses > 0 ? ((mesesOcupados / totalMeses) * 100).toFixed(1) : 0;
+    }
+    
+    // ========== CONTROLE DE ABAS ==========
+    let currentImovelNome = '';
+    
+    function switchTab(tabName) {
+      // Atualiza botões
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+      
+      // Atualiza conteúdo
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+      document.getElementById(`tab-${tabName}`).classList.add('active');
+      
+      // Carrega dados da aba
+      if (tabName === 'despesas') {
+        loadTabDespesas();
+      } else if (tabName === 'ocupacao') {
+        loadTabOcupacao();
+      }
+    }
+    
+    async function loadTabDespesas() {
+      if (!currentImovelNome) return;
+      
+      // Carrega despesas recorrentes
+      const despesasRec = await loadDespesasRecorrentes(currentImovelNome);
+      const tbodyRec = document.getElementById('tbody-despesas-rec');
+      
+      if (despesasRec.length === 0) {
+        tbodyRec.innerHTML = '<tr><td colspan="4" class="empty-state">Nenhuma despesa recorrente cadastrada</td></tr>';
+      } else {
+        tbodyRec.innerHTML = despesasRec.map((d, i) => `
+          <tr>
+            <td>${d.tipo}</td>
+            <td>${fmt(d.valorMensal)}</td>
+            <td>${d.vencimentoDia || '-'}</td>
+            <td class="gestao-actions">
+              <button class="btn-icon" onclick="deleteDespesaRec(${i})" title="Excluir">🗑️</button>
+            </td>
+          </tr>
+        `).join('');
+      }
+      
+      // Carrega despesas extraordinárias
+      const despesasExt = await loadDespesasExtraordinarias(currentImovelNome);
+      const tbodyExt = document.getElementById('tbody-despesas-ext');
+      
+      if (despesasExt.length === 0) {
+        tbodyExt.innerHTML = '<tr><td colspan="5" class="empty-state">Nenhuma despesa extraordinária cadastrada</td></tr>';
+      } else {
+        tbodyExt.innerHTML = despesasExt.map((d, i) => `
+          <tr>
+            <td>${new Date(d.data).toLocaleDateString('pt-BR')}</td>
+            <td>${d.tipo}</td>
+            <td>${fmt(d.valor)}</td>
+            <td>${d.categoria}</td>
+            <td class="gestao-actions">
+              <button class="btn-icon" onclick="deleteDespesaExt(${i})" title="Excluir">🗑️</button>
+            </td>
+          </tr>
+        `).join('');
+      }
+    }
+    
+    async function loadTabOcupacao() {
+      if (!currentImovelNome) return;
+      
+      const ocupacao = await loadOcupacao(currentImovelNome);
+      const tbody = document.getElementById('tbody-ocupacao');
+      
+      if (ocupacao.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Nenhum período de ocupação cadastrado</td></tr>';
+      } else {
+        tbody.innerHTML = ocupacao.map((o, i) => {
+          const inicio = new Date(o.dataInicio).toLocaleDateString('pt-BR');
+          const fim = o.dataFim ? new Date(o.dataFim).toLocaleDateString('pt-BR') : 'Atual';
+          return `
+            <tr>
+              <td>${inicio} - ${fim}</td>
+              <td>${o.inquilino}</td>
+              <td>${fmt(o.valorAluguel)}</td>
+              <td><span style="padding: 4px 8px; background: ${o.status === 'Ocupado' ? '#dcfce7' : '#f3f4f6'}; border-radius: 4px; font-size: 12px;">${o.status}</span></td>
+              <td class="gestao-actions">
+                <button class="btn-icon" onclick="deleteOcupacao(${i})" title="Excluir">🗑️</button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+    }
+    
+    // ========== MODAIS ==========
+    function openModalDespesaRec() {
+      openModal('modal-despesa-rec');
+    }
+    
+    function openModalDespesaExt() {
+      openModal('modal-despesa-ext');
+    }
+    
+    function openModalOcupacao() {
+      openModal('modal-ocupacao');
+    }
+    
+    function viewImovelDocsFromTab() {
+      viewImovelDocs(currentImovelIndex);
+    }
+    
+    // ========== CRUD DESPESAS RECORRENTES ==========
+    async function saveDespesaRec() {
+      const form = document.getElementById('form-despesa-rec');
+      const data = new FormData(form);
+      
+      const row = [
+        currentImovelNome,
+        data.get('tipo'),
+        data.get('valor_mensal'),
+        data.get('vencimento_dia') || '',
+        data.get('observacoes') || ''
+      ];
+      
+      try {
+        await gapi.client.sheets.spreadsheets.values.append({
+          spreadsheetId: imoveisSheetId,
+          range: 'Despesas_Recorrentes!A:E',
+          valueInputOption: 'USER_ENTERED',
+          resource: { values: [row] }
+        });
+        
+        alert('✅ Despesa recorrente adicionada!');
+        closeModal('modal-despesa-rec');
+        form.reset();
+        loadTabDespesas();
+        
+        // Recarrega detalhes para atualizar cálculos
+        viewImovelDetalhes(currentImovelIndex);
+      } catch (e) {
+        console.error('❌', e);
+        alert('Erro ao salvar: ' + e.message);
+      }
+    }
+    
+    async function deleteDespesaRec(index) {
+      if (!confirm('Deseja realmente excluir esta despesa?')) return;
+      
+      try {
+        const despesas = await loadDespesasRecorrentes(currentImovelNome);
+        const rowNumber = index + 2; // +2 porque começa em A2
+        
+        await gapi.client.sheets.spreadsheets.batchUpdate({
+          spreadsheetId: imoveisSheetId,
+          resource: {
+            requests: [{
+              deleteDimension: {
+                range: {
+                  sheetId: await getSheetId('Despesas_Recorrentes'),
+                  dimension: 'ROWS',
+                  startIndex: rowNumber - 1,
+                  endIndex: rowNumber
+                }
+              }
+            }]
+          }
+        });
+        
+        alert('✅ Despesa excluída!');
+        loadTabDespesas();
+        viewImovelDetalhes(currentImovelIndex);
+      } catch (e) {
+        console.error('❌', e);
+        alert('Erro ao excluir: ' + e.message);
+      }
+    }
+    
+    // ========== CRUD DESPESAS EXTRAORDINÁRIAS ==========
+    async function saveDespesaExt() {
+      const form = document.getElementById('form-despesa-ext');
+      const data = new FormData(form);
+      
+      const row = [
+        currentImovelNome,
+        data.get('data'),
+        data.get('tipo'),
+        data.get('valor'),
+        data.get('categoria'),
+        data.get('observacoes') || ''
+      ];
+      
+      try {
+        await gapi.client.sheets.spreadsheets.values.append({
+          spreadsheetId: imoveisSheetId,
+          range: 'Despesas_Extraordinarias!A:F',
+          valueInputOption: 'USER_ENTERED',
+          resource: { values: [row] }
+        });
+        
+        alert('✅ Despesa extraordinária adicionada!');
+        closeModal('modal-despesa-ext');
+        form.reset();
+        loadTabDespesas();
+        viewImovelDetalhes(currentImovelIndex);
+      } catch (e) {
+        console.error('❌', e);
+        alert('Erro ao salvar: ' + e.message);
+      }
+    }
+    
+    async function deleteDespesaExt(index) {
+      if (!confirm('Deseja realmente excluir esta despesa?')) return;
+      
+      try {
+        const rowNumber = index + 2;
+        
+        await gapi.client.sheets.spreadsheets.batchUpdate({
+          spreadsheetId: imoveisSheetId,
+          resource: {
+            requests: [{
+              deleteDimension: {
+                range: {
+                  sheetId: await getSheetId('Despesas_Extraordinarias'),
+                  dimension: 'ROWS',
+                  startIndex: rowNumber - 1,
+                  endIndex: rowNumber
+                }
+              }
+            }]
+          }
+        });
+        
+        alert('✅ Despesa excluída!');
+        loadTabDespesas();
+        viewImovelDetalhes(currentImovelIndex);
+      } catch (e) {
+        console.error('❌', e);
+        alert('Erro ao excluir: ' + e.message);
+      }
+    }
+    
+    // ========== CRUD OCUPAÇÃO ==========
+    async function saveOcupacao() {
+      const form = document.getElementById('form-ocupacao');
+      const data = new FormData(form);
+      
+      const row = [
+        currentImovelNome,
+        data.get('data_inicio'),
+        data.get('data_fim') || '',
+        data.get('inquilino'),
+        data.get('valor_aluguel'),
+        data.get('status'),
+        data.get('observacoes') || ''
+      ];
+      
+      try {
+        await gapi.client.sheets.spreadsheets.values.append({
+          spreadsheetId: imoveisSheetId,
+          range: 'Ocupacao!A:G',
+          valueInputOption: 'USER_ENTERED',
+          resource: { values: [row] }
+        });
+        
+        alert('✅ Período de ocupação adicionado!');
+        closeModal('modal-ocupacao');
+        form.reset();
+        loadTabOcupacao();
+        viewImovelDetalhes(currentImovelIndex);
+      } catch (e) {
+        console.error('❌', e);
+        alert('Erro ao salvar: ' + e.message);
+      }
+    }
+    
+    async function deleteOcupacao(index) {
+      if (!confirm('Deseja realmente excluir este período?')) return;
+      
+      try {
+        const rowNumber = index + 2;
+        
+        await gapi.client.sheets.spreadsheets.batchUpdate({
+          spreadsheetId: imoveisSheetId,
+          resource: {
+            requests: [{
+              deleteDimension: {
+                range: {
+                  sheetId: await getSheetId('Ocupacao'),
+                  dimension: 'ROWS',
+                  startIndex: rowNumber - 1,
+                  endIndex: rowNumber
+                }
+              }
+            }]
+          }
+        });
+        
+        alert('✅ Período excluído!');
+        loadTabOcupacao();
+        viewImovelDetalhes(currentImovelIndex);
+      } catch (e) {
+        console.error('❌', e);
+        alert('Erro ao excluir: ' + e.message);
+      }
+    }
+    
+    // Helper: pega sheet ID por nome
+    async function getSheetId(sheetName) {
+      const response = await gapi.client.sheets.spreadsheets.get({
+        spreadsheetId: imoveisSheetId
+      });
+      const sheet = response.result.sheets.find(s => s.properties.title === sheetName);
+      return sheet ? sheet.properties.sheetId : 0;
     }
     
     // VIEW DOCS (placeholder)
