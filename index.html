@@ -746,6 +746,56 @@
       font-size: 14px;
     }
 
+    /* RESUMO CARTEIRA */
+    .carteira-resumo {
+      background: var(--branco);
+      border-radius: 12px;
+      padding: 32px;
+      margin-bottom: 32px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    }
+    .carteira-titulo {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--azul-principal);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 24px;
+    }
+    .carteira-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+    }
+    .carteira-card {
+      background: var(--cinza-claro);
+      padding: 20px;
+      border-radius: 8px;
+      border-left: 4px solid var(--azul-secundario);
+      transition: all 0.3s;
+    }
+    .carteira-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .carteira-label {
+      font-size: 12px;
+      color: var(--text-light);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+    .carteira-valor {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--azul-principal);
+      margin-bottom: 4px;
+    }
+    .carteira-subtitulo {
+      font-size: 11px;
+      color: var(--text-light);
+    }
+
     /* DOCUMENTOS */
     .docs-list {
       margin-top: 20px;
@@ -925,6 +975,13 @@
             <h2 style="font-size: 24px; color: var(--text-dark);">Meus Imóveis</h2>
             <button class="btn-add" id="btn-add-imovel">+ Adicionar Imóvel</button>
           </div>
+
+          <!-- RESUMO CONSOLIDADO -->
+          <div class="carteira-resumo" id="carteira-resumo">
+            <div class="carteira-titulo">💰 Visão Consolidada da Carteira</div>
+            <div class="carteira-grid" id="carteira-stats"></div>
+          </div>
+
           <div class="filters">
             <button class="filter-btn active" data-filter="todos">Todos</button>
             <button class="filter-btn" data-filter="investimento">Investimento</button>
@@ -1657,6 +1714,7 @@
       
       if (!imoveisData || !imoveisData.length) {
         grid.innerHTML = '<p style="text-align:center; padding: 60px; color: #999;">Nenhum imóvel cadastrado. Clique em "Adicionar Imóvel" para começar!</p>';
+        document.getElementById('carteira-resumo').style.display = 'none';
         return;
       }
       
@@ -1670,8 +1728,12 @@
       
       if (filtered.length === 0) {
         grid.innerHTML = '<p style="text-align:center; padding: 60px; color: #999;">Nenhum imóvel encontrado com esse filtro.</p>';
+        renderCarteiraResumo(filtered);
         return;
       }
+      
+      // Renderiza resumo consolidado
+      renderCarteiraResumo(filtered);
       
       let html = '';
       filtered.forEach((row) => {
@@ -1729,6 +1791,124 @@
       });
       
       grid.innerHTML = html;
+    }
+    
+    async function renderCarteiraResumo(imoveis) {
+      if (!imoveis || imoveis.length === 0) {
+        document.getElementById('carteira-resumo').style.display = 'none';
+        return;
+      }
+      
+      document.getElementById('carteira-resumo').style.display = 'block';
+      
+      // Calcula métricas agregadas
+      let totalValorAtual = 0;
+      let totalValorCompra = 0;
+      let totalInvestido = 0;
+      let totalAluguel = 0;
+      let countOcupados = 0;
+      let somaYield = 0;
+      let countComYield = 0;
+      
+      // Busca dados de despesas e ocupação para cada imóvel
+      for (const row of imoveis) {
+        if (!row[0]) continue;
+        
+        const nome = row[0];
+        const valorCompra = parseFloat(String(row[5] || '0').replace(/[^\d.-]/g, '')) || 0;
+        const valorAtual = parseFloat(String(row[7] || '0').replace(/[^\d.-]/g, '')) || 0;
+        
+        totalValorAtual += valorAtual;
+        totalValorCompra += valorCompra;
+        
+        // Busca despesas extras
+        const despesasExt = await loadDespesasExtraordinarias(nome);
+        const totalDespExtra = despesasExt.reduce((sum, d) => sum + d.valor, 0);
+        totalInvestido += valorCompra + totalDespExtra;
+        
+        // Busca aluguel e yield da ocupação
+        const ocupacao = await loadOcupacao(nome);
+        const ocupacaoAtual = ocupacao.find(o => o.status === 'Ocupado');
+        
+        if (ocupacaoAtual) {
+          const aluguel = ocupacaoAtual.valorAluguel;
+          totalAluguel += aluguel;
+          countOcupados++;
+          
+          // Calcula yield líquido
+          const despesasRec = await loadDespesasRecorrentes(nome);
+          const despesasMensais = despesasRec.reduce((sum, d) => sum + d.valorMensal, 0);
+          const despesasAnuais = despesasMensais * 12;
+          
+          if (valorAtual > 0 && aluguel > 0) {
+            const yieldLiquido = (((aluguel * 12) - despesasAnuais) / valorAtual * 100);
+            somaYield += yieldLiquido;
+            countComYield++;
+          }
+        }
+      }
+      
+      // Calcula médias
+      const valorizacao = totalValorCompra > 0 ? ((totalValorAtual - totalValorCompra) / totalValorCompra * 100).toFixed(1) : 0;
+      const yieldMedio = countComYield > 0 ? (somaYield / countComYield).toFixed(2) : 0;
+      const taxaOcupacao = imoveis.length > 0 ? ((countOcupados / imoveis.length) * 100).toFixed(1) : 0;
+      
+      // Calcula cash flow médio estimado
+      const despesasMediasEstimadas = totalAluguel * 0.25; // 25% das receitas
+      const cashFlowMensal = totalAluguel - despesasMediasEstimadas;
+      
+      // Renderiza
+      const variacaoClass = valorizacao >= 0 ? 'positive' : 'negative';
+      const variacaoSymbol = valorizacao >= 0 ? '+' : '';
+      
+      const filterText = currentFilter === 'todos' ? 'Todos os Imóveis' : 
+                         currentFilter === 'investimento' ? 'Carteira de Investimento' : 
+                         'Bens Pessoais';
+      
+      document.querySelector('.carteira-titulo').textContent = `💰 Visão Consolidada - ${filterText}`;
+      
+      document.getElementById('carteira-stats').innerHTML = `
+        <div class="carteira-card">
+          <div class="carteira-label">Valor Total</div>
+          <div class="carteira-valor">${fmt(totalValorAtual)}</div>
+          <div class="carteira-subtitulo">${imoveis.length} imóve${imoveis.length > 1 ? 'is' : 'l'}</div>
+        </div>
+        <div class="carteira-card">
+          <div class="carteira-label">Valorização</div>
+          <div class="carteira-valor stat-change ${variacaoClass}">${variacaoSymbol}${valorizacao}%</div>
+          <div class="carteira-subtitulo">Desde a compra</div>
+        </div>
+        <div class="carteira-card">
+          <div class="carteira-label">Yield Médio</div>
+          <div class="carteira-valor">${yieldMedio}% a.a.</div>
+          <div class="carteira-subtitulo">Líquido de despesas</div>
+        </div>
+        <div class="carteira-card">
+          <div class="carteira-label">Total Investido</div>
+          <div class="carteira-valor">${fmt(totalInvestido)}</div>
+          <div class="carteira-subtitulo">Compra + despesas</div>
+        </div>
+        <div class="carteira-card">
+          <div class="carteira-label">Aluguel Mensal</div>
+          <div class="carteira-valor">${fmt(totalAluguel)}</div>
+          <div class="carteira-subtitulo">${countOcupados} ocupado${countOcupados !== 1 ? 's' : ''}</div>
+        </div>
+        <div class="carteira-card">
+          <div class="carteira-label">Cash Flow</div>
+          <div class="carteira-valor stat-change ${cashFlowMensal >= 0 ? 'positive' : 'negative'}">${fmt(cashFlowMensal)}</div>
+          <div class="carteira-subtitulo">Mensal estimado</div>
+        </div>
+        <div class="carteira-card">
+          <div class="carteira-label">Taxa Ocupação</div>
+          <div class="carteira-valor">${taxaOcupacao}%</div>
+          <div class="carteira-subtitulo">${countOcupados}/${imoveis.length} ocupados</div>
+        </div>
+        <div class="carteira-card">
+          <div class="carteira-label">Total Return</div>
+          <div class="carteira-valor stat-change ${valorizacao >= 0 ? 'positive' : 'negative'}">${variacaoSymbol}${valorizacao}%</div>
+          <div class="carteira-subtitulo">Valorização total</div>
+        </div>
+      `;
     }
     
     function setFilter(filter) {
