@@ -994,7 +994,10 @@
         <div class="page" id="page-imoveis">
           <div class="page-header">
             <h2 style="font-size: 24px; color: var(--text-dark);">Meus Imóveis</h2>
-            <button class="btn-add" id="btn-add-imovel">+ Adicionar Imóvel</button>
+            <div style="display: flex; gap: 12px;">
+              <button class="btn-add" onclick="gerarRelatorioPDF()" style="background: var(--azul-secundario);">📊 Relatório PDF</button>
+              <button class="btn-add" id="btn-add-imovel">+ Adicionar Imóvel</button>
+            </div>
           </div>
 
           <!-- RESUMO CONSOLIDADO -->
@@ -1529,6 +1532,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://apis.google.com/js/api.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script>
     console.log('🔥 Praxes v3.0 - Sidebar + Imóveis');
     
@@ -3087,7 +3091,251 @@
       }
     }
     
-    // ========== REAVALIAÇÃO ==========
+    // ========== RELATÓRIO PDF ==========
+    async function gerarRelatorioPDF() {
+      try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        
+        // Configurações
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const margin = 20;
+        let yPos = margin;
+        
+        // CAPA
+        doc.setFillColor(15, 61, 87); // azul-principal
+        doc.rect(0, 0, pageWidth, 60, 'F');
+        
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(28);
+        doc.setFont('helvetica', 'bold');
+        doc.text('PRAXES', margin, 30);
+        
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'normal');
+        doc.text('Family Office', margin, 42);
+        
+        yPos = 80;
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(20);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Relatório de Imóveis', margin, yPos);
+        
+        yPos += 10;
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(100, 100, 100);
+        doc.text(`Gerado em ${new Date().toLocaleDateString('pt-BR')}`, margin, yPos);
+        
+        yPos += 5;
+        doc.text(`Cliente: ${currentUser?.user_metadata?.name || 'Luiz Henrique Beck'}`, margin, yPos);
+        
+        // LINHA DIVISÓRIA
+        yPos += 10;
+        doc.setDrawColor(184, 146, 74); // gold
+        doc.setLineWidth(0.5);
+        doc.line(margin, yPos, pageWidth - margin, yPos);
+        
+        // RESUMO EXECUTIVO
+        yPos += 15;
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 0, 0);
+        doc.text('Resumo Executivo', margin, yPos);
+        
+        yPos += 10;
+        
+        // Calcula métricas
+        const filtered = currentFilter === 'todos' ? imoveisData : 
+                        currentFilter === 'investimento' ? imoveisData.filter(r => r[2] === 'Investimento') :
+                        imoveisData.filter(r => r[2] === 'Bem Pessoal');
+        
+        let totalValorAtual = 0;
+        let totalValorCompra = 0;
+        let totalInvestido = 0;
+        let totalAluguel = 0;
+        let countOcupados = 0;
+        
+        for (const row of filtered) {
+          if (!row[0]) continue;
+          const nome = row[0];
+          const valorCompra = parseFloat(String(row[5] || '0').replace(/[^\d.-]/g, '')) || 0;
+          const valorAtual = parseFloat(String(row[7] || '0').replace(/[^\d.-]/g, '')) || 0;
+          
+          totalValorAtual += valorAtual;
+          totalValorCompra += valorCompra;
+          
+          const despesasExt = await loadDespesasExtraordinarias(nome);
+          const totalDespExtra = despesasExt.reduce((sum, d) => sum + d.valor, 0);
+          totalInvestido += valorCompra + totalDespExtra;
+          
+          const ocupacao = await loadOcupacao(nome);
+          const ocupacaoAtual = ocupacao.find(o => o.status === 'Ocupado');
+          
+          if (ocupacaoAtual) {
+            totalAluguel += ocupacaoAtual.valorAluguel;
+            countOcupados++;
+          }
+        }
+        
+        const valorizacao = totalValorCompra > 0 ? ((totalValorAtual - totalValorCompra) / totalValorCompra * 100).toFixed(1) : 0;
+        const taxaOcupacao = filtered.length > 0 ? ((countOcupados / filtered.length) * 100).toFixed(1) : 0;
+        
+        // Box de métricas
+        doc.setFillColor(249, 247, 243);
+        doc.roundedRect(margin, yPos, pageWidth - 2*margin, 55, 3, 3, 'F');
+        
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(46, 107, 142);
+        
+        const col1 = margin + 10;
+        const col2 = pageWidth / 2 + 5;
+        let boxY = yPos + 10;
+        
+        doc.text('Quantidade de Imóveis:', col1, boxY);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(0, 0, 0);
+        doc.text(String(filtered.length), col1 + 60, boxY);
+        
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(46, 107, 142);
+        doc.text('Valor Total:', col2, boxY);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(0, 0, 0);
+        doc.text(fmt(totalValorAtual), col2 + 40, boxY);
+        
+        boxY += 8;
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(46, 107, 142);
+        doc.text('Valorização:', col1, boxY);
+        doc.setFont('helvetica', 'normal');
+        const valColor = valorizacao >= 0 ? [46, 125, 82] : [192, 57, 43];
+        doc.setTextColor(...valColor);
+        doc.text(`${valorizacao >= 0 ? '+' : ''}${valorizacao}%`, col1 + 60, boxY);
+        
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(46, 107, 142);
+        doc.text('Total Investido:', col2, boxY);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(0, 0, 0);
+        doc.text(fmt(totalInvestido), col2 + 40, boxY);
+        
+        boxY += 8;
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(46, 107, 142);
+        doc.text('Aluguel Mensal:', col1, boxY);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(0, 0, 0);
+        doc.text(fmt(totalAluguel), col1 + 60, boxY);
+        
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(46, 107, 142);
+        doc.text('Taxa de Ocupação:', col2, boxY);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(0, 0, 0);
+        doc.text(`${taxaOcupacao}%`, col2 + 40, boxY);
+        
+        boxY += 8;
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(46, 107, 142);
+        doc.text('Imóveis Ocupados:', col1, boxY);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(0, 0, 0);
+        doc.text(`${countOcupados} / ${filtered.length}`, col1 + 60, boxY);
+        
+        yPos += 65;
+        
+        // LISTA DE IMÓVEIS
+        doc.addPage();
+        yPos = margin;
+        
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 0, 0);
+        doc.text('Carteira de Imóveis', margin, yPos);
+        
+        yPos += 10;
+        
+        // Tabela de imóveis
+        for (const row of filtered) {
+          if (!row[0]) continue;
+          
+          if (yPos > pageHeight - 50) {
+            doc.addPage();
+            yPos = margin;
+          }
+          
+          const nome = row[0];
+          const tipo = row[1] || '';
+          const grupo = row[2] || '';
+          const valorAtual = parseFloat(String(row[7] || '0').replace(/[^\d.-]/g, '')) || 0;
+          const valorCompra = parseFloat(String(row[5] || '0').replace(/[^\d.-]/g, '')) || 0;
+          const variacao = valorCompra > 0 ? ((valorAtual - valorCompra) / valorCompra * 100).toFixed(1) : 0;
+          
+          // Box do imóvel
+          doc.setFillColor(255, 255, 255);
+          doc.roundedRect(margin, yPos, pageWidth - 2*margin, 35, 2, 2, 'F');
+          doc.setDrawColor(229, 221, 208);
+          doc.roundedRect(margin, yPos, pageWidth - 2*margin, 35, 2, 2, 'S');
+          
+          yPos += 8;
+          
+          doc.setFontSize(12);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(0, 0, 0);
+          doc.text(nome, margin + 5, yPos);
+          
+          yPos += 6;
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(100, 100, 100);
+          doc.text(`${tipo} • ${grupo}`, margin + 5, yPos);
+          
+          yPos += 8;
+          doc.setFontSize(10);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(46, 107, 142);
+          doc.text('Valor:', margin + 5, yPos);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(0, 0, 0);
+          doc.text(fmt(valorAtual), margin + 25, yPos);
+          
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(46, 107, 142);
+          doc.text('Valorização:', pageWidth / 2, yPos);
+          doc.setFont('helvetica', 'normal');
+          const varColor = variacao >= 0 ? [46, 125, 82] : [192, 57, 43];
+          doc.setTextColor(...varColor);
+          doc.text(`${variacao >= 0 ? '+' : ''}${variacao}%`, pageWidth / 2 + 30, yPos);
+          
+          yPos += 15;
+        }
+        
+        // RODAPÉ
+        const totalPages = doc.internal.pages.length - 1;
+        for (let i = 1; i <= totalPages; i++) {
+          doc.setPage(i);
+          doc.setFontSize(8);
+          doc.setTextColor(150, 150, 150);
+          doc.text(`Praxes Family Office • Relatório confidencial`, margin, pageHeight - 10);
+          doc.text(`Página ${i} de ${totalPages}`, pageWidth - margin - 30, pageHeight - 10);
+        }
+        
+        // Salva PDF
+        const fileName = `Praxes_Imoveis_${new Date().toISOString().split('T')[0]}.pdf`;
+        doc.save(fileName);
+        
+        console.log('✅ PDF gerado:', fileName);
+        
+      } catch (e) {
+        console.error('❌ Erro ao gerar PDF:', e);
+        alert('Erro ao gerar relatório PDF: ' + e.message);
+      }
+    }
+
+    // ========== FIM RELATÓRIO PDF ==========
     function openModalReavaliacao() {
       const form = document.getElementById('form-reavaliacao');
       form.reset();
