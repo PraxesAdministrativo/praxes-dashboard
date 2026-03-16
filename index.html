@@ -1701,8 +1701,14 @@
       form.elements['valor_compra'].value = row[5] || '';
       form.elements['data_compra'].value = row[6] || '';
       form.elements['valor_atual'].value = row[7] || '';
-      form.elements['aluguel'].value = row[9] || '';
-      form.elements['inquilino'].value = row[10] || '';
+      form.elements['iptu_anual'].value = row[9] || '';
+      form.elements['condominio_mensal'].value = row[10] || '';
+      form.elements['area_total'].value = row[11] || '';
+      form.elements['area_util'].value = row[12] || '';
+      form.elements['quartos'].value = row[13] || '';
+      form.elements['suites'].value = row[14] || '';
+      form.elements['vagas'].value = row[15] || '';
+      form.elements['observacoes'].value = row[16] || '';
       
       document.querySelector('#modal-add-imovel .modal-title').textContent = 'Editar Imóvel';
       document.getElementById('btn-save-imovel').setAttribute('data-index', index);
