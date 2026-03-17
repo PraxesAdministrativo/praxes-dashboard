@@ -4984,38 +4984,53 @@
         doc.setTextColor(0, 0, 0);
         y += cardH + 6;
 
-        // ---- Gráficos: captura canvas da tela como imagem ----
-        // Linha superior: gráfico de linha (2/3 largura) + pizza (1/3)
+        // ---- Gráficos via canvas auxiliar em alta resolução ----
         const chartAreaW = pw - 2*mg;
-        const lineW  = Math.round(chartAreaW * 0.62);
-        const pizzaW = chartAreaW - lineW - 4;
-        const chartH = 68;
+        const lineW  = Math.round(chartAreaW * 0.60);
+        const pizzaW = chartAreaW - lineW - 5;
 
-        function canvasImg(id) {
-          const el = document.getElementById(id);
-          if (!el) return null;
-          try { return el.toDataURL('image/png'); } catch(e) { return null; }
+        // Captura canvas com fundo branco num canvas auxiliar 2× para qualidade
+        function canvasImg(id, destW, destH) {
+          const src = document.getElementById(id);
+          if (!src) return null;
+          const scale = 3; // 3× = alta qualidade
+          const tmp = document.createElement('canvas');
+          tmp.width  = Math.round(destW * scale * 3.7795); // mm→px a 96dpi×scale
+          tmp.height = Math.round(destH * scale * 3.7795);
+          const ctx = tmp.getContext('2d');
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, tmp.width, tmp.height);
+          // Escala o canvas original para o tamanho do destino
+          ctx.drawImage(src, 0, 0, tmp.width, tmp.height);
+          try {
+            return tmp.toDataURL('image/jpeg', 0.95);
+          } catch(e) {
+            console.warn('canvasImg failed:', id, e);
+            return null;
+          }
         }
 
-        // Linha de título dos gráficos
+        // Títulos
         doc.setFontSize(8); doc.setFont('helvetica', 'bold'); doc.setTextColor(15, 61, 87);
         doc.text('Rendas vs Despesas - Evolucao Anual', mg, y + 4);
-        doc.text('Despesas por Grupo', mg + lineW + 4, y + 4);
-        y += 7;
+        doc.text('Despesas por Grupo', mg + lineW + 5, y + 4);
+        y += 6;
 
-        const imgAnual = canvasImg('fin-chart-anual');
-        const imgPizza = canvasImg('fin-chart-pizza');
-        if (imgAnual) doc.addImage(imgAnual, 'PNG', mg,              y, lineW,  chartH);
-        if (imgPizza) doc.addImage(imgPizza, 'PNG', mg + lineW + 4,  y, pizzaW, chartH);
-        y += chartH + 4;
+        // Linha 1: linha anual + pizza
+        const chartH1 = 72;
+        const imgAnual = canvasImg('fin-chart-anual', lineW, chartH1);
+        const imgPizza = canvasImg('fin-chart-pizza', pizzaW, chartH1);
+        if (imgAnual) doc.addImage(imgAnual, 'JPEG', mg,             y, lineW,  chartH1);
+        if (imgPizza) doc.addImage(imgPizza, 'JPEG', mg + lineW + 5, y, pizzaW, chartH1);
+        y += chartH1 + 5;
 
-        // Linha inferior: barras (largura total)
+        // Linha 2: barras
         doc.setFontSize(8); doc.setFont('helvetica', 'bold'); doc.setTextColor(15, 61, 87);
         doc.text('Detalhamento de Despesas do Mes', mg, y + 4);
-        y += 7;
-        const barH = ph - y - mg - 8;
-        const imgBarras = canvasImg('fin-chart-barras');
-        if (imgBarras) doc.addImage(imgBarras, 'PNG', mg, y, chartAreaW, barH);
+        y += 6;
+        const chartH2 = ph - y - mg - 4;
+        const imgBarras = canvasImg('fin-chart-barras', chartAreaW, chartH2);
+        if (imgBarras) doc.addImage(imgBarras, 'JPEG', mg, y, chartAreaW, chartH2);
 
         // ================================================================
         // PÁGINA 2+ — DRE GERENCIAL (retrato)
