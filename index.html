@@ -4297,10 +4297,11 @@
       document.getElementById('fin-dre-container').innerHTML = '<div class="fin-loading"><div class="spinner"></div><p>Carregando DRE...</p></div>';
 
       try {
-        // Busca aba Lançamentos e aba Gerencial de uma vez (batchGet)
         const resp = await gapi.client.sheets.spreadsheets.values.batchGet({
           spreadsheetId: finSheetId,
-          ranges: ['Lançamentos!A1:J5000', 'Gerencial!A1:AJ200']
+          ranges: ['Lançamentos!A1:J5000', 'Gerencial!A1:AJ200'],
+          valueRenderOption: 'UNFORMATTED_VALUE',
+          dateTimeRenderOption: 'FORMATTED_STRING'
         });
 
         const [lancRange, gerRange] = resp.result.valueRanges;
@@ -4308,94 +4309,129 @@
         const gerRows  = gerRange.values || [];
 
         // Parseia lançamentos
-        // Header está na linha índice 1 (linha 2 da planilha): MÊS, ANO, ORIGEM, REFERÊNCIA, VALOR, DATA, EXTRATO, OBSERVAÇÕES
+        // Row 1 = header (índice 1), Row 2+ = dados e separadores
         finLancamentos = [];
         for (let i = 2; i < lancRows.length; i++) {
           const row = lancRows[i];
-          if (!row || !row[0] || !row[2]) continue; // sem mês ou origem = linha vazia / separador
+          if (!row || row.length < 3) continue;
           const mesNome = String(row[0] || '').trim();
-          const anoVal  = parseInt(row[1]) || 0;
-          if (!anoVal) continue; // linha de cabeçalho de mês
+          const anoVal  = parseInt(row[1]);
+          // Pula separadores (sem ano numérico) e linhas sem origem
+          if (!anoVal || isNaN(anoVal) || !row[2]) continue;
+          const valor = parseFloat(String(row[4] || '0').replace(',', '.'));
           finLancamentos.push({
             mes: mesNome,
             ano: anoVal,
-            origem: row[2] || '',
-            referencia: row[3] || '',
-            valor: parseFloat(String(row[4] || '0').replace(',', '.')) || 0,
-            data: row[5] ? String(row[5]).split(' ')[0] : '',
-            extrato: row[6] || '',
-            obs: row[7] || ''
+            origem: String(row[2] || '').trim(),
+            referencia: String(row[3] || '').trim(),
+            valor: isNaN(valor) ? 0 : valor,
+            data: row[5] ? String(row[5]).split('/').reverse().join('-') : '',
+            extrato: String(row[6] || '').trim(),
+            obs: String(row[7] || '').trim()
           });
         }
+        console.log('✅ Lançamentos:', finLancamentos.length);
 
-        // Processa DRE do Gerencial
+        finGerRows = gerRows;
+        finColMap  = finGetColMap(gerRows);
+        console.log('✅ ColMap:', finColMap);
+
         finProcessarDRE(gerRows);
-
-        // Filtra lançamentos do mês selecionado
         finFiltrar();
-
-        // Renderiza KPIs e gráficos
         finRenderDashboard(gerRows);
 
         document.getElementById('fin-last-updated').textContent = 'Atualizado agora';
 
       } catch(e) {
         console.error('❌ Controle Financeiro:', e);
-        document.getElementById('fin-kpis').innerHTML = `<p style="color:red;padding:20px;">Erro ao carregar dados: ${e.message}</p>`;
+        document.getElementById('fin-kpis').innerHTML = `<p style="color:red;padding:20px;">Erro: ${e.message}</p>`;
       }
     }
 
-    // ---- DASHBOARD ----
+    // Estado persistente entre chamadas
+    let finGerRows = [];
+    let finColMap  = {};
+
+    // Mapeia colunas do Gerencial
+    // gerRows[0] = linha 1: anos (2025 nas cols 5-16, 2026 nas cols 21-32)
+    // gerRows[1] = linha 2: datas dos meses (UNFORMATTED = serial number) — não usamos
+    // Com UNFORMATTED_VALUE, row[0] de Gerencial tem os anos como inteiros
+    // e os meses ficam consecutivos dentro de cada bloco de ano
+    function finGetColMap(gerRows) {
+      const row0 = gerRows[0] || [];
+      const colMap = {};
+      let prevAno = null;
+      let mesCount = 0;
+
+      for (let ci = 0; ci < row0.length; ci++) {
+        const v = parseInt(row0[ci]);
+        if (!v || isNaN(v) || v < 2020 || v > 2040) continue;
+
+        if (v !== prevAno) {
+          prevAno = v;
+          mesCount = 0;
+        }
+        mesCount++;
+        // Col do mês N do ano
+        colMap[`${v}-${mesCount}`] = ci;
+
+        // Após 12 meses: Total fica col+2, Média col+3
+        if (mesCount === 12) {
+          colMap[`ytd_${v}`]   = ci + 2;
+          colMap[`media_${v}`] = ci + 3;
+        }
+      }
+      return colMap;
+    }
+
+    function finNumVal(gerRows, rowIndex, colKey) {
+      const ci = finColMap[colKey];
+      if (ci === undefined) return 0;
+      const row = gerRows[rowIndex];
+      if (!row) return 0;
+      const v = row[ci];
+      const n = parseFloat(String(v ?? '0').replace(',', '.'));
+      return isNaN(n) ? 0 : n;
+    }
+
+    function finRowNumVal(row, colKey) {
+      const ci = finColMap[colKey];
+      if (ci === undefined || !row) return 0;
+      const n = parseFloat(String(row[ci] ?? '0').replace(',', '.'));
+      return isNaN(n) ? 0 : n;
+    }
+
+        // ---- DASHBOARD ----
     function finRenderDashboard(gerRows) {
-      // Encontra colunas de meses no Gerencial
-      // Linha 1 (índice 1) tem as datas dos meses: 2025-01-01, 2025-02-01, ...
-      // Colunas 5..16 = Jan..Dez 2025, 21..32 = Jan..Dez 2026, etc.
-      const headerRow = gerRows[1] || [];
-      const colIndices = {}; // { '2025-1': 5, '2025-2': 6, ... }
-      headerRow.forEach((cell, ci) => {
-        if (!cell || !String(cell).includes('-')) return;
-        const d = new Date(cell);
-        if (isNaN(d)) return;
-        const key = `${d.getFullYear()}-${d.getMonth()+1}`;
-        colIndices[key] = ci;
-      });
+      const colAtualKey = `${finAnoAtual}-${finMesAtual}`;
+      const colAtual = finColMap[colAtualKey];
 
-      const colAtual = colIndices[`${finAnoAtual}-${finMesAtual}`];
-
-      // Encontra linhas chave
+      // KPIs do mês
       let rendaTotal = 0, despesaTotal = 0;
       let totalAnual = { rendas: Array(12).fill(0), despesas: Array(12).fill(0) };
 
-      // Monta meses do ano atual
-      for (let m = 1; m <= 12; m++) {
-        const ci = colIndices[`${finAnoAtual}-${m}`];
-        if (ci === undefined) continue;
-        gerRows.forEach(row => {
-          if (!row) return;
-          const label = String(row[1] || '').trim();
-          if (label === 'Rendas totais') {
-            totalAnual.rendas[m-1] = Math.abs(parseFloat(String(row[ci] || '0').replace(',','.')) || 0);
+      gerRows.forEach(row => {
+        if (!row) return;
+        const label = String(row[1] || '').trim();
+        if (label === 'Rendas totais') {
+          if (colAtual !== undefined) rendaTotal = Math.abs(parseFloat(String(row[colAtual] ?? '0')) || 0);
+          for (let m = 1; m <= 12; m++) {
+            const ci = finColMap[`${finAnoAtual}-${m}`];
+            if (ci !== undefined) totalAnual.rendas[m-1] = Math.abs(parseFloat(String(row[ci] ?? '0')) || 0);
           }
-          if (label === 'Total de despesas') {
-            totalAnual.despesas[m-1] = Math.abs(parseFloat(String(row[ci] || '0').replace(',','.')) || 0);
+        }
+        if (label === 'Total de despesas') {
+          if (colAtual !== undefined) despesaTotal = Math.abs(parseFloat(String(row[colAtual] ?? '0')) || 0);
+          for (let m = 1; m <= 12; m++) {
+            const ci = finColMap[`${finAnoAtual}-${m}`];
+            if (ci !== undefined) totalAnual.despesas[m-1] = Math.abs(parseFloat(String(row[ci] ?? '0')) || 0);
           }
-        });
-      }
-
-      if (colAtual !== undefined) {
-        gerRows.forEach(row => {
-          if (!row) return;
-          const label = String(row[1] || '').trim();
-          if (label === 'Rendas totais') rendaTotal = Math.abs(parseFloat(String(row[colAtual] || '0').replace(',','.')) || 0);
-          if (label === 'Total de despesas') despesaTotal = Math.abs(parseFloat(String(row[colAtual] || '0').replace(',','.')) || 0);
-        });
-      }
+        }
+      });
 
       const saldo = rendaTotal - despesaTotal;
-      const saldoClass = saldo >= 0 ? 'positivo' : 'negativo';
       const poupanca = rendaTotal > 0 ? ((saldo / rendaTotal) * 100).toFixed(1) : 0;
 
-      // KPIs
       document.getElementById('fin-kpis').innerHTML = `
         <div class="fin-kpi-card verde">
           <div class="fin-kpi-label">Rendas no Mês</div>
@@ -4409,8 +4445,8 @@
         </div>
         <div class="fin-kpi-card ${saldo >= 0 ? 'verde' : 'vermelho'}">
           <div class="fin-kpi-label">Resultado (Δ)</div>
-          <div class="fin-kpi-value ${saldoClass}">${saldo >= 0 ? '+' : ''}${fmt(saldo)}</div>
-          <div class="fin-kpi-sub">${saldo >= 0 ? 'Superávit' : 'Déficit'} no período</div>
+          <div class="fin-kpi-value ${saldo >= 0 ? 'positivo' : 'negativo'}">${saldo >= 0 ? '+' : ''}${fmt(saldo)}</div>
+          <div class="fin-kpi-sub">${saldo >= 0 ? 'Superávit' : 'Déficit'}</div>
         </div>
         <div class="fin-kpi-card roxo">
           <div class="fin-kpi-label">Taxa de Poupança</div>
@@ -4419,7 +4455,7 @@
         </div>
       `;
 
-      // Gráfico anual linha
+      // Gráfico linha anual
       const labels = MESES_PT.map(m => m.substring(0,3));
       finDestroyChart('finChartAnual');
       finChartAnual = new Chart(document.getElementById('fin-chart-anual'), {
@@ -4427,203 +4463,39 @@
         data: {
           labels,
           datasets: [
-            {
-              label: 'Rendas',
-              data: totalAnual.rendas,
-              borderColor: '#10b981',
-              backgroundColor: 'rgba(16,185,129,0.1)',
-              borderWidth: 2.5, fill: true, tension: 0.4,
-              pointRadius: 4, pointBackgroundColor: '#10b981', pointBorderColor: '#fff', pointBorderWidth: 2
-            },
-            {
-              label: 'Despesas',
-              data: totalAnual.despesas,
-              borderColor: '#ef4444',
-              backgroundColor: 'rgba(239,68,68,0.08)',
-              borderWidth: 2.5, fill: true, tension: 0.4,
-              pointRadius: 4, pointBackgroundColor: '#ef4444', pointBorderColor: '#fff', pointBorderWidth: 2
-            }
+            { label: 'Rendas', data: totalAnual.rendas, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)', borderWidth: 2.5, fill: true, tension: 0.4, pointRadius: 4, pointBackgroundColor: '#10b981', pointBorderColor: '#fff', pointBorderWidth: 2 },
+            { label: 'Despesas', data: totalAnual.despesas, borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.08)', borderWidth: 2.5, fill: true, tension: 0.4, pointRadius: 4, pointBackgroundColor: '#ef4444', pointBorderColor: '#fff', pointBorderWidth: 2 }
           ]
         },
         options: finChartOptions()
       });
 
-      // Gráfico pizza por grupo de despesa
       finRenderPizza(gerRows, colAtual);
-
-      // Gráfico barras por subcategoria
       finRenderBarras(gerRows, colAtual);
     }
 
-    function finRenderPizza(gerRows, colAtual) {
-      if (colAtual === undefined) return;
-
-      // Grupos pai de despesa (linhas sem tab, com valor, que não são total/rendas)
-      const grupos = [];
-      const GRUPOS_PAI_SKIP = ['rendas totais','total de despesas','despesas rotineiras (fixas)'];
-
-      gerRows.forEach(row => {
-        if (!row) return;
-        const label = String(row[1] || '').trim();
-        const subLabel = String(row[2] || '').trim();
-        if (!label || subLabel) return; // linha de sub-item
-        if (GRUPOS_PAI_SKIP.some(s => label.toLowerCase().includes(s))) return;
-        if (label.toLowerCase().startsWith('r ') || label.toLowerCase().startsWith('r -')) return;
-        const val = Math.abs(parseFloat(String(row[colAtual] || '0').replace(',','.')) || 0);
-        if (val > 0) grupos.push({ label, val });
-      });
-
-      const sorted = grupos.sort((a, b) => b.val - a.val).slice(0, 10);
-      const cores = ['#0f3d57','#2e6b8e','#629ec1','#10b981','#8b5cf6','#f59e0b','#ef4444','#06b6d4','#84cc16','#ec4899'];
-
-      finDestroyChart('finChartPizza');
-      finChartPizza = new Chart(document.getElementById('fin-chart-pizza'), {
-        type: 'doughnut',
-        data: {
-          labels: sorted.map(g => g.label),
-          datasets: [{ data: sorted.map(g => g.val), backgroundColor: cores, borderColor: '#fff', borderWidth: 2 }]
-        },
-        options: {
-          responsive: true, maintainAspectRatio: false,
-          plugins: {
-            legend: { position: 'right', labels: { font: { size: 11, family: 'Montserrat' }, padding: 10, boxWidth: 12 } },
-            tooltip: { ...finTooltipStyle(), callbacks: { label: ctx => `${ctx.label}: ${fmt(ctx.parsed)}` } }
-          }
-        }
-      });
-    }
-
-    function finRenderBarras(gerRows, colAtual) {
-      if (colAtual === undefined) return;
-
-      const items = [];
-      gerRows.forEach(row => {
-        if (!row) return;
-        const cat = String(row[2] || '').trim(); // sub-itens estão na coluna 2
-        if (!cat) return;
-        if (finIsExcluido(cat) || finIsRenda(cat)) return;
-        const val = Math.abs(parseFloat(String(row[colAtual] || '0').replace(',','.')) || 0);
-        if (val > 0) items.push({ cat, val });
-      });
-
-      const sorted = items.sort((a, b) => b.val - a.val).slice(0, 15);
-
-      finDestroyChart('finChartBarras');
-      finChartBarras = new Chart(document.getElementById('fin-chart-barras'), {
-        type: 'bar',
-        data: {
-          labels: sorted.map(i => i.cat.replace(/^[A-Z]+ - /, '').replace(/^[A-Z] & [A-Z] - /, '')),
-          datasets: [{
-            label: 'Despesa',
-            data: sorted.map(i => i.val),
-            backgroundColor: sorted.map((_, ci) => `hsl(${205 + ci*8}, 60%, ${45 + ci*2}%)`),
-            borderRadius: 4, borderSkipped: false
-          }]
-        },
-        options: {
-          ...finChartOptions(),
-          indexAxis: 'y',
-          plugins: {
-            legend: { display: false },
-            tooltip: { ...finTooltipStyle(), callbacks: { label: ctx => fmt(ctx.parsed.x) } }
-          },
-          scales: {
-            x: { ticks: { callback: v => 'R$ ' + (v/1000).toFixed(0) + 'k', color: '#666' }, grid: { color: '#e5e5e5' } },
-            y: { ticks: { color: '#333', font: { size: 11 } }, grid: { display: false } }
-          }
-        }
-      });
-    }
-
-    function finChartOptions() {
-      return {
-        responsive: true, maintainAspectRatio: false,
-        plugins: {
-          legend: { labels: { font: { size: 12, family: 'Montserrat' }, padding: 16 } },
-          tooltip: finTooltipStyle()
-        },
-        scales: {
-          y: { beginAtZero: false, ticks: { callback: v => 'R$ ' + (v/1000).toFixed(0) + 'k', color: '#666' }, grid: { color: '#e5e5e5' } },
-          x: { ticks: { color: '#666' }, grid: { display: false } }
-        }
-      };
-    }
-
-    function finTooltipStyle() {
-      return {
-        backgroundColor: '#0f3d57', titleColor: '#fff', bodyColor: '#fff',
-        padding: 12, displayColors: false,
-        callbacks: { label: ctx => fmt(ctx.parsed.y ?? ctx.parsed) }
-      };
-    }
-
-    function finDestroyChart(name) {
-      if (window[name]) { window[name].destroy(); window[name] = null; }
-    }
-
-    // ---- DRE GERENCIAL ----
+        // ---- DRE GERENCIAL ----
     function finProcessarDRE(gerRows) {
-      // Encontra colunas
-      const headerRow = gerRows[1] || [];
-      const colIndices = {};
-      headerRow.forEach((cell, ci) => {
-        if (!cell || !String(cell).includes('-')) return;
-        const d = new Date(cell);
-        if (isNaN(d)) return;
-        const key = `${d.getFullYear()}-${d.getMonth()+1}`;
-        colIndices[key] = ci;
-      });
+      const colAtualKey = `${finAnoAtual}-${finMesAtual}`;
+      const colAtual    = finColMap[colAtualKey];
+      const ytdCol      = finColMap[`ytd_${finAnoAtual}`];
+      const mediaCol    = finColMap[`media_${finAnoAtual}`];
 
-      // Coluna YTD do ano atual
-      // Na planilha, há uma coluna "Total" para o ano — encontrar pela linha de cabeçalho (row[0] = 2025, row[33] = 'Total')
-      const anoRow = gerRows[0] || [];
-      let colYTD = null, colMedia = null;
-      anoRow.forEach((cell, ci) => {
-        if (String(cell) === String(finAnoAtual)) {
-          // Após as 12 colunas do ano, vem Total e Média
-          // Vamos procurar nos rows seguintes
-        }
-      });
-      // Linha 1 tem os nomes: Total, Média — encontra após as colunas mensais
-      const subHeaderRow = gerRows[1] || [];
-      subHeaderRow.forEach((cell, ci) => {
-        if (String(cell).trim() === '2025' || String(cell).trim() === String(finAnoAtual)) {
-          colYTD = ci; // aproximação — usaremos a coluna de soma Total
-        }
-      });
+      console.log(`DRE cols — mês: ${colAtual}, ytd: ${ytdCol}, media: ${mediaCol}`);
 
-      // Pega coluna Total e Média dos anos (geralmente colunas 18 e 19 para 2025)
-      // Abordagem: procurar em gerRows[1] as células "2025" e mapeá-las como YTD
-      // Como os dados são dinâmicos, buscamos explicitamente
-      const gerRow1 = gerRows[1] || [];
-      let ytdCol = null, mediaCol = null;
-      for (let ci = 0; ci < gerRow1.length; ci++) {
-        const v = String(gerRow1[ci] || '').trim();
-        if (!ytdCol && v === String(finAnoAtual)) { ytdCol = ci; }
-        // Média virá logo depois do Total
-      }
-      // Total e Média ficam nas posições após os 12 meses
-      // Buscamos na linha 0 (anos) para achar o range do ano atual
-      const gerRow0 = gerRows[0] || [];
-      let anoStart = null, anoEnd = null;
-      gerRow0.forEach((v, ci) => {
-        if (String(v).trim() === String(finAnoAtual)) {
-          if (anoStart === null) anoStart = ci;
-          anoEnd = ci;
-        }
-      });
-      // Após as colunas do ano, busca "Total" e "Média" na linha 1
-      if (anoEnd !== null) {
-        for (let ci = anoEnd + 1; ci < gerRow1.length; ci++) {
-          const v = String(gerRow1[ci] || '').trim().toLowerCase();
-          if (v === 'total' && ytdCol === null) ytdCol = ci;
-          if (v === 'média' || v === 'media') { mediaCol = ci; break; }
-        }
+      function fmtDRE(v) {
+        if (v === 0 || v === undefined || v === null || isNaN(v))
+          return '<span class="valor-zero">—</span>';
+        const cls = v > 0 ? 'valor-pos' : 'valor-neg';
+        return `<span class="${cls}">${fmt(v)}</span>`;
       }
 
-      const colAtual = colIndices[`${finAnoAtual}-${finMesAtual}`];
+      function getVal(row, ci) {
+        if (ci === undefined || !row || row[ci] === undefined || row[ci] === '') return 0;
+        const n = parseFloat(String(row[ci]).replace(',', '.'));
+        return isNaN(n) ? 0 : n;
+      }
 
-      // Monta estrutura da DRE
       let html = `
         <table class="fin-dre-table">
           <thead>
@@ -4641,107 +4513,78 @@
       let paiId = 0;
 
       gerRows.forEach((row, ri) => {
-        if (ri < 5) return; // pula cabeçalhos
+        if (ri < 5) return;
         if (!row) return;
 
-        const colA = String(row[0] || '').trim(); // ex: "2025.0" ou NaN
-        const label = String(row[1] || '').trim();
+        const label    = String(row[1] || '').trim();
         const subLabel = String(row[2] || '').trim();
-        const marcador = String(row[3] || '').trim(); // 'x' = despesa
+        const marcador = String(row[3] || '').trim();
 
         if (!label && !subLabel) return;
 
-        const valAtual = colAtual !== undefined ? (parseFloat(String(row[colAtual] || '0').replace(',','.')) || 0) : 0;
-        const valYTD   = ytdCol   !== null ? (parseFloat(String(row[ytdCol]   || '0').replace(',','.')) || 0) : 0;
-        const valMedia = mediaCol !== null ? (parseFloat(String(row[mediaCol] || '0').replace(',','.')) || 0) : 0;
+        const vAtual = getVal(row, colAtual);
+        const vYTD   = getVal(row, ytdCol);
+        const vMedia = getVal(row, mediaCol);
 
-        function fmtDRE(v) {
-          if (!v || v === 0) return '<span class="valor-zero">—</span>';
-          const abs = Math.abs(v);
-          const cls = v > 0 ? 'valor-pos' : 'valor-neg';
-          return `<span class="${cls}">${fmt(v)}</span>`;
-        }
-
-        // LINHA DE RENDAS TOTAIS
+        // RENDAS TOTAIS
         if (label === 'Rendas totais') {
           html += `<tr class="fin-dre-row-rendas">
             <td>💰 Rendas Totais</td>
-            <td>${fmtDRE(valAtual)}</td>
-            <td>${fmtDRE(valYTD)}</td>
-            <td>${fmtDRE(valMedia)}</td>
+            <td>${fmtDRE(vAtual)}</td><td>${fmtDRE(vYTD)}</td><td>${fmtDRE(vMedia)}</td>
           </tr>`;
+          currentPai = null;
           return;
         }
 
-        // Sub-itens de renda
+        // Sub-itens de renda (sem label pai, subLabel começa com R -)
         if (!label && subLabel && finIsRenda(subLabel)) {
-          html += `<tr class="fin-dre-row-filho ${currentPai ? 'filho-renda' : ''}">
-            <td>${subLabel}</td>
-            <td>${fmtDRE(valAtual)}</td>
-            <td>${fmtDRE(valYTD)}</td>
-            <td>${fmtDRE(valMedia)}</td>
+          html += `<tr class="fin-dre-row-filho">
+            <td style="padding-left:32px;">${subLabel}</td>
+            <td>${fmtDRE(vAtual)}</td><td>${fmtDRE(vYTD)}</td><td>${fmtDRE(vMedia)}</td>
           </tr>`;
           return;
         }
 
-        // LINHA TOTAL DE DESPESAS
+        // TOTAL DE DESPESAS
         if (label === 'Total de despesas') {
           html += `<tr class="fin-dre-row-total">
             <td>📊 Total de Despesas</td>
-            <td>${fmtDRE(valAtual)}</td>
-            <td>${fmtDRE(valYTD)}</td>
-            <td>${fmtDRE(valMedia)}</td>
+            <td>${fmtDRE(vAtual)}</td><td>${fmtDRE(vYTD)}</td><td>${fmtDRE(vMedia)}</td>
           </tr>`;
           return;
         }
 
-        // PAI (linha com label e sem subLabel, com marcador x)
+        // CATEGORIA PAI (label preenchido, sem subLabel, marcador x)
         if (label && !subLabel && marcador === 'x') {
           paiId++;
           currentPai = `pai-${paiId}`;
-          finDreExpandido[currentPai] = finDreExpandido[currentPai] !== false; // default: expandido
-          const expandido = finDreExpandido[currentPai];
+          // Mantém estado de expansão entre renders, default aberto
+          if (finDreExpandido[currentPai] === undefined) finDreExpandido[currentPai] = true;
+          const exp = finDreExpandido[currentPai];
           html += `<tr class="fin-dre-row-pai" onclick="finTogglePai('${currentPai}')">
-            <td><span class="fin-dre-toggle" id="toggle-${currentPai}">${expandido ? '▾' : '▸'}</span> ${label}</td>
-            <td>${fmtDRE(valAtual)}</td>
-            <td>${fmtDRE(valYTD)}</td>
-            <td>${fmtDRE(valMedia)}</td>
+            <td><span class="fin-dre-toggle" id="toggle-${currentPai}">${exp ? '▾' : '▸'}</span> ${label}</td>
+            <td>${fmtDRE(vAtual)}</td><td>${fmtDRE(vYTD)}</td><td>${fmtDRE(vMedia)}</td>
           </tr>`;
           return;
         }
 
-        // FILHO (tem subLabel e marcador x)
+        // SUBCATEGORIA FILHO (subLabel preenchido, marcador x)
         if (subLabel && marcador === 'x') {
-          if (finIsExcluido(subLabel)) return; // oculta duplicidades
-          const oculto = currentPai && !finDreExpandido[currentPai] ? 'hidden' : '';
+          if (finIsExcluido(subLabel)) return;
+          const oculto = (currentPai && !finDreExpandido[currentPai]) ? 'hidden' : '';
           html += `<tr class="fin-dre-row-filho ${oculto}" data-pai="${currentPai || ''}">
-            <td>${subLabel}</td>
-            <td>${fmtDRE(valAtual)}</td>
-            <td>${fmtDRE(valYTD)}</td>
-            <td>${fmtDRE(valMedia)}</td>
+            <td style="padding-left:32px;">${subLabel}</td>
+            <td>${fmtDRE(vAtual)}</td><td>${fmtDRE(vYTD)}</td><td>${fmtDRE(vMedia)}</td>
           </tr>`;
         }
       });
 
-      // Linha resultado final
-      const rendaRow = gerRows.find(r => r && String(r[1] || '').trim() === 'Rendas totais');
-      const despRow  = gerRows.find(r => r && String(r[1] || '').trim() === 'Total de despesas');
-      let resAtual = 0, resYTD = 0, resMedia = 0;
-      if (rendaRow && despRow && colAtual !== undefined) {
-        const rA = parseFloat(String(rendaRow[colAtual] || '0').replace(',','.')) || 0;
-        const dA = parseFloat(String(despRow[colAtual]  || '0').replace(',','.')) || 0;
-        resAtual = rA + dA; // despesas já vêm negativas
-      }
-      if (rendaRow && despRow && ytdCol !== null) {
-        const rY = parseFloat(String(rendaRow[ytdCol] || '0').replace(',','.')) || 0;
-        const dY = parseFloat(String(despRow[ytdCol]  || '0').replace(',','.')) || 0;
-        resYTD = rY + dY;
-      }
-      if (rendaRow && despRow && mediaCol !== null) {
-        const rM = parseFloat(String(rendaRow[mediaCol] || '0').replace(',','.')) || 0;
-        const dM = parseFloat(String(despRow[mediaCol]  || '0').replace(',','.')) || 0;
-        resMedia = rM + dM;
-      }
+      // Linha de resultado
+      const rendaRow = gerRows.find(r => r && String(r[1]||'').trim() === 'Rendas totais');
+      const despRow  = gerRows.find(r => r && String(r[1]||'').trim() === 'Total de despesas');
+      const resAtual = rendaRow && despRow ? getVal(rendaRow, colAtual) + getVal(despRow, colAtual) : 0;
+      const resYTD   = rendaRow && despRow ? getVal(rendaRow, ytdCol)   + getVal(despRow, ytdCol)   : 0;
+      const resMedia = rendaRow && despRow ? getVal(rendaRow, mediaCol) + getVal(despRow, mediaCol) : 0;
 
       function fmtRes(v) {
         const cls = v >= 0 ? 'color:#10b981' : 'color:#ef4444';
@@ -4749,17 +4592,16 @@
       }
 
       html += `<tr style="background:#0f3d57;">
-        <td style="color:#fff; font-weight:700; font-size:14px;">✅ Resultado</td>
-        <td style="color:#fff; text-align:right;">${fmtRes(resAtual)}</td>
-        <td style="color:#fff; text-align:right;">${fmtRes(resYTD)}</td>
-        <td style="color:#fff; text-align:right;">${fmtRes(resMedia)}</td>
-      </tr>`;
+        <td style="color:#fff;font-weight:700;font-size:14px;">✅ Resultado</td>
+        <td style="color:#fff;text-align:right;">${fmtRes(resAtual)}</td>
+        <td style="color:#fff;text-align:right;">${fmtRes(resYTD)}</td>
+        <td style="color:#fff;text-align:right;">${fmtRes(resMedia)}</td>
+      </tr></tbody></table>`;
 
-      html += '</tbody></table>';
       document.getElementById('fin-dre-container').innerHTML = html;
     }
 
-    function finTogglePai(paiId) {
+        function finTogglePai(paiId) {
       finDreExpandido[paiId] = !finDreExpandido[paiId];
       const toggle = document.getElementById(`toggle-${paiId}`);
       if (toggle) toggle.textContent = finDreExpandido[paiId] ? '▾' : '▸';
@@ -4788,22 +4630,19 @@
 
     // ---- LANÇAMENTOS ----
     function finFiltrar() {
-      const busca   = document.getElementById('fin-busca').value.toLowerCase();
-      const origem  = document.getElementById('fin-filtro-origem').value;
-      const ref     = document.getElementById('fin-filtro-ref').value;
-      const tipo    = document.getElementById('fin-filtro-tipo').value;
+      const busca  = (document.getElementById('fin-busca').value || '').toLowerCase();
+      const origem = document.getElementById('fin-filtro-origem').value;
+      const ref    = document.getElementById('fin-filtro-ref').value;
+      const tipo   = document.getElementById('fin-filtro-tipo').value;
 
-      // Filtra pelo mês/ano atual
+      // Filtra pelo mês/ano selecionado
       const mesFiltro = MESES_PT[finMesAtual - 1];
+      let base = finLancamentos.filter(l => l.mes === mesFiltro && l.ano === finAnoAtual);
 
-      let base = finLancamentos.filter(l =>
-        l.mes === mesFiltro && l.ano === finAnoAtual
-      );
-
-      // Popula dropdowns de filtro da primeira vez
+      // Popula dropdowns apenas quando o conjunto base muda (novo mês carregado)
       finPopularFiltros(base);
 
-      if (busca) base = base.filter(l =>
+      if (busca)  base = base.filter(l =>
         l.extrato.toLowerCase().includes(busca) ||
         l.origem.toLowerCase().includes(busca) ||
         l.referencia.toLowerCase().includes(busca) ||
@@ -4814,12 +4653,12 @@
       if (tipo === 'entrada') base = base.filter(l => l.valor > 0);
       if (tipo === 'saida')   base = base.filter(l => l.valor < 0);
 
-      // Ordenação
+      // Ordena
       base.sort((a, b) => {
         let va = a[finOrdemCol], vb = b[finOrdemCol];
         if (finOrdemCol === 'valor') { va = parseFloat(va); vb = parseFloat(vb); }
         if (va < vb) return finOrdemAsc ? -1 : 1;
-        if (va > vb) return finOrdemAsc ? 1 : -1;
+        if (va > vb) return finOrdemAsc ?  1 : -1;
         return 0;
       });
 
@@ -4828,32 +4667,41 @@
       finRenderLancamentos();
     }
 
-    let finFiltrosPopulados = false;
+    // Repopula os dropdowns de filtro quando muda o mês
+    let _finFiltrosMesKey = '';
     function finPopularFiltros(base) {
-      if (finFiltrosPopulados) return;
-      finFiltrosPopulados = false; // repopula a cada mês
+      const chave = `${finAnoAtual}-${finMesAtual}`;
+      if (_finFiltrosMesKey === chave) return; // já populado para este mês
+      _finFiltrosMesKey = chave;
 
-      const origens = [...new Set(finLancamentos.map(l => l.origem).filter(Boolean))].sort();
-      const refs    = [...new Set(finLancamentos.map(l => l.referencia).filter(Boolean))].sort();
+      const origens = [...new Set(base.map(l => l.origem).filter(Boolean))].sort();
+      const refs    = [...new Set(base.map(l => l.referencia).filter(Boolean))].sort();
 
       const selOrigem = document.getElementById('fin-filtro-origem');
       const selRef    = document.getElementById('fin-filtro-ref');
+      const prevOrigem = selOrigem.value;
+      const prevRef    = selRef.value;
 
-      // Limpa e repopula
       while (selOrigem.options.length > 1) selOrigem.remove(1);
       while (selRef.options.length > 1)    selRef.remove(1);
 
       origens.forEach(o => {
-        const opt = document.createElement('option'); opt.value = o; opt.textContent = o;
+        const opt = document.createElement('option');
+        opt.value = o; opt.textContent = o;
         selOrigem.appendChild(opt);
       });
       refs.forEach(r => {
-        const opt = document.createElement('option'); opt.value = r; opt.textContent = r;
+        const opt = document.createElement('option');
+        opt.value = r; opt.textContent = r;
         selRef.appendChild(opt);
       });
+
+      // Restaura seleção anterior se ainda existir
+      if (origens.includes(prevOrigem)) selOrigem.value = prevOrigem;
+      if (refs.includes(prevRef))       selRef.value    = prevRef;
     }
 
-    function finRenderLancamentos() {
+        function finRenderLancamentos() {
       const tbody = document.getElementById('fin-lancamentos-tbody');
       const total = finLancFiltrados.length;
       const totalPags = Math.ceil(total / FIN_POR_PAG);
