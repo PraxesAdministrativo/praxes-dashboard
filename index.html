@@ -1086,9 +1086,11 @@
       padding: 11px 14px;
       font-size: 13px;
       border-bottom: 1px solid var(--cinza-claro);
-      text-align: right;
+      text-align: center;
     }
     .fin-dre-table td:first-child { text-align: left; }
+    .fin-dre-table th { text-align: center; }
+    .fin-dre-table th:first-child { text-align: left; }
     .fin-dre-row-pai > td {
       background: #eef4f8;
       font-weight: 700;
@@ -4586,9 +4588,13 @@
       const colAtualKey = `${finAnoAtual}-${finMesAtual}`;
       const colAtual    = finColMap[colAtualKey];
       const ytdCol      = finColMap[`ytd_${finAnoAtual}`];
-      const mediaCol    = finColMap[`media_${finAnoAtual}`];
+      // Média calculada como YTD ÷ nº de meses decorridos no ano selecionado
+      const mesesDecorridos = finMesAtual;
 
-      console.log(`DRE cols — mês: ${colAtual}, ytd: ${ytdCol}, media: ${mediaCol}`);
+      function calcMedia(ytdVal) {
+        if (!ytdVal || ytdVal === 0 || mesesDecorridos === 0) return 0;
+        return ytdVal / mesesDecorridos;
+      }
 
       function fmtDRE(v) {
         if (v === 0 || v === undefined || v === null || isNaN(v))
@@ -4610,7 +4616,7 @@
               <th style="min-width:260px;">Categoria</th>
               <th>${MESES_PT[finMesAtual-1]}</th>
               <th>YTD ${finAnoAtual}</th>
-              <th>Média Mensal</th>
+              <th>Média (YTD÷meses)</th>
             </tr>
           </thead>
           <tbody>
@@ -4631,7 +4637,7 @@
 
         const vAtual = getVal(row, colAtual);
         const vYTD   = getVal(row, ytdCol);
-        const vMedia = getVal(row, mediaCol);
+        const vMedia = calcMedia(vYTD);
 
         // RENDAS TOTAIS
         if (label === 'Rendas totais') {
@@ -4691,7 +4697,7 @@
       const despRow  = gerRows.find(r => r && String(r[1]||'').trim() === 'Total de despesas');
       const resAtual = rendaRow && despRow ? getVal(rendaRow, colAtual) + getVal(despRow, colAtual) : 0;
       const resYTD   = rendaRow && despRow ? getVal(rendaRow, ytdCol)   + getVal(despRow, ytdCol)   : 0;
-      const resMedia = rendaRow && despRow ? getVal(rendaRow, mediaCol) + getVal(despRow, mediaCol) : 0;
+      const resMedia = calcMedia(resYTD);
 
       function fmtRes(v) {
         const cls = v >= 0 ? 'color:#10b981' : 'color:#ef4444';
@@ -4905,7 +4911,11 @@
 
         const colAtual = finColMap[finAnoAtual + '-' + finMesAtual];
         const ytdCol   = finColMap['ytd_' + finAnoAtual];
-        const mediaCol = finColMap['media_' + finAnoAtual];
+        // Média = YTD ÷ meses decorridos (não usa coluna da planilha)
+        function pdfMedia(ytdVal) {
+          if (!ytdVal || finMesAtual === 0) return null;
+          return ytdVal / finMesAtual;
+        }
 
         let rendaTotal = 0, despesaTotal = 0, rendaYTD = 0, despYTD = 0;
         finGerRows.forEach(function(row) {
@@ -5037,7 +5047,7 @@
         doc.text('Categoria', mg2 + 2, y2 + 1);
         doc.text(MESES_PT[finMesAtual-1].substring(0, 3), colXs2[0], y2 + 1, { align: 'right' });
         doc.text('YTD ' + finAnoAtual, colXs2[1], y2 + 1, { align: 'right' });
-        doc.text('Media', colXs2[2], y2 + 1, { align: 'right' });
+        doc.text('Media (' + finMesAtual + 'm)', colXs2[2], y2 + 1, { align: 'right' });
         doc.setTextColor(0, 0, 0);
         y2 += 10;
 
@@ -5052,7 +5062,7 @@
 
           var vAtual = pdfGetVal(row, colAtual);
           var vYTD   = pdfGetVal(row, ytdCol);
-          var vMedia = pdfGetVal(row, mediaCol);
+          var vMedia = pdfMedia(vYTD);
 
           var isRendas = label === 'Rendas totais';
           var isTotal  = label === 'Total de despesas';
@@ -5093,9 +5103,10 @@
         doc.setFillColor(15, 61, 87); doc.rect(mg2, y2-4, pw2-2*mg2, 8, 'F');
         doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
         doc.text('Resultado', mg2 + 2, y2);
-        doc.text(fmtPDF(saldo),  colXs2[0], y2, { align: 'right' });
-        doc.text(fmtPDF(resYTD), colXs2[1], y2, { align: 'right' });
-        doc.text('—',            colXs2[2], y2, { align: 'right' });
+        var resMedia = resYTD / finMesAtual;
+        doc.text(fmtPDF(saldo),    colXs2[0], y2, { align: 'right' });
+        doc.text(fmtPDF(resYTD),   colXs2[1], y2, { align: 'right' });
+        doc.text(fmtPDF(resMedia), colXs2[2], y2, { align: 'right' });
 
         // Rodapés
         const totalPags = doc.internal.pages.length - 1;
