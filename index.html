@@ -1589,6 +1589,7 @@
                   <option value="entrada">Só entradas</option>
                   <option value="saida">Só saídas</option>
                 </select>
+                <button class="btn-add-small" onclick="finAbrirModalLanc(null)" style="margin-left:auto;padding:9px 18px;font-size:13px;">+ Adicionar</button>
               </div>
               <div style="overflow-x:auto;">
                 <table class="fin-lanc-table">
@@ -1599,10 +1600,11 @@
                       <th onclick="finOrdenar('referencia')">Categoria ⇅</th>
                       <th onclick="finOrdenar('extrato')">Extrato ⇅</th>
                       <th onclick="finOrdenar('valor')" style="text-align:right;">Valor ⇅</th>
+                      <th style="width:72px;text-align:center;">Ações</th>
                     </tr>
                   </thead>
                   <tbody id="fin-lancamentos-tbody">
-                    <tr><td colspan="5" class="empty-state">Selecione um período para carregar os lançamentos</td></tr>
+                    <tr><td colspan="6" class="empty-state">Selecione um período para carregar os lançamentos</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -1961,6 +1963,55 @@
       </div>
     </div>
   </div>
+
+  <!-- MODAL LANÇAMENTO (add/edit) -->
+  <div class="modal" id="modal-lanc">
+    <div class="modal-content" style="max-width:560px;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-lanc-titulo">Adicionar Lançamento</h3>
+        <button class="modal-close" onclick="closeModal('modal-lanc')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-lanc">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Data *</label>
+              <input type="date" class="form-input" name="data" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Valor *</label>
+              <input type="number" class="form-input" name="valor" required step="0.01" placeholder="-150.00 (negativo = saída)">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Origem *</label>
+            <select class="form-select" name="origem" required id="lanc-origem-select">
+              <option value="">Selecione...</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Categoria (Referência) *</label>
+            <select class="form-select" name="referencia" required id="lanc-ref-select">
+              <option value="">Selecione...</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Extrato / Descrição *</label>
+            <input type="text" class="form-input" name="extrato" required placeholder="Ex: SUPERMERCADO CENTRAL">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Observações</label>
+            <input type="text" class="form-input" name="obs" placeholder="Opcional">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="closeModal('modal-lanc')">Cancelar</button>
+        <button class="btn-save" onclick="finSalvarLanc()">Salvar</button>
+      </div>
+    </div>
+  </div>
+
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://apis.google.com/js/api.js"></script>
@@ -4351,7 +4402,8 @@
             valor: isNaN(valor) ? 0 : valor,
             data: row[5] ? String(row[5]).split('/').reverse().join('-') : '',
             extrato: String(row[6] || '').trim(),
-            obs: String(row[7] || '').trim()
+            obs: String(row[7] || '').trim(),
+            _rowIndex: i + 1  // linha real na planilha (1-based, +1 pq range começa em A1)
           });
         }
         console.log('✅ Lançamentos:', finLancamentos.length);
@@ -4884,23 +4936,35 @@
       }
 
       let html = '';
-      pagina.forEach(l => {
+      pagina.forEach((l, pi) => {
         const dataFmt = l.data ? new Date(l.data + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
         let badge = '';
         if (finIsExcluido(l.referencia)) {
-          badge = `<span class="fin-badge fin-badge-desc">Desconsiderado</span>`;
+          badge = `<span class="fin-badge fin-badge-desc">Desc.</span>`;
         } else if (l.valor > 0) {
           badge = `<span class="fin-badge fin-badge-entrada">Entrada</span>`;
         } else {
           badge = `<span class="fin-badge fin-badge-saida">Saída</span>`;
         }
         const valClass = l.valor > 0 ? 'valor-pos' : (l.valor < 0 ? 'valor-neg' : 'valor-zero');
+        // Escapa o extrato para uso seguro em onclick
+        const extEsc = (l.extrato||'').replace(/'/g,"\'").substring(0,40);
+        const rowIdx = l._rowIndex || '';
+        // Serializa o lançamento para edição
+        const lancJson = JSON.stringify({
+          _rowIndex: l._rowIndex, data: l.data, valor: l.valor,
+          origem: l.origem, referencia: l.referencia, extrato: l.extrato, obs: l.obs
+        }).replace(/'/g,"\'");
         html += `<tr>
           <td style="white-space:nowrap;">${dataFmt}</td>
-          <td style="color:var(--text-light); font-size:12px;">${l.origem}</td>
+          <td style="color:var(--text-light);font-size:12px;">${l.origem}</td>
           <td>${badge} <span style="font-size:12px;">${l.referencia}</span></td>
           <td style="font-size:12px;">${l.extrato}</td>
-          <td style="text-align:right; font-weight:600;"><span class="${valClass}">${fmt(l.valor)}</span></td>
+          <td style="text-align:right;font-weight:600;"><span class="${valClass}">${fmt(l.valor)}</span></td>
+          <td style="text-align:center;white-space:nowrap;">
+            <button class="btn-icon" title="Editar" onclick='finAbrirModalLanc(${lancJson})'>✏️</button>
+            <button class="btn-icon" title="Excluir" style="color:#ef4444" onclick="finExcluirLanc(${rowIdx},'${extEsc}')">🗑️</button>
+          </td>
         </tr>`;
       });
       tbody.innerHTML = html;
@@ -4930,6 +4994,148 @@
       // Ao abrir lançamentos, reseta filtros de dropdown para repopular
       if (tabName === 'lancamentos') { _finFiltrosMesKey = ''; finFiltrar(); }
     }
+
+    // ========== CRUD LANÇAMENTOS ==========
+
+    let _lancEditIndex = null; // índice na planilha (row number), null = novo
+
+    // Abre modal vazio (novo) ou preenchido (editar)
+    function finAbrirModalLanc(lancamento) {
+      const form = document.getElementById('form-lanc');
+      form.reset();
+
+      // Popula dropdowns com os valores únicos já carregados
+      const origens = [...new Set(finLancamentos.map(l => l.origem).filter(Boolean))].sort();
+      const refs    = [...new Set(finLancamentos.map(l => l.referencia).filter(Boolean))].sort();
+
+      const selOrig = document.getElementById('lanc-origem-select');
+      const selRef  = document.getElementById('lanc-ref-select');
+      selOrig.innerHTML = '<option value="">Selecione...</option>' +
+        origens.map(o => `<option value="${o}">${o}</option>`).join('');
+      selRef.innerHTML  = '<option value="">Selecione...</option>' +
+        refs.map(r => `<option value="${r}">${r}</option>`).join('');
+
+      if (lancamento) {
+        // EDITAR — preenche os campos
+        _lancEditIndex = lancamento._rowIndex;
+        document.getElementById('modal-lanc-titulo').textContent = 'Editar Lançamento';
+        form.elements['data'].value      = lancamento.data || '';
+        form.elements['valor'].value     = lancamento.valor || '';
+        form.elements['origem'].value    = lancamento.origem || '';
+        form.elements['referencia'].value = lancamento.referencia || '';
+        form.elements['extrato'].value   = lancamento.extrato || '';
+        form.elements['obs'].value       = lancamento.obs || '';
+      } else {
+        // NOVO
+        _lancEditIndex = null;
+        document.getElementById('modal-lanc-titulo').textContent = 'Adicionar Lançamento';
+        // Default: hoje
+        form.elements['data'].value = new Date().toISOString().split('T')[0];
+      }
+
+      openModal('modal-lanc');
+    }
+
+    async function finSalvarLanc() {
+      const form = document.getElementById('form-lanc');
+      const data       = form.elements['data'].value;
+      const valor      = parseFloat(form.elements['valor'].value);
+      const origem     = form.elements['origem'].value;
+      const referencia = form.elements['referencia'].value;
+      const extrato    = form.elements['extrato'].value.trim();
+      const obs        = form.elements['obs'].value.trim();
+
+      if (!data || isNaN(valor) || !origem || !referencia || !extrato) {
+        alert('Preencha todos os campos obrigatórios.');
+        return;
+      }
+
+      // Determina o mês/ano a partir da data escolhida
+      const dt   = new Date(data + 'T12:00:00');
+      const mes  = MESES_PT[dt.getMonth()];
+      const ano  = dt.getFullYear();
+
+      // Linha no formato da planilha: MÊS | ANO | ORIGEM | REFERÊNCIA | VALOR | DATA | EXTRATO | OBS
+      const rowData = [mes, ano, origem, referencia, valor, data, extrato, obs];
+
+      try {
+        if (_lancEditIndex !== null) {
+          // UPDATE — substitui a linha no Sheets (rowIndex é 1-based da planilha)
+          await gapi.client.sheets.spreadsheets.values.update({
+            spreadsheetId: finSheetId,
+            range: `Lançamentos!A${_lancEditIndex}:H${_lancEditIndex}`,
+            valueInputOption: 'USER_ENTERED',
+            resource: { values: [rowData] }
+          });
+          alert('✅ Lançamento atualizado!');
+        } else {
+          // INSERT — append no final da aba
+          await gapi.client.sheets.spreadsheets.values.append({
+            spreadsheetId: finSheetId,
+            range: 'Lançamentos!A:H',
+            valueInputOption: 'USER_ENTERED',
+            insertDataOption: 'INSERT_ROWS',
+            resource: { values: [rowData] }
+          });
+          alert('✅ Lançamento adicionado!');
+        }
+
+        closeModal('modal-lanc');
+        // Recarrega dados e vai pro mês do lançamento inserido/editado
+        finMesAtual = dt.getMonth() + 1;
+        finAnoAtual = ano;
+        document.getElementById('fin-select-mes').value = finMesAtual;
+        document.getElementById('fin-select-ano').value = finAnoAtual;
+        await finLoadData();
+
+      } catch(e) {
+        console.error('❌ Salvar lançamento:', e);
+        alert('Erro ao salvar: ' + e.message);
+      }
+    }
+
+    async function finExcluirLanc(rowIndex, descricao) {
+      if (!confirm(`Excluir o lançamento "${descricao}"?
+
+Esta ação não pode ser desfeita.`)) return;
+
+      try {
+        // Deleta a linha pelo número de linha na planilha (rowIndex = linha 1-based)
+        const sheetMeta = await gapi.client.sheets.spreadsheets.get({
+          spreadsheetId: finSheetId
+        });
+        const lancSheet = sheetMeta.result.sheets.find(s =>
+          s.properties.title === 'Lançamentos' || s.properties.title === 'Lançamentos'
+        );
+        if (!lancSheet) throw new Error('Aba Lançamentos não encontrada');
+
+        await gapi.client.sheets.spreadsheets.batchUpdate({
+          spreadsheetId: finSheetId,
+          resource: {
+            requests: [{
+              deleteDimension: {
+                range: {
+                  sheetId: lancSheet.properties.sheetId,
+                  dimension: 'ROWS',
+                  startIndex: rowIndex - 1,  // 0-based
+                  endIndex: rowIndex          // exclusive
+                }
+              }
+            }]
+          }
+        });
+
+        alert('✅ Lançamento excluído!');
+        await finLoadData();
+
+      } catch(e) {
+        console.error('❌ Excluir lançamento:', e);
+        alert('Erro ao excluir: ' + e.message);
+      }
+    }
+
+    // ========== FIM CRUD LANÇAMENTOS ==========
+
 
     // ---- RELATÓRIO PDF ----
     // ---- HELPERS COMPARTILHADOS PDF ----
