@@ -4508,6 +4508,8 @@
       if (colAtual === undefined) return;
       const grupos = [];
       const SKIP = ['rendas totais','total de despesas','despesas rotineiras (fixas)'];
+      // Exclui linhas de total/sub-total (prefixo '(=')
+      function isSubtotal(lbl) { return lbl.startsWith('(=') || lbl.startsWith('(+') || lbl.startsWith('(-'); }
       gerRows.forEach(function(row) {
         if (!row) return;
         var label    = String(row[1] || '').trim();
@@ -4515,6 +4517,7 @@
         if (!label || subLabel) return;
         if (SKIP.some(function(s){ return label.toLowerCase().includes(s); })) return;
         if (finIsRenda(label)) return;
+        if (isSubtotal(label)) return;
         var val = Math.abs(parseFloat(String(row[colAtual] || '0')) || 0);
         if (val > 0) grupos.push({ label: label, val: val });
       });
