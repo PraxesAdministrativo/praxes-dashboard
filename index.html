@@ -4457,7 +4457,7 @@
 
       // Gráfico linha anual
       const labels = MESES_PT.map(m => m.substring(0,3));
-      finDestroyChart('finChartAnual');
+      finDestroyChart('fin-chart-anual');
       finChartAnual = new Chart(document.getElementById('fin-chart-anual'), {
         type: 'line',
         data: {
@@ -4474,8 +4474,12 @@
       finRenderBarras(gerRows, colAtual);
     }
 
-    function finDestroyChart(name) {
-      if (window[name]) { try { window[name].destroy(); } catch(e) {} window[name] = null; }
+    function finDestroyChart(canvasId) {
+      // Chart.js keeps a registry keyed by canvas — destroy whatever is on this canvas
+      const canvas = document.getElementById(canvasId);
+      if (!canvas) return;
+      const existing = Chart.getChart(canvas);
+      if (existing) { try { existing.destroy(); } catch(e) {} }
     }
 
     function finChartOptions() {
@@ -4516,7 +4520,7 @@
       });
       var sorted = grupos.sort(function(a,b){ return b.val - a.val; }).slice(0, 10);
       var cores = ['#0f3d57','#2e6b8e','#629ec1','#10b981','#8b5cf6','#f59e0b','#ef4444','#06b6d4','#84cc16','#ec4899'];
-      finDestroyChart('finChartPizza');
+      finDestroyChart('fin-chart-pizza');
       finChartPizza = new Chart(document.getElementById('fin-chart-pizza'), {
         type: 'doughnut',
         data: {
@@ -4546,7 +4550,7 @@
         if (val > 0) items.push({ cat: cat, val: val });
       });
       var sorted = items.sort(function(a,b){ return b.val - a.val; }).slice(0, 15);
-      finDestroyChart('finChartBarras');
+      finDestroyChart('fin-chart-barras');
       finChartBarras = new Chart(document.getElementById('fin-chart-barras'), {
         type: 'bar',
         data: {
