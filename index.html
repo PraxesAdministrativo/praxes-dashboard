@@ -4999,7 +4999,7 @@
     }
 
     // ================================================================
-    // RELATÓRIO (i): RESUMO — Paisagem, 1 página, Dashboard
+    // RELATÓRIO (i): RESUMO — Paisagem, desenhado com dados brutos
     // ================================================================
     async function finGerarResumoPDF() {
       try {
@@ -5013,82 +5013,297 @@
         const ph = doc.internal.pageSize.getHeight();  // 210
         const mg = 14;
 
-        // Cabeçalho
-        doc.setFillColor(15,61,87); doc.rect(0,0,pw,32,'F');
+        // ===== CABEÇALHO =====
+        doc.setFillColor(15,61,87); doc.rect(0,0,pw,28,'F');
         doc.setTextColor(255,255,255);
-        doc.setFontSize(18); doc.setFont('helvetica','bold');
-        doc.text('PRAXES', mg, 14);
-        doc.setFontSize(9); doc.setFont('helvetica','normal');
-        doc.text('Controle Financeiro  |  '+MESES_PT[finMesAtual-1]+' de '+finAnoAtual, mg, 24);
-        doc.text('Gerado em '+new Date().toLocaleDateString('pt-BR'), pw-mg, 24, { align:'right' });
+        doc.setFontSize(18); doc.setFont('helvetica','bold'); doc.text('PRAXES', mg, 13);
+        doc.setFontSize(9);  doc.setFont('helvetica','normal');
+        doc.text('Controle Financeiro  |  '+MESES_PT[finMesAtual-1]+' de '+finAnoAtual, mg, 22);
+        doc.text('Gerado em '+new Date().toLocaleDateString('pt-BR'), pw-mg, 22, {align:'right'});
         doc.setTextColor(0,0,0);
+        let y = 33;
 
-        let y = 38;
-
-        // KPI cards — 7 cards
+        // ===== KPI CARDS =====
         const kpis = [
-          { label:'Rendas no Mes',   value: H.fmtPDF(kpi.rendaTotal),    color:[16,185,129]  },
-          { label:'Despesas no Mes', value: H.fmtPDF(-kpi.despesaTotal), color:[239,68,68]   },
-          { label:'Resultado',       value: H.fmtPDF(saldo),             color: saldo>=0?[16,185,129]:[239,68,68] },
-          { label:'Tx. Poupanca',    value: poupanca+'%',                color:[139,92,246]  },
-          { label:'Rendas YTD',      value: H.fmtPDF(kpi.rendaYTD),      color:[15,61,87]    },
-          { label:'Despesas YTD',    value: H.fmtPDF(-kpi.despYTD),      color:[46,107,142]  },
-          { label:'Resultado YTD',   value: H.fmtPDF(resYTD),            color: resYTD>=0?[16,185,129]:[239,68,68] },
+          {label:'Rendas',       value:H.fmtPDF(kpi.rendaTotal),    c:[16,185,129]},
+          {label:'Despesas',     value:H.fmtPDF(-kpi.despesaTotal), c:[239,68,68]},
+          {label:'Resultado',    value:H.fmtPDF(saldo),             c:saldo>=0?[16,185,129]:[239,68,68]},
+          {label:'Poupanca',     value:poupanca+'%',                c:[139,92,246]},
+          {label:'Rendas YTD',   value:H.fmtPDF(kpi.rendaYTD),      c:[15,61,87]},
+          {label:'Despesas YTD', value:H.fmtPDF(-kpi.despYTD),      c:[46,107,142]},
+          {label:'Result. YTD',  value:H.fmtPDF(resYTD),            c:resYTD>=0?[16,185,129]:[239,68,68]},
         ];
-        const cw = (pw - 2*mg - 6*3) / 7;
-        const ch = 20;
-        kpis.forEach(function(k,i) {
-          var cx = mg + i*(cw+3);
-          doc.setFillColor(245,245,245); doc.roundedRect(cx,y,cw,ch,2,2,'F');
-          doc.setFillColor(k.color[0],k.color[1],k.color[2]); doc.rect(cx,y,2,ch,'F');
-          doc.setFontSize(6); doc.setFont('helvetica','normal'); doc.setTextColor(100,100,100);
+        const cw = (pw-2*mg-18) / 7;
+        const ch = 18;
+        kpis.forEach(function(k,i){
+          const cx = mg + i*(cw+3);
+          doc.setFillColor(245,245,245); doc.roundedRect(cx,y,cw,ch,1.5,1.5,'F');
+          doc.setFillColor(k.c[0],k.c[1],k.c[2]); doc.rect(cx,y,2,ch,'F');
+          doc.setFontSize(6); doc.setFont('helvetica','normal'); doc.setTextColor(120,120,120);
           doc.text(k.label, cx+4, y+6);
           doc.setFontSize(9); doc.setFont('helvetica','bold');
-          doc.setTextColor(k.color[0],k.color[1],k.color[2]);
-          doc.text(k.value, cx+4, y+15);
+          doc.setTextColor(k.c[0],k.c[1],k.c[2]);
+          doc.text(k.value, cx+4, y+14);
         });
         doc.setTextColor(0,0,0);
-        y += ch + 5;
+        y += ch+4;
 
-        // ---- PÁGINA 1: KPIs + Linha anual + Pizza ----
-        const areaW = pw - 2*mg;
-        const lW = Math.round(areaW * 0.60);
-        const pW = areaW - lW - 5;
+        // ===== DADOS PARA OS GRÁFICOS =====
+        const colAtual = finColMap[finAnoAtual+'-'+finMesAtual];
+        const ytdCol   = finColMap['ytd_'+finAnoAtual];
+
+        // Série anual (rendas e despesas por mês)
+        const serieRendas   = [];
+        const serieDespesas = [];
+        let maxVal = 0;
+        for (let m=1; m<=12; m++) {
+          const ci = finColMap[finAnoAtual+'-'+m];
+          let r=0, d=0;
+          finGerRows.forEach(function(row){
+            if (!row) return;
+            const lbl = String(row[1]||'').trim();
+            if (ci===undefined) return;
+            if (lbl==='Rendas totais')     r = Math.abs(parseFloat(String(row[ci]||'0'))||0);
+            if (lbl==='Total de despesas') d = Math.abs(parseFloat(String(row[ci]||'0'))||0);
+          });
+          serieRendas.push(r);
+          serieDespesas.push(d);
+          if (r>maxVal) maxVal=r;
+          if (d>maxVal) maxVal=d;
+        }
+        maxVal = Math.ceil(maxVal/50000)*50000 || 100000;
+
+        // Despesas por grupo (pie)
+        const gruposDespesa = [];
+        let totalGrupos = 0;
+        const SKIP_PIZZA = ['rendas totais','total de despesas','despesas rotineiras (fixas)'];
+        finGerRows.forEach(function(row){
+          if (!row || colAtual===undefined) return;
+          const label    = String(row[1]||'').trim();
+          const subLabel = String(row[2]||'').trim();
+          if (!label || subLabel) return;
+          if (SKIP_PIZZA.some(function(s){return label.toLowerCase().includes(s);})) return;
+          if (finIsRenda(label)) return;
+          if (label.startsWith('(=') || label.startsWith('(+') || label.startsWith('(-')) return;
+          const val = Math.abs(parseFloat(String(row[colAtual]||'0'))||0);
+          if (val>0){ gruposDespesa.push({label:label,val:val}); totalGrupos+=val; }
+        });
+        gruposDespesa.sort(function(a,b){return b.val-a.val;});
+
+        // Detalhamento subcategorias
+        const subcats = [];
+        let totalSubcats = 0;
+        finGerRows.forEach(function(row){
+          if (!row || colAtual===undefined) return;
+          const cat = String(row[2]||'').trim();
+          if (!cat) return;
+          if (finIsExcluido(cat)||finIsRenda(cat)) return;
+          const val = Math.abs(parseFloat(String(row[colAtual]||'0'))||0);
+          if (val>0){ subcats.push({cat:cat.replace(/^[A-Z& -]+ - /,''),val:val}); totalSubcats+=val; }
+        });
+        subcats.sort(function(a,b){return b.val-a.val;}).splice(15);
+
+        // ===== PÁGINA 1: GRÁFICO DE LINHA + PIZZA =====
+        const areaW   = pw - 2*mg;
+        const lineW   = Math.round(areaW * 0.58);
+        const pizzaW  = areaW - lineW - 6;
+        const chartH  = ph - y - mg - 4;
+
+        // --- GRÁFICO DE LINHA ---
+        const lx = mg, ly = y;
+        const lw = lineW, lh = chartH;
+        const axisL=14, axisB=10;
+        const plotX=lx+axisL, plotY=ly+4, plotW=lw-axisL-2, plotH=lh-axisB-4;
+
+        // Fundo
+        doc.setFillColor(250,250,250); doc.rect(lx,ly,lw,lh,'F');
+        doc.setDrawColor(230,230,230); doc.rect(lx,ly,lw,lh,'S');
+
+        // Grid + labels eixo Y
+        doc.setFontSize(5.5); doc.setFont('helvetica','normal'); doc.setTextColor(130,130,130);
+        for (let i=0; i<=5; i++){
+          const val = (maxVal/5)*i;
+          const gy  = plotY + plotH - (plotH * i/5);
+          doc.setDrawColor(230,230,230); doc.line(plotX, gy, plotX+plotW, gy);
+          const lbl = val>=1000 ? 'R$'+(val/1000).toFixed(0)+'k' : 'R$0';
+          doc.text(lbl, plotX-1, gy+1, {align:'right'});
+        }
+
+        // Labels eixo X
+        const mAbrev = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+        mAbrev.forEach(function(m,i){
+          const gx = plotX + (plotW/(11))*i;
+          doc.setTextColor(130,130,130);
+          doc.text(m, gx, plotY+plotH+axisB-2, {align:'center'});
+        });
+
+        // Polígonos de área preenchida
+        function serieToPoints(serie){
+          return serie.map(function(v,i){
+            return {
+              x: plotX + (plotW/11)*i,
+              y: plotY + plotH - (v/maxVal)*plotH
+            };
+          });
+        }
+        function fillArea(pts, rgb){
+          doc.setFillColor(rgb[0],rgb[1],rgb[2]);
+          const poly = [];
+          pts.forEach(function(p){ poly.push(p.x, p.y); });
+          // Fecha pelo baseline
+          poly.push(pts[pts.length-1].x, plotY+plotH);
+          poly.push(pts[0].x, plotY+plotH);
+          // jsPDF polygon fill
+          doc.saveGraphicsState();
+          doc.setGState(new doc.GState({opacity:0.15}));
+          const ps = [];
+          for(let i=0;i<poly.length;i+=2) ps.push({x:poly[i],y:poly[i+1]});
+          // Draw filled polygon via lines
+          doc.setFillColor(rgb[0],rgb[1],rgb[2]);
+          doc.lines(ps.slice(1).map(function(p,i){return [p.x-ps[i].x, p.y-ps[i].y];}), ps[0].x, ps[0].y, [1,1], 'F', true);
+          doc.restoreGraphicsState();
+        }
+
+        const ptsR = serieToPoints(serieRendas);
+        const ptsD = serieToPoints(serieDespesas);
+
+        // Fill areas
+        fillArea(ptsR, [16,185,129]);
+        fillArea(ptsD, [239,68,68]);
+
+        // Draw lines
+        function drawLine(pts, rgb, dashed){
+          doc.setDrawColor(rgb[0],rgb[1],rgb[2]); doc.setLineWidth(0.7);
+          if (dashed) doc.setLineDashPattern([1.5,1],0);
+          for(let i=1;i<pts.length;i++){
+            doc.line(pts[i-1].x,pts[i-1].y,pts[i].x,pts[i].y);
+          }
+          doc.setLineDashPattern([],0);
+        }
+        drawLine(ptsR,[16,185,129],false);
+        drawLine(ptsD,[239,68,68],true);
+
+        // Legenda
+        doc.setFontSize(6.5); doc.setFont('helvetica','bold');
+        doc.setFillColor(16,185,129); doc.rect(plotX,ly+1,6,3,'F');
+        doc.setTextColor(80,80,80); doc.text('Rendas', plotX+8, ly+4);
+        doc.setFillColor(239,68,68); doc.rect(plotX+28,ly+1,6,3,'F');
+        doc.text('Despesas', plotX+36, ly+4);
+
+        // Título
+        doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor(15,61,87);
+        doc.text('Rendas vs Despesas — Evolucao Anual', lx, ly-1);
+
+        // --- PIZZA (grupo de despesas) ---
+        const px2 = mg+lineW+6, py2 = y, pw2 = pizzaW, ph2 = chartH;
+        doc.setFillColor(250,250,250); doc.rect(px2,py2,pw2,ph2,'F');
+        doc.setDrawColor(230,230,230); doc.rect(px2,py2,pw2,ph2,'S');
 
         doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor(15,61,87);
-        doc.text('Rendas vs Despesas - Evolucao Anual', mg, y+3);
-        doc.text('Despesas por Grupo', mg+lW+5, y+3);
-        y += 5;
+        doc.text('Despesas por Grupo', px2, py2-1);
 
-        // Gráficos ocupam o espaço restante da página 1
-        const h1 = ph - y - mg - 2;
-        var imgA = H.canvasImg('fin-chart-anual');
-        var imgP = H.canvasImg('fin-chart-pizza');
-        if (imgA) doc.addImage(imgA,'JPEG', mg,       y, lW, h1, '', 'FAST');
-        if (imgP) doc.addImage(imgP,'JPEG', mg+lW+5,  y, pW, h1, '', 'FAST');
+        const coresPizza = ['#0f3d57','#2e6b8e','#629ec1','#10b981','#8b5cf6','#f59e0b','#ef4444','#06b6d4','#84cc16','#ec4899'];
+        function hexToRgb(hex){
+          const r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
+          return [r,g,b];
+        }
 
-        // ---- PÁGINA 2: Detalhamento de Despesas ----
+        const cx2   = px2 + pw2*0.38;
+        const cy2   = py2 + ph2*0.52;
+        const radius = Math.min(pw2*0.30, ph2*0.40);
+        const inner  = radius * 0.52;
+        let angle = -Math.PI/2;
+
+        gruposDespesa.slice(0,10).forEach(function(g,i){
+          const slice = (g.val/totalGrupos) * 2*Math.PI;
+          const midA  = angle + slice/2;
+          const color = hexToRgb(coresPizza[i % coresPizza.length]);
+          doc.setFillColor(color[0],color[1],color[2]);
+          doc.setDrawColor(255,255,255); doc.setLineWidth(0.4);
+
+          // Desenha fatia como polígono com pontos suficientes
+          const steps = Math.max(8, Math.round(slice/(Math.PI/16)));
+          const pts2 = [];
+          // inner arc
+          for(let s=0;s<=steps;s++){
+            const a = angle + (slice/steps)*s;
+            pts2.push({x: cx2+inner*Math.cos(a), y: cy2+inner*Math.sin(a)});
+          }
+          // outer arc (reverse)
+          for(let s=steps;s>=0;s--){
+            const a = angle + (slice/steps)*s;
+            pts2.push({x: cx2+radius*Math.cos(a), y: cy2+radius*Math.sin(a)});
+          }
+          const first = pts2[0];
+          const rest  = pts2.slice(1);
+          doc.lines(rest.map(function(p,i){return [p.x-(i===0?first:pts2[i]).x, p.y-(i===0?first:pts2[i]).y];}),
+            first.x, first.y, [1,1], 'FD', true);
+
+          angle += slice;
+        });
+
+        // Legenda pizza
+        const legX = px2 + pw2*0.68;
+        let legY = py2 + 10;
+        doc.setFontSize(6); doc.setFont('helvetica','normal');
+        gruposDespesa.slice(0,10).forEach(function(g,i){
+          const color = hexToRgb(coresPizza[i % coresPizza.length]);
+          doc.setFillColor(color[0],color[1],color[2]);
+          doc.rect(legX, legY-2.5, 4, 3, 'F');
+          doc.setTextColor(60,60,60);
+          const pct = totalGrupos>0 ? (g.val/totalGrupos*100).toFixed(1)+'%' : '';
+          const lbl = g.label.length>18 ? g.label.substring(0,17)+'…' : g.label;
+          doc.text(lbl+' '+pct, legX+6, legY);
+          legY += 5.5;
+          if (legY > py2+ph2-4) return;
+        });
+
+        // ===== PÁGINA 2: BARRAS (subcategorias) =====
         doc.addPage('a4','landscape');
-        const pw2 = doc.internal.pageSize.getWidth();
-        const ph2 = doc.internal.pageSize.getHeight();
+        const pw3 = doc.internal.pageSize.getWidth();
+        const ph3 = doc.internal.pageSize.getHeight();
 
-        // Cabeçalho compacto
-        doc.setFillColor(15,61,87); doc.rect(0,0,pw2,22,'F');
+        doc.setFillColor(15,61,87); doc.rect(0,0,pw3,22,'F');
         doc.setTextColor(255,255,255);
-        doc.setFontSize(11); doc.setFont('helvetica','bold');
-        doc.text('PRAXES', mg, 10);
+        doc.setFontSize(11); doc.setFont('helvetica','bold'); doc.text('PRAXES', mg, 10);
         doc.setFontSize(8); doc.setFont('helvetica','normal');
         doc.text('Detalhamento de Despesas  |  '+MESES_PT[finMesAtual-1]+' de '+finAnoAtual, mg, 18);
         doc.setTextColor(0,0,0);
 
-        var y2 = 28;
-        doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(15,61,87);
-        doc.text('Despesas por Subcategoria — '+MESES_PT[finMesAtual-1]+' de '+finAnoAtual, mg, y2);
-        y2 += 4;
+        let y3 = 27;
+        const barAreaX = mg+52, barAreaW = pw3-mg-barAreaX-30, barAreaH = ph3-y3-mg-4;
+        const barH = barAreaH/subcats.length * 0.72;
+        const barGap = barAreaH/subcats.length;
+        const maxBar = subcats[0] ? subcats[0].val : 1;
 
-        var h2 = ph2 - y2 - mg - 4;
-        var imgB = H.canvasImg('fin-chart-barras');
-        if (imgB) doc.addImage(imgB,'JPEG', mg, y2, pw2-2*mg, h2, '', 'FAST');
+        // Eixo X
+        const xSteps = 5;
+        doc.setFontSize(5.5); doc.setTextColor(160,160,160);
+        for(let i=0;i<=xSteps;i++){
+          const bx = barAreaX + (barAreaW/xSteps)*i;
+          doc.setDrawColor(235,235,235); doc.line(bx, y3, bx, y3+barAreaH);
+          const v = (maxBar/xSteps)*i;
+          doc.text('R$'+(v/1000).toFixed(0)+'k', bx, y3+barAreaH+4, {align:'center'});
+        }
+
+        subcats.forEach(function(s,i){
+          const by    = y3 + i*barGap + (barGap-barH)/2;
+          const bw    = (s.val/maxBar)*barAreaW;
+          const pct   = totalSubcats>0 ? (s.val/totalSubcats*100).toFixed(1)+'%' : '';
+          const color = hexToRgb(coresPizza[i % coresPizza.length]);
+
+          // Label categoria
+          doc.setFontSize(6.5); doc.setFont('helvetica','normal'); doc.setTextColor(60,60,60);
+          doc.text(s.cat.substring(0,28), barAreaX-2, by+barH*0.65, {align:'right'});
+
+          // Barra
+          doc.setFillColor(color[0],color[1],color[2]);
+          doc.roundedRect(barAreaX, by, bw, barH, 0.8, 0.8, 'F');
+
+          // Valor + %
+          doc.setFontSize(6.5); doc.setFont('helvetica','bold'); doc.setTextColor(color[0],color[1],color[2]);
+          doc.text(H.fmtPDF(s.val)+'  '+pct, barAreaX+bw+2, by+barH*0.65);
+        });
 
         H.addFooter(doc, doc.internal.pages.length-1);
         doc.save('Praxes_Resumo_'+MESES_PT[finMesAtual-1]+'_'+finAnoAtual+'.pdf');
@@ -5098,7 +5313,7 @@
       }
     }
 
-    // ================================================================
+        // ================================================================
     // RELATÓRIO (ii): DRE — Retrato, sem dashboard
     // ================================================================
     async function finGerarDREPDF() {
