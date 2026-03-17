@@ -4500,6 +4500,80 @@
       };
     }
 
+    function finRenderPizza(gerRows, colAtual) {
+      if (colAtual === undefined) return;
+      const grupos = [];
+      const SKIP = ['rendas totais','total de despesas','despesas rotineiras (fixas)'];
+      gerRows.forEach(function(row) {
+        if (!row) return;
+        var label    = String(row[1] || '').trim();
+        var subLabel = String(row[2] || '').trim();
+        if (!label || subLabel) return;
+        if (SKIP.some(function(s){ return label.toLowerCase().includes(s); })) return;
+        if (finIsRenda(label)) return;
+        var val = Math.abs(parseFloat(String(row[colAtual] || '0')) || 0);
+        if (val > 0) grupos.push({ label: label, val: val });
+      });
+      var sorted = grupos.sort(function(a,b){ return b.val - a.val; }).slice(0, 10);
+      var cores = ['#0f3d57','#2e6b8e','#629ec1','#10b981','#8b5cf6','#f59e0b','#ef4444','#06b6d4','#84cc16','#ec4899'];
+      finDestroyChart('finChartPizza');
+      finChartPizza = new Chart(document.getElementById('fin-chart-pizza'), {
+        type: 'doughnut',
+        data: {
+          labels: sorted.map(function(g){ return g.label; }),
+          datasets: [{ data: sorted.map(function(g){ return g.val; }), backgroundColor: cores, borderColor: '#fff', borderWidth: 2 }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'right', labels: { font: { size: 11, family: 'Montserrat' }, padding: 10, boxWidth: 12 } },
+            tooltip: { backgroundColor: '#0f3d57', titleColor: '#fff', bodyColor: '#fff', padding: 12,
+              callbacks: { label: function(ctx){ return ctx.label + ': ' + fmt(ctx.parsed); } } }
+          }
+        }
+      });
+    }
+
+    function finRenderBarras(gerRows, colAtual) {
+      if (colAtual === undefined) return;
+      var items = [];
+      gerRows.forEach(function(row) {
+        if (!row) return;
+        var cat = String(row[2] || '').trim();
+        if (!cat) return;
+        if (finIsExcluido(cat) || finIsRenda(cat)) return;
+        var val = Math.abs(parseFloat(String(row[colAtual] || '0')) || 0);
+        if (val > 0) items.push({ cat: cat, val: val });
+      });
+      var sorted = items.sort(function(a,b){ return b.val - a.val; }).slice(0, 15);
+      finDestroyChart('finChartBarras');
+      finChartBarras = new Chart(document.getElementById('fin-chart-barras'), {
+        type: 'bar',
+        data: {
+          labels: sorted.map(function(i){ return i.cat.replace(/^[A-Z& -]+ - /, ''); }),
+          datasets: [{
+            label: 'Despesa',
+            data: sorted.map(function(i){ return i.val; }),
+            backgroundColor: sorted.map(function(_,ci){ return 'hsl(' + (205 + ci*8) + ', 60%, ' + (45 + ci*2) + '%)'; }),
+            borderRadius: 4, borderSkipped: false
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          indexAxis: 'y',
+          plugins: {
+            legend: { display: false },
+            tooltip: { backgroundColor: '#0f3d57', titleColor: '#fff', bodyColor: '#fff', padding: 12,
+              callbacks: { label: function(ctx){ return fmt(ctx.parsed.x); } } }
+          },
+          scales: {
+            x: { ticks: { callback: function(v){ return 'R$ ' + (v/1000).toFixed(0) + 'k'; }, color: '#666' }, grid: { color: '#e5e5e5' } },
+            y: { ticks: { color: '#333', font: { size: 11 } }, grid: { display: false } }
+          }
+        }
+      });
+    }
+
         // ---- DRE GERENCIAL ----
     function finProcessarDRE(gerRows) {
       const colAtualKey = `${finAnoAtual}-${finMesAtual}`;
@@ -4627,7 +4701,7 @@
       document.getElementById('fin-dre-container').innerHTML = html;
     }
 
-        function finTogglePai(paiId) {
+    function finTogglePai(paiId) {
       finDreExpandido[paiId] = !finDreExpandido[paiId];
       const toggle = document.getElementById(`toggle-${paiId}`);
       if (toggle) toggle.textContent = finDreExpandido[paiId] ? '▾' : '▸';
@@ -4727,7 +4801,7 @@
       if (refs.includes(prevRef))       selRef.value    = prevRef;
     }
 
-        function finRenderLancamentos() {
+    function finRenderLancamentos() {
       const tbody = document.getElementById('fin-lancamentos-tbody');
       const total = finLancFiltrados.length;
       const totalPags = Math.ceil(total / FIN_POR_PAG);
@@ -4786,7 +4860,7 @@
       btn.classList.add('active');
       document.getElementById(`fin-tab-${tabName}`).classList.add('active');
       // Ao abrir lançamentos, reseta filtros de dropdown para repopular
-      if (tabName === 'lancamentos') { finFiltrosPopulados = false; finFiltrar(); }
+      if (tabName === 'lancamentos') { _finFiltrosMesKey = ''; finFiltrar(); }
     }
 
     // ---- RELATÓRIO PDF ----
