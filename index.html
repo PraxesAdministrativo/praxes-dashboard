@@ -4773,7 +4773,30 @@
         const mg = 18;
         let y = mg;
 
-        // Capa
+        // Remove emojis e unicode fora latin-1 (jsPDF/Helvetica nao suporta)
+        function safe(str) {
+          return String(str || '')
+            .replace(/[\u{1F000}-\u{1FFFF}]/gu, '')
+            .replace(/[\u2600-\u27BF]/g, '')
+            .replace(/[^\x00-\xFF]/g, '')
+            .replace(/[\u25BE\u25B8]/g, '')  // triangulos DRE
+            .trim();
+        }
+
+        function fmtPDF(n) {
+          if (n === null || n === undefined || isNaN(n)) return '—';
+          const abs = Math.abs(n);
+          const s = abs.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+          return (n < 0 ? '-R$ ' : 'R$ ') + s;
+        }
+
+        function pdfGetVal(row, ci) {
+          if (ci === undefined || !row || row[ci] === undefined || row[ci] === '') return null;
+          const n = parseFloat(String(row[ci]).replace(',', '.'));
+          return isNaN(n) ? null : n;
+        }
+
+        // ---- CAPA ----
         doc.setFillColor(15, 61, 87);
         doc.rect(0, 0, pw, 52, 'F');
         doc.setTextColor(255, 255, 255);
@@ -4782,87 +4805,164 @@
         doc.setFontSize(12); doc.setFont('helvetica', 'normal');
         doc.text('Controle Financeiro', mg, 34);
         doc.setFontSize(10);
-        doc.text(`${MESES_PT[finMesAtual-1]} de ${finAnoAtual}  |  Gerado em ${new Date().toLocaleDateString('pt-BR')}`, mg, 46);
+        doc.text(MESES_PT[finMesAtual-1] + ' de ' + finAnoAtual + '  |  Gerado em ' + new Date().toLocaleDateString('pt-BR'), mg, 46);
 
         y = 70;
-        doc.setTextColor(0,0,0);
-        doc.setFontSize(14); doc.setFont('helvetica', 'bold');
-        doc.text('Resumo do Mês', mg, y); y += 10;
+        doc.setTextColor(0, 0, 0);
 
-        // KPI boxes
-        const kpiEl = document.querySelectorAll('.fin-kpi-card');
-        const kpiData = [];
-        kpiEl.forEach(el => {
-          kpiData.push({
-            label: el.querySelector('.fin-kpi-label')?.textContent || '',
-            value: el.querySelector('.fin-kpi-value')?.textContent || ''
-          });
+        // ---- RESUMO DO MES ----
+        doc.setFontSize(14); doc.setFont('helvetica', 'bold');
+        doc.text('Resumo do Mes', mg, y); y += 12;
+
+        const colAtual = finColMap[finAnoAtual + '-' + finMesAtual];
+        const ytdCol   = finColMap['ytd_' + finAnoAtual];
+        const mediaCol = finColMap['media_' + finAnoAtual];
+
+        let rendaTotal = 0, despesaTotal = 0, rendaYTD = 0, despYTD = 0;
+        finGerRows.forEach(function(row) {
+          if (!row) return;
+          var lbl = String(row[1] || '').trim();
+          if (lbl === 'Rendas totais') {
+            if (colAtual !== undefined) rendaTotal = Math.abs(parseFloat(String(row[colAtual] || '0')) || 0);
+            if (ytdCol   !== undefined) rendaYTD   = Math.abs(parseFloat(String(row[ytdCol]   || '0')) || 0);
+          }
+          if (lbl === 'Total de despesas') {
+            if (colAtual !== undefined) despesaTotal = Math.abs(parseFloat(String(row[colAtual] || '0')) || 0);
+            if (ytdCol   !== undefined) despYTD      = Math.abs(parseFloat(String(row[ytdCol]   || '0')) || 0);
+          }
         });
+
+        const saldo    = rendaTotal - despesaTotal;
+        const poupanca = rendaTotal > 0 ? ((saldo / rendaTotal) * 100).toFixed(1) : '0';
+        const resYTD   = rendaYTD - despYTD;
+
+        const kpis = [
+          { label: 'Rendas no Mes',   value: fmtPDF(rendaTotal)   },
+          { label: 'Despesas no Mes', value: fmtPDF(-despesaTotal) },
+          { label: 'Resultado',       value: fmtPDF(saldo)         },
+          { label: 'Tx. Poupanca',    value: poupanca + '%'        }
+        ];
 
         doc.setFillColor(245, 245, 245);
-        doc.roundedRect(mg, y, pw - 2*mg, 40, 3, 3, 'F');
-        let kx = mg + 8;
-        kpiData.forEach((k, i) => {
-          const cx = kx + i * ((pw - 2*mg - 16) / kpiData.length);
-          doc.setFontSize(8); doc.setFont('helvetica', 'normal');
-          doc.setTextColor(100,100,100);
-          doc.text(k.label, cx, y + 12);
-          doc.setFontSize(12); doc.setFont('helvetica', 'bold');
-          doc.setTextColor(15, 61, 87);
-          doc.text(k.value, cx, y + 26);
+        doc.roundedRect(mg, y, pw - 2*mg, 36, 3, 3, 'F');
+        var colW = (pw - 2*mg) / kpis.length;
+        kpis.forEach(function(k, i) {
+          var cx = mg + i * colW + 6;
+          doc.setFontSize(7.5); doc.setFont('helvetica', 'normal');
+          doc.setTextColor(100, 100, 100);
+          doc.text(k.label, cx, y + 11);
+          doc.setFontSize(11); doc.setFont('helvetica', 'bold');
+          if (k.label === 'Resultado') {
+            doc.setTextColor(saldo >= 0 ? 5 : 180, saldo >= 0 ? 120 : 30, saldo >= 0 ? 80 : 30);
+          } else {
+            doc.setTextColor(15, 61, 87);
+          }
+          doc.text(k.value, cx, y + 25);
         });
-        y += 52;
+        doc.setTextColor(0, 0, 0);
+        y += 44;
 
-        // DRE simplificada
+        doc.setFontSize(7.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(100, 100, 100);
+        doc.text('YTD ' + finAnoAtual + ':  Rendas ' + fmtPDF(rendaYTD) + '   Despesas ' + fmtPDF(-despYTD) + '   Resultado ' + fmtPDF(resYTD), mg, y);
+        doc.setTextColor(0, 0, 0);
+        y += 14;
+
+        // ---- DRE ----
         doc.setFontSize(13); doc.setFont('helvetica', 'bold');
-        doc.setTextColor(0,0,0);
-        doc.text('DRE Gerencial', mg, y); y += 8;
+        doc.text('DRE Gerencial', mg, y); y += 10;
 
-        const dreRows = document.querySelectorAll('.fin-dre-table tbody tr');
-        dreRows.forEach(row => {
-          if (y > ph - 30) { doc.addPage(); y = mg; }
-          const cells = row.querySelectorAll('td');
-          if (!cells.length) return;
-          const isPai = row.classList.contains('fin-dre-row-pai');
-          const isTotal = row.classList.contains('fin-dre-row-total');
-          const isRendas = row.classList.contains('fin-dre-row-rendas');
+        var col1W = pw - 2*mg - 108;
+        var colXs = [mg + col1W + 36, mg + col1W + 72, mg + col1W + 108];
 
-          if (isTotal) { doc.setFillColor(15,61,87); doc.rect(mg, y-4, pw-2*mg, 10, 'F'); doc.setTextColor(255,255,255); }
-          else if (isRendas) { doc.setFillColor(220,252,231); doc.rect(mg, y-4, pw-2*mg, 10, 'F'); doc.setTextColor(6,95,70); }
-          else if (isPai) { doc.setFillColor(238,244,248); doc.rect(mg, y-4, pw-2*mg, 10, 'F'); doc.setTextColor(15,61,87); }
-          else { doc.setTextColor(50,50,50); }
+        // Header da tabela
+        doc.setFillColor(15, 61, 87);
+        doc.rect(mg, y - 5, pw - 2*mg, 10, 'F');
+        doc.setTextColor(255, 255, 255); doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+        doc.text('Categoria', mg + 2, y + 1);
+        doc.text(MESES_PT[finMesAtual-1].substring(0, 3), colXs[0], y + 1, { align: 'right' });
+        doc.text('YTD ' + finAnoAtual, colXs[1], y + 1, { align: 'right' });
+        doc.text('Media', colXs[2], y + 1, { align: 'right' });
+        doc.setTextColor(0, 0, 0);
+        y += 10;
 
-          doc.setFontSize(isPai || isTotal || isRendas ? 9 : 8);
-          doc.setFont('helvetica', isPai || isTotal || isRendas ? 'bold' : 'normal');
+        finGerRows.forEach(function(row, ri) {
+          if (ri < 5 || !row) return;
+          if (y > ph - 20) { doc.addPage(); y = mg; }
 
-          const label = cells[0]?.textContent?.replace(/[▾▸]/g, '').trim() || '';
-          doc.text(label.substring(0, 45), isPai ? mg+2 : mg+8, y);
+          var label    = String(row[1] || '').trim();
+          var subLabel = String(row[2] || '').trim();
+          var marcador = String(row[3] || '').trim();
+          if (!label && !subLabel) return;
 
-          const vals = [cells[1], cells[2], cells[3]];
-          const colXs = [pw - 110, pw - 70, pw - 30];
-          vals.forEach((td, vi) => {
-            if (td) doc.text(String(td?.textContent || '').replace(/[+]/g,'').trim().substring(0,18), colXs[vi], y, { align: 'right' });
-          });
+          var vAtual = pdfGetVal(row, colAtual);
+          var vYTD   = pdfGetVal(row, ytdCol);
+          var vMedia = pdfGetVal(row, mediaCol);
 
-          doc.setTextColor(0,0,0);
-          y += 7;
+          var isRendas = label === 'Rendas totais';
+          var isTotal  = label === 'Total de despesas';
+          var isPai    = !!(label && !subLabel && marcador === 'x');
+          var isFilho  = !!(subLabel && marcador === 'x');
+
+          if (!isRendas && !isTotal && !isPai && !isFilho && !finIsRenda(subLabel)) return;
+          if (isFilho && finIsExcluido(subLabel)) return;
+
+          var rowH = 7;
+          var indent = mg + 2;
+
+          if (isRendas) {
+            doc.setFillColor(220, 252, 231); doc.rect(mg, y-4, pw-2*mg, rowH+1, 'F');
+            doc.setTextColor(6, 95, 70); doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+          } else if (isTotal) {
+            doc.setFillColor(15, 61, 87); doc.rect(mg, y-4, pw-2*mg, rowH+1, 'F');
+            doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+          } else if (isPai) {
+            doc.setFillColor(238, 244, 248); doc.rect(mg, y-4, pw-2*mg, rowH+1, 'F');
+            doc.setTextColor(15, 61, 87); doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5);
+          } else {
+            doc.setTextColor(60, 60, 60); doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+            indent = mg + 8;
+          }
+
+          var lbl = safe(isRendas ? 'Rendas Totais' : isTotal ? 'Total de Despesas' : (label || subLabel));
+          doc.text(lbl.substring(0, 50), indent, y);
+
+          function writeVal(v, cx) {
+            var txt = v === null ? '—' : fmtPDF(v);
+            doc.text(txt, cx, y, { align: 'right' });
+          }
+          writeVal(vAtual, colXs[0]);
+          writeVal(vYTD,   colXs[1]);
+          writeVal(vMedia, colXs[2]);
+
+          doc.setTextColor(0, 0, 0);
+          y += rowH;
         });
 
-        const total = doc.internal.pages.length - 1;
-        for (let i = 1; i <= total; i++) {
+        // Linha resultado
+        if (y > ph - 20) { doc.addPage(); y = mg; }
+        doc.setFillColor(15, 61, 87); doc.rect(mg, y-4, pw-2*mg, 8, 'F');
+        doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+        doc.text('Resultado', mg + 2, y);
+        doc.text(fmtPDF(saldo),  colXs[0], y, { align: 'right' });
+        doc.text(fmtPDF(resYTD), colXs[1], y, { align: 'right' });
+        doc.text('—',            colXs[2], y, { align: 'right' });
+
+        // ---- RODAPE ----
+        var totalPags = doc.internal.pages.length - 1;
+        for (var i = 1; i <= totalPags; i++) {
           doc.setPage(i);
-          doc.setFontSize(7); doc.setTextColor(160,160,160);
-          doc.text('Praxes Family Office • Relatório Confidencial', mg, ph - 8);
-          doc.text(`${i}/${total}`, pw - mg, ph - 8, { align: 'right' });
+          doc.setFontSize(7); doc.setFont('helvetica', 'normal'); doc.setTextColor(160, 160, 160);
+          doc.text('Praxes Family Office - Relatorio Confidencial', mg, ph - 8);
+          doc.text(i + ' / ' + totalPags, pw - mg, ph - 8, { align: 'right' });
         }
 
-        doc.save(`Praxes_Financeiro_${MESES_PT[finMesAtual-1]}_${finAnoAtual}.pdf`);
+        doc.save('Praxes_Financeiro_' + MESES_PT[finMesAtual-1] + '_' + finAnoAtual + '.pdf');
+
       } catch(e) {
-        console.error('❌ PDF:', e);
+        console.error('PDF error:', e);
         alert('Erro ao gerar PDF: ' + e.message);
       }
     }
-
     // ========== FIM CONTROLE FINANCEIRO ==========
 
     function fmt(v) {
