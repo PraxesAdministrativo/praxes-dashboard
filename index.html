@@ -3759,7 +3759,7 @@
           doc.setPage(i);
           doc.setFontSize(8);
           doc.setTextColor(150, 150, 150);
-          doc.text(`Praxes Family Office • Relatório confidencial`, margin, pageHeight - 10);
+          doc.text(`Praxes Gestão Patrimonial • Relatório confidencial`, margin, pageHeight - 10);
           doc.text(`Página ${i} de ${totalPages}`, pageWidth - margin - 30, pageHeight - 10);
         }
         
@@ -4970,7 +4970,7 @@
         for (var i=1; i<=totalPags; i++) {
           doc.setPage(i);
           doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(160,160,160);
-          doc.text('Praxes Family Office - Relatorio Confidencial', 14, ph-8);
+          doc.text('Praxes Gestão Patrimonial - Relatorio Confidencial', 14, ph-8);
           doc.text(i+' / '+totalPags, pw-14, ph-8, { align:'right' });
         }
       }
@@ -5029,30 +5029,45 @@
         doc.setTextColor(0,0,0);
         y += ch + 5;
 
-        // Linha 1: gráfico anual (60%) + pizza (40%)
+        // ---- PÁGINA 1: KPIs + Linha anual + Pizza ----
         const areaW = pw - 2*mg;
         const lW = Math.round(areaW * 0.60);
-        const pW = areaW - lW - 4;
-        const h1 = 68;
+        const pW = areaW - lW - 5;
 
         doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor(15,61,87);
         doc.text('Rendas vs Despesas - Evolucao Anual', mg, y+3);
-        doc.text('Despesas por Grupo', mg+lW+4, y+3);
+        doc.text('Despesas por Grupo', mg+lW+5, y+3);
         y += 5;
 
+        // Gráficos ocupam o espaço restante da página 1
+        const h1 = ph - y - mg - 2;
         var imgA = H.canvasImg('fin-chart-anual', lW, h1);
         var imgP = H.canvasImg('fin-chart-pizza', pW, h1);
-        if (imgA) doc.addImage(imgA,'JPEG',mg,      y, lW, h1);
-        if (imgP) doc.addImage(imgP,'JPEG',mg+lW+4, y, pW, h1);
-        y += h1 + 4;
+        if (imgA) doc.addImage(imgA,'JPEG', mg,       y, lW, h1);
+        if (imgP) doc.addImage(imgP,'JPEG', mg+lW+5,  y, pW, h1);
 
-        // Linha 2: barras (largura total)
-        doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor(15,61,87);
-        doc.text('Detalhamento de Despesas do Mes', mg, y+3);
-        y += 5;
-        var h2 = ph - y - mg - 2;
-        var imgB = H.canvasImg('fin-chart-barras', areaW, h2);
-        if (imgB) doc.addImage(imgB,'JPEG',mg,y,areaW,h2);
+        // ---- PÁGINA 2: Detalhamento de Despesas ----
+        doc.addPage('a4','landscape');
+        const pw2 = doc.internal.pageSize.getWidth();
+        const ph2 = doc.internal.pageSize.getHeight();
+
+        // Cabeçalho compacto
+        doc.setFillColor(15,61,87); doc.rect(0,0,pw2,22,'F');
+        doc.setTextColor(255,255,255);
+        doc.setFontSize(11); doc.setFont('helvetica','bold');
+        doc.text('PRAXES', mg, 10);
+        doc.setFontSize(8); doc.setFont('helvetica','normal');
+        doc.text('Detalhamento de Despesas  |  '+MESES_PT[finMesAtual-1]+' de '+finAnoAtual, mg, 18);
+        doc.setTextColor(0,0,0);
+
+        var y2 = 28;
+        doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(15,61,87);
+        doc.text('Despesas por Subcategoria — '+MESES_PT[finMesAtual-1]+' de '+finAnoAtual, mg, y2);
+        y2 += 4;
+
+        var h2 = ph2 - y2 - mg - 4;
+        var imgB = H.canvasImg('fin-chart-barras', pw2 - 2*mg, h2);
+        if (imgB) doc.addImage(imgB,'JPEG', mg, y2, pw2-2*mg, h2);
 
         H.addFooter(doc, doc.internal.pages.length-1);
         doc.save('Praxes_Resumo_'+MESES_PT[finMesAtual-1]+'_'+finAnoAtual+'.pdf');
