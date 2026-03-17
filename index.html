@@ -1977,7 +1977,14 @@
       driveScopes: 'https://www.googleapis.com/auth/drive.file'
     };
     
-    const db = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey);
+    const db = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey, {
+      auth: {
+        persistSession: true,       // mantém sessão no localStorage entre F5s
+        autoRefreshToken: true,     // renova o token automaticamente
+        storageKey: 'praxes-auth',  // chave isolada no localStorage
+        storage: window.localStorage
+      }
+    });
     let resumoSheetId = null;
     let imoveisSheetId = null;
     let imoveisFolderId = null;
@@ -2024,10 +2031,10 @@
           provider: 'google',
           options: {
             redirectTo: cfg.redirectUrl,
-            queryParams: { 
-              access_type: 'offline', 
-              prompt: 'consent',
-              scope: 'openid email profile https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file'
+            scopes: 'openid email profile https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file',
+            queryParams: {
+              access_type: 'offline'
+              // SEM prompt:'consent' → Google só pede permissão na primeira vez
             }
           }
         });
@@ -2048,7 +2055,9 @@
     
     db.auth.onAuthStateChange(async (event, session) => {
       console.log('🔐', event);
-      if (event === 'SIGNED_IN' && session) {
+      // INITIAL_SESSION = sessão restaurada do localStorage (F5)
+      // SIGNED_IN = login novo
+      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session) {
         const email = session.user.email;
         currentUser = email;
         console.log('✅ User:', email);
@@ -2081,6 +2090,11 @@
         console.log('✅ Using Imoveis Sheet:', imoveisSheetId);
         console.log('✅ Using Imoveis Folder:', imoveisFolderId);
         
+        // Sempre atualiza o token Google (importante no F5 e renovação)
+        const _setGoogleToken = (tok) => {
+          if (tok) gapi.client.setToken({ access_token: tok });
+        };
+
         if (!window.gInit) {
           await new Promise((ok) => {
             gapi.load('client', async () => {
@@ -2106,6 +2120,13 @@
               ok();
             });
           });
+        } else {
+          // F5 ou renovação: gInit já existe, só atualiza o token
+          const provider_token = session.provider_token;
+          if (provider_token) {
+            _setGoogleToken(provider_token);
+            console.log('✅ Token renovado (sessão restaurada)');
+          }
         }
         
         document.getElementById('auth-section').style.display = 'none';
@@ -3759,7 +3780,7 @@
           doc.setPage(i);
           doc.setFontSize(8);
           doc.setTextColor(150, 150, 150);
-          doc.text(`Praxes Gestão Patrimonial • Relatório confidencial`, margin, pageHeight - 10);
+          doc.text(`Praxes Family Office • Relatório confidencial`, margin, pageHeight - 10);
           doc.text(`Página ${i} de ${totalPages}`, pageWidth - margin - 30, pageHeight - 10);
         }
         
@@ -4931,18 +4952,18 @@
         var n = parseFloat(String(row[ci]).replace(',', '.'));
         return isNaN(n) ? null : n;
       }
-      function canvasImg(id, destW, destH) {
+      function canvasImg(id) {
+        // Captura o canvas exatamente como está, com fundo branco
         var src = document.getElementById(id);
-        if (!src) return null;
-        var scale = 3;
+        if (!src || src.width === 0 || src.height === 0) return null;
         var tmp = document.createElement('canvas');
-        tmp.width  = Math.round(destW * scale * 3.7795);
-        tmp.height = Math.round(destH * scale * 3.7795);
+        tmp.width  = src.width;
+        tmp.height = src.height;
         var ctx = tmp.getContext('2d');
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, tmp.width, tmp.height);
-        ctx.drawImage(src, 0, 0, tmp.width, tmp.height);
-        try { return tmp.toDataURL('image/jpeg', 0.95); } catch(e) { return null; }
+        ctx.drawImage(src, 0, 0);
+        try { return tmp.toDataURL('image/jpeg', 0.92); } catch(e) { return null; }
       }
       function kpiData() {
         var colAtual = finColMap[finAnoAtual + '-' + finMesAtual];
@@ -4970,7 +4991,7 @@
         for (var i=1; i<=totalPags; i++) {
           doc.setPage(i);
           doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(160,160,160);
-          doc.text('Praxes Gestão Patrimonial - Relatorio Confidencial', 14, ph-8);
+          doc.text('Praxes Family Office - Relatorio Confidencial', 14, ph-8);
           doc.text(i+' / '+totalPags, pw-14, ph-8, { align:'right' });
         }
       }
@@ -5041,10 +5062,10 @@
 
         // Gráficos ocupam o espaço restante da página 1
         const h1 = ph - y - mg - 2;
-        var imgA = H.canvasImg('fin-chart-anual', lW, h1);
-        var imgP = H.canvasImg('fin-chart-pizza', pW, h1);
-        if (imgA) doc.addImage(imgA,'JPEG', mg,       y, lW, h1);
-        if (imgP) doc.addImage(imgP,'JPEG', mg+lW+5,  y, pW, h1);
+        var imgA = H.canvasImg('fin-chart-anual');
+        var imgP = H.canvasImg('fin-chart-pizza');
+        if (imgA) doc.addImage(imgA,'JPEG', mg,       y, lW, h1, '', 'FAST');
+        if (imgP) doc.addImage(imgP,'JPEG', mg+lW+5,  y, pW, h1, '', 'FAST');
 
         // ---- PÁGINA 2: Detalhamento de Despesas ----
         doc.addPage('a4','landscape');
@@ -5066,8 +5087,8 @@
         y2 += 4;
 
         var h2 = ph2 - y2 - mg - 4;
-        var imgB = H.canvasImg('fin-chart-barras', pw2 - 2*mg, h2);
-        if (imgB) doc.addImage(imgB,'JPEG', mg, y2, pw2-2*mg, h2);
+        var imgB = H.canvasImg('fin-chart-barras');
+        if (imgB) doc.addImage(imgB,'JPEG', mg, y2, pw2-2*mg, h2, '', 'FAST');
 
         H.addFooter(doc, doc.internal.pages.length-1);
         doc.save('Praxes_Resumo_'+MESES_PT[finMesAtual-1]+'_'+finAnoAtual+'.pdf');
