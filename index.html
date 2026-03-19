@@ -1589,7 +1589,19 @@
                   <option value="entrada">Só entradas</option>
                   <option value="saida">Só saídas</option>
                 </select>
-                <button class="btn-add-small" onclick="finAbrirModalLanc(null)" style="margin-left:auto;padding:9px 18px;font-size:13px;">+ Adicionar</button>
+                <div style="margin-left:auto; display:flex; align-items:center; gap:10px;">
+                  <div style="display:flex; background:var(--cinza-claro); border-radius:8px; padding:2px; gap:2px;">
+                    <button id="btn-filtro-mes" onclick="finSetScopeFilter('mes')"
+                      style="padding:7px 14px; border:none; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer; background:var(--azul-secundario); color:#fff; transition:all .2s;">
+                      Mês atual
+                    </button>
+                    <button id="btn-filtro-tudo" onclick="finSetScopeFilter('tudo')"
+                      style="padding:7px 14px; border:none; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer; background:transparent; color:var(--text-light); transition:all .2s;">
+                      Todos
+                    </button>
+                  </div>
+                  <button class="btn-add-small" onclick="finAbrirModalLanc(null)" style="padding:9px 18px;font-size:13px;">+ Adicionar</button>
+                </div>
               </div>
               <div style="overflow-x:auto;">
                 <table class="fin-lanc-table">
@@ -4284,6 +4296,7 @@
     let finLancamentos = [];      // todos os lançamentos brutos
     let finLancFiltrados = [];    // após filtros aplicados
     let finOrdemCol = 'data';
+    let finScopeFilter = 'mes'; // 'mes' | 'tudo'
     let finOrdemAsc = true;
     let finPagina = 1;
     const FIN_POR_PAG = 50;
@@ -4855,9 +4868,11 @@
       const ref    = document.getElementById('fin-filtro-ref').value;
       const tipo   = document.getElementById('fin-filtro-tipo').value;
 
-      // Filtra pelo mês/ano selecionado
+      // Filtra pelo mês/ano OU mostra tudo conforme toggle
       const mesFiltro = MESES_PT[finMesAtual - 1];
-      let base = finLancamentos.filter(l => l.mes === mesFiltro && l.ano === finAnoAtual);
+      let base = finScopeFilter === 'tudo'
+        ? [...finLancamentos]
+        : finLancamentos.filter(l => l.mes === mesFiltro && l.ano === finAnoAtual);
 
       // Popula dropdowns apenas quando o conjunto base muda (novo mês carregado)
       finPopularFiltros(base);
@@ -4890,7 +4905,8 @@
     // Repopula os dropdowns de filtro quando muda o mês
     let _finFiltrosMesKey = '';
     function finPopularFiltros(base) {
-      const chave = `${finAnoAtual}-${finMesAtual}`;
+      // No modo 'tudo', o identificador de chave é diferente para repopular
+      const chave = finScopeFilter === 'tudo' ? `tudo-${finAnoAtual}` : `${finAnoAtual}-${finMesAtual}`;
       if (_finFiltrosMesKey === chave) return; // já populado para este mês
       _finFiltrosMesKey = chave;
 
@@ -4986,13 +5002,33 @@
       finFiltrar();
     }
 
+    function finSetScopeFilter(scope) {
+      finScopeFilter = scope;
+      // Atualiza visual dos botões
+      const btnMes  = document.getElementById('btn-filtro-mes');
+      const btnTudo = document.getElementById('btn-filtro-tudo');
+      if (btnMes && btnTudo) {
+        const ativo   = 'background:var(--azul-secundario);color:#fff;';
+        const inativo = 'background:transparent;color:var(--text-light);';
+        btnMes.style.cssText  += scope === 'mes'  ? ativo : inativo;
+        btnTudo.style.cssText += scope === 'tudo' ? ativo : inativo;
+        // Simplifica: força recriação do style
+        btnMes.style.background  = scope === 'mes'  ? 'var(--azul-secundario)' : 'transparent';
+        btnMes.style.color       = scope === 'mes'  ? '#fff' : 'var(--text-light)';
+        btnTudo.style.background = scope === 'tudo' ? 'var(--azul-secundario)' : 'transparent';
+        btnTudo.style.color      = scope === 'tudo' ? '#fff' : 'var(--text-light)';
+      }
+      finPagina = 1;
+      finFiltrar();
+    }
+
     function finSwitchTab(tabName, btn) {
       document.querySelectorAll('.fin-tab-btn').forEach(b => b.classList.remove('active'));
       document.querySelectorAll('.fin-tab-content').forEach(c => c.classList.remove('active'));
       btn.classList.add('active');
       document.getElementById(`fin-tab-${tabName}`).classList.add('active');
       // Ao abrir lançamentos, reseta filtros de dropdown para repopular
-      if (tabName === 'lancamentos') { _finFiltrosMesKey = ''; finFiltrar(); }
+      if (tabName === 'lancamentos') { _finFiltrosMesKey = ''; finScopeFilter = 'mes'; finSetScopeFilter('mes'); }
     }
 
     // ========== CRUD LANÇAMENTOS ==========
