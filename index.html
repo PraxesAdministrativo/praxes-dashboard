@@ -1277,13 +1277,17 @@
           <span class="nav-icon">📈</span>
           <span>Controle Financeiro</span>
         </div>
-        <div class="nav-item" data-page="relatorios">
-          <span class="nav-icon">📊</span>
-          <span>Relatórios</span>
+        <div class="nav-item" data-page="veiculos">
+          <span class="nav-icon">🚗</span>
+          <span>Veículos</span>
         </div>
         <div class="nav-item" data-page="documentos">
           <span class="nav-icon">📁</span>
           <span>Documentos</span>
+        </div>
+        <div class="nav-item" data-page="perfil">
+          <span class="nav-icon">👨‍👩‍👧‍👦</span>
+          <span>Perfil & Família</span>
         </div>
       </nav>
       <div class="sidebar-footer">
@@ -1635,13 +1639,91 @@
           </div>
         </div>
 
-        <div class="page" id="page-relatorios">
-          <h2>Relatórios</h2>
-          <p>Em desenvolvimento...</p>
+        <!-- VEÍCULOS PAGE -->
+        <div class="page" id="page-veiculos">
+          <div class="page-header">
+            <h2 style="font-size:24px;color:var(--text-dark);">Veículos & Embarcações</h2>
+            <button class="btn-add" id="btn-add-veiculo">+ Adicionar</button>
+          </div>
+          <div id="veiculos-grid" class="imoveis-grid">
+            <div class="loading"><div class="spinner"></div><p>Carregando...</p></div>
+          </div>
         </div>
+
+        <!-- DETALHES VEÍCULO PAGE -->
+        <div class="page" id="page-veiculo-detalhes">
+          <div class="detalhes-header">
+            <div class="detalhes-back" onclick="navigateTo('veiculos')">← Voltar para Veículos</div>
+            <div class="detalhes-title-row">
+              <div>
+                <h1 class="detalhes-title" id="vei-detalhes-nome">Veículo</h1>
+                <p class="detalhes-subtitle" id="vei-detalhes-meta">Tipo • Placa</p>
+              </div>
+              <div class="detalhes-actions">
+                <button class="btn-detalhes" onclick="veiAbrirDocs()">📁 Documentos</button>
+                <button class="btn-detalhes" onclick="veiEditarAtual()">✏️ Editar</button>
+                <button class="btn-detalhes" onclick="veiExcluirAtual()">🗑️ Excluir</button>
+              </div>
+            </div>
+            <div class="detalhes-grid" id="vei-detalhes-stats"></div>
+          </div>
+          <div class="tabs-container">
+            <div class="tabs-header">
+              <button class="tab-btn active" onclick="veiSwitchTab('info',this)">📋 Informações</button>
+              <button class="tab-btn" onclick="veiSwitchTab('alertas',this)">🔔 Alertas</button>
+              <button class="tab-btn" onclick="veiSwitchTab('manutencao',this)">🔧 Manutenção</button>
+              <button class="tab-btn" onclick="veiSwitchTab('documentos',this)">📁 Documentos</button>
+            </div>
+            <div class="tab-content active" id="vei-tab-info">
+              <div class="detalhes-section" id="vei-info-body"></div>
+            </div>
+            <div class="tab-content" id="vei-tab-alertas">
+              <div class="gestao-section">
+                <div class="gestao-header">
+                  <h3 class="gestao-title">🔔 Alertas de Vencimento</h3>
+                </div>
+                <div id="vei-alertas-body"></div>
+              </div>
+            </div>
+            <div class="tab-content" id="vei-tab-manutencao">
+              <div class="gestao-section">
+                <div class="gestao-header">
+                  <h3 class="gestao-title">🔧 Histórico de Manutenções</h3>
+                  <button class="btn-add-small" onclick="veiAbrirModalManutencao()">+ Adicionar</button>
+                </div>
+                <table class="gestao-table">
+                  <thead><tr><th>Data</th><th>Descrição</th><th>KM</th><th>Valor</th><th>Ações</th></tr></thead>
+                  <tbody id="vei-manutencao-tbody"><tr><td colspan="5" class="empty-state">Carregando...</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="tab-content" id="vei-tab-documentos">
+              <div class="gestao-section">
+                <div class="gestao-header">
+                  <h3 class="gestao-title">📁 Documentos do Veículo</h3>
+                  <button class="btn-add-small" onclick="veiAbrirDocs()">Gerenciar</button>
+                </div>
+                <p style="color:var(--text-light);padding:20px;">Clique em "Gerenciar" para fazer upload e visualizar documentos.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- DOCUMENTOS PAGE -->
         <div class="page" id="page-documentos">
-          <h2>Documentos</h2>
-          <p>Em desenvolvimento...</p>
+          <div class="page-header">
+            <h2 style="font-size:24px;color:var(--text-dark);">Documentos Pessoais</h2>
+            <button class="btn-add" onclick="docsAbrirModal()">+ Adicionar</button>
+          </div>
+          <!-- Seções de documentos -->
+          <div id="docs-sections"></div>
+        </div>
+
+        <!-- PERFIL PAGE -->
+        <div class="page" id="page-perfil">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;" id="perfil-grid">
+            <div class="loading"><div class="spinner"></div><p>Carregando...</p></div>
+          </div>
         </div>
 
       </div>
@@ -2032,6 +2114,255 @@
   </div>
 
 
+  <!-- MODAL ADD VEÍCULO -->
+  <div class="modal" id="modal-add-veiculo">
+    <div class="modal-content" style="max-width:640px;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-vei-titulo">Adicionar Veículo</h3>
+        <button class="modal-close" onclick="closeModal('modal-add-veiculo')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-add-veiculo">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Nome / Apelido *</label>
+              <input type="text" class="form-input" name="nome" required placeholder="Ex: Toyota Hilux Prata">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Tipo *</label>
+              <select class="form-select" name="tipo" required>
+                <option value="">Selecione...</option>
+                <option>Carro</option><option>SUV</option><option>Caminhonete</option>
+                <option>Moto</option><option>Lancha</option><option>Veleiro</option>
+                <option>Jet Ski</option><option>Caminhão</option><option>Outro</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Marca</label>
+              <input type="text" class="form-input" name="marca" placeholder="Toyota">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Modelo</label>
+              <input type="text" class="form-input" name="modelo" placeholder="Hilux SRX">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Ano</label>
+              <input type="number" class="form-input" name="ano" placeholder="2023">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Placa / Registro</label>
+              <input type="text" class="form-input" name="placa" placeholder="ABC-1234">
+            </div>
+            <div class="form-group">
+              <label class="form-label">RENAVAM</label>
+              <input type="text" class="form-input" name="renavam" placeholder="00000000000">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Cor</label>
+              <input type="text" class="form-input" name="cor" placeholder="Prata">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Valor Atual</label>
+              <input type="number" class="form-input" name="valor_atual" step="0.01" placeholder="120000">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Data de Aquisição</label>
+              <input type="date" class="form-input" name="data_aquisicao">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Venc. IPVA</label>
+              <input type="date" class="form-input" name="venc_ipva">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Venc. Seguro</label>
+              <input type="date" class="form-input" name="venc_seguro">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Venc. Licenciamento</label>
+              <input type="date" class="form-input" name="venc_licenciamento">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Observações</label>
+            <input type="text" class="form-input" name="observacoes" placeholder="Informações adicionais">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="closeModal('modal-add-veiculo')">Cancelar</button>
+        <button class="btn-save" id="btn-save-veiculo" onclick="veiSalvar()">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL MANUTENÇÃO VEÍCULO -->
+  <div class="modal" id="modal-manutencao">
+    <div class="modal-content" style="max-width:480px;">
+      <div class="modal-header">
+        <h3 class="modal-title">Registrar Manutenção</h3>
+        <button class="modal-close" onclick="closeModal('modal-manutencao')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-manutencao">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Data *</label>
+              <input type="date" class="form-input" name="data" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">KM atual</label>
+              <input type="number" class="form-input" name="km" placeholder="45000">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Descrição *</label>
+            <input type="text" class="form-input" name="descricao" required placeholder="Ex: Troca de óleo e filtros">
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Valor</label>
+              <input type="number" class="form-input" name="valor" step="0.01" placeholder="350">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Oficina</label>
+              <input type="text" class="form-input" name="oficina" placeholder="Nome da oficina">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Observações</label>
+            <input type="text" class="form-input" name="obs" placeholder="Detalhes adicionais">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="closeModal('modal-manutencao')">Cancelar</button>
+        <button class="btn-save" onclick="veiSalvarManutencao()">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DOCUMENTO PESSOAL -->
+  <div class="modal" id="modal-doc-pessoal">
+    <div class="modal-content" style="max-width:520px;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-doc-titulo">Adicionar Documento</h3>
+        <button class="modal-close" onclick="closeModal('modal-doc-pessoal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-doc-pessoal">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Categoria *</label>
+              <select class="form-select" name="categoria" required>
+                <option value="">Selecione...</option>
+                <option>Identidade</option><option>Fiscal</option><option>Certidões</option>
+                <option>Seguros</option><option>Sucessório</option><option>Profissional</option><option>Outros</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Tipo *</label>
+              <select class="form-select" name="tipo" required>
+                <option value="">Selecione...</option>
+                <option>RG</option><option>CPF</option><option>CNH</option><option>Passaporte</option>
+                <option>Título de Eleitor</option><option>Certidão de Nascimento</option>
+                <option>Certidão de Casamento</option><option>Declaração IR</option>
+                <option>Testamento</option><option>Seguro de Vida</option><option>Plano de Saúde</option>
+                <option>Outro</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Número / Registro</label>
+              <input type="text" class="form-input" name="numero" placeholder="000.000.000-00">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Validade</label>
+              <input type="date" class="form-input" name="validade">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Observações</label>
+            <input type="text" class="form-input" name="observacoes" placeholder="Órgão emissor, notas importantes...">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Anexar Arquivo (opcional)</label>
+            <input type="file" class="form-input" id="doc-pessoal-file" accept=".pdf,.jpg,.jpeg,.png">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="closeModal('modal-doc-pessoal')">Cancelar</button>
+        <button class="btn-save" onclick="docsSalvar()">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL FAMILIAR -->
+  <div class="modal" id="modal-familiar">
+    <div class="modal-content" style="max-width:520px;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-fam-titulo">Adicionar Familiar</h3>
+        <button class="modal-close" onclick="closeModal('modal-familiar')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-familiar">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Nome *</label>
+              <input type="text" class="form-input" name="nome" required placeholder="Nome completo">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Parentesco *</label>
+              <select class="form-select" name="parentesco" required>
+                <option value="">Selecione...</option>
+                <option>Cônjuge</option><option>Filho(a)</option><option>Pai</option><option>Mãe</option>
+                <option>Irmão/Irmã</option><option>Neto(a)</option><option>Outro</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Data de Nascimento</label>
+              <input type="date" class="form-input" name="nascimento">
+            </div>
+            <div class="form-group">
+              <label class="form-label">CPF</label>
+              <input type="text" class="form-input" name="cpf" placeholder="000.000.000-00">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Email</label>
+              <input type="email" class="form-input" name="email" placeholder="email@exemplo.com">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Telefone</label>
+              <input type="text" class="form-input" name="telefone" placeholder="(48) 99999-9999">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Observações</label>
+            <input type="text" class="form-input" name="observacoes" placeholder="Notas adicionais">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="closeModal('modal-familiar')">Cancelar</button>
+        <button class="btn-save" onclick="perfilSalvarFamiliar()">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://apis.google.com/js/api.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -2073,17 +2404,19 @@
         investimentos: 'Investimentos',
         imoveis: 'Imóveis',
         financeiro: 'Controle Financeiro',
-        relatorios: 'Relatórios',
-        documentos: 'Documentos'
+        veiculos: 'Veículos & Embarcações',
+        documentos: 'Documentos',
+        perfil: 'Perfil & Família'
       };
       document.getElementById('top-title').textContent = titles[pageName] || 'Praxes';
       
       if (pageName === 'imoveis') {
         loadImoveis();
       }
-      if (pageName === 'financeiro') {
-        finInit();
-      }
+      if (pageName === 'financeiro') { finInit(); }
+      if (pageName === 'veiculos')   { veiculosInit(); }
+      if (pageName === 'documentos') { docsInit(); }
+      if (pageName === 'perfil')     { perfilInit(); }
     }
 
     // MODAL
@@ -5697,6 +6030,474 @@ Esta ação não pode ser desfeita.`)) return;
         console.error('PDF DRE:', e);
         alert('Erro ao gerar PDF DRE: '+e.message);
       }
+    }
+
+
+    // ========== VEÍCULOS ==========
+    const VEI_SHEET_ID  = '1Yl1LQAu3bj1NTdtoFLGTW7EMuMDjPU3BV5e5PX-nroY';
+    const VEI_FOLDER_ID = '10zlSHcLGHV7htjsD4h7_9nx_mnOtASRa';
+    const DOCS_FOLDER_ID = '1VGJmS1TFQrFs9pj1btfCweD9VsholxJL';
+    let veiculosData = [];
+    let veiAtualIndex = -1;
+
+    async function veiculosInit() {
+      await veiculosLoad();
+      document.getElementById('btn-add-veiculo').onclick = () => {
+        document.getElementById('modal-vei-titulo').textContent = 'Adicionar Veículo';
+        document.getElementById('btn-save-veiculo').removeAttribute('data-index');
+        document.getElementById('form-add-veiculo').reset();
+        openModal('modal-add-veiculo');
+      };
+    }
+
+    async function veiculosLoad() {
+      try {
+        const resp = await gapi.client.sheets.spreadsheets.values.batchGet({
+          spreadsheetId: VEI_SHEET_ID,
+          ranges: ['Lista!A2:P200'],
+          valueRenderOption: 'UNFORMATTED_VALUE'
+        });
+        veiculosData = (resp.result.valueRanges[0].values || []).filter(r => r[0]);
+        renderVeiculos();
+      } catch(e) {
+        document.getElementById('veiculos-grid').innerHTML = `<p style="padding:40px;color:red;">Erro: ${e.message}</p>`;
+      }
+    }
+
+    function renderVeiculos() {
+      const grid = document.getElementById('veiculos-grid');
+      if (!veiculosData.length) {
+        grid.innerHTML = '<p style="text-align:center;padding:60px;color:#999;">Nenhum veículo cadastrado.</p>';
+        return;
+      }
+      const emojis = {Carro:'🚗',SUV:'🚙',Caminhonete:'🛻',Moto:'🏍️',Lancha:'⛵',Veleiro:'⛵',Caminhão:'🚛','Jet Ski':'🏄'};
+      grid.innerHTML = veiculosData.map((row, i) => {
+        const [nome,tipo,marca,modelo,ano,placa,,cor,valor,,vencIPVA,vencSeg,vencLic] = row;
+        const emoji = emojis[tipo] || '🚗';
+        const hoje = new Date();
+        const alertas = [
+          {label:'IPVA', data: vencIPVA},
+          {label:'Seguro', data: vencSeg},
+          {label:'Licenciamento', data: vencLic}
+        ].filter(a => a.data).map(a => {
+          const diff = (new Date(a.data) - hoje) / 86400000;
+          if (diff < 0)   return `<span style="color:#ef4444;font-size:11px;font-weight:700;">⚠️ ${a.label} VENCIDO</span>`;
+          if (diff < 90)  return `<span style="color:#f59e0b;font-size:11px;font-weight:700;">⚠️ ${a.label} vence em ${Math.round(diff)}d</span>`;
+          return null;
+        }).filter(Boolean).join(' ');
+
+        return `<div class="imovel-card">
+          <div class="imovel-image">${emoji}</div>
+          <div class="imovel-body">
+            <div class="imovel-title">${nome}</div>
+            <div class="imovel-meta">${[marca,modelo,ano].filter(Boolean).join(' • ')}</div>
+            ${alertas ? `<div style="margin:8px 0;">${alertas}</div>` : ''}
+            <div class="imovel-stats">
+              <div class="imovel-stat-item"><div class="imovel-stat-label">Placa</div><div class="imovel-stat-value">${placa||'—'}</div></div>
+              <div class="imovel-stat-item"><div class="imovel-stat-label">Valor</div><div class="imovel-stat-value">${valor?fmt(valor):'—'}</div></div>
+            </div>
+            <div class="imovel-actions">
+              <button class="btn-action" onclick="veiVerDetalhes(${i})">Ver Detalhes</button>
+              <button class="btn-action" onclick="veiEditar(${i})">✏️</button>
+              <button class="btn-action" style="color:#ef4444" onclick="veiExcluir(${i})">🗑️</button>
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    function veiVerDetalhes(i) {
+      veiAtualIndex = i;
+      const row = veiculosData[i];
+      const [nome,tipo,marca,modelo,ano,placa,renavam,cor,valor,dataAq,vencIPVA,vencSeg,vencLic,chassi,obs] = row;
+      document.getElementById('vei-detalhes-nome').textContent = nome;
+      document.getElementById('vei-detalhes-meta').textContent = `${tipo||''} • ${placa||''}`;
+      document.getElementById('vei-detalhes-stats').innerHTML = `
+        <div class="detalhes-item"><span class="detalhes-label">Marca/Modelo</span><span class="detalhes-value">${[marca,modelo].filter(Boolean).join(' ')}</span></div>
+        <div class="detalhes-item"><span class="detalhes-label">Ano</span><span class="detalhes-value">${ano||'—'}</span></div>
+        <div class="detalhes-item"><span class="detalhes-label">Valor Atual</span><span class="detalhes-value">${valor?fmt(valor):'—'}</span></div>
+        <div class="detalhes-item"><span class="detalhes-label">Cor</span><span class="detalhes-value">${cor||'—'}</span></div>`;
+
+      // Info
+      document.getElementById('vei-info-body').innerHTML = `
+        <h3 class="detalhes-section-title">📋 Dados do Veículo</h3>
+        ${[['Placa',placa],['RENAVAM',renavam],['Chassi',chassi],['Cor',cor],['Data Aquisição',dataAq?new Date(dataAq+'T12:00:00').toLocaleDateString('pt-BR'):null],['Observações',obs]]
+          .filter(([,v])=>v).map(([l,v])=>`<div class="info-row"><span class="info-label">${l}</span><span class="info-value">${v}</span></div>`).join('')}`;
+
+      // Alertas
+      const hoje = new Date();
+      const vencimentos = [
+        {label:'IPVA', data:vencIPVA},
+        {label:'Seguro', data:vencSeg},
+        {label:'Licenciamento', data:vencLic}
+      ];
+      document.getElementById('vei-alertas-body').innerHTML = vencimentos.map(v => {
+        if (!v.data) return `<div class="info-row"><span class="info-label">${v.label}</span><span class="info-value" style="color:#aaa;">Não informado</span></div>`;
+        const diff = Math.round((new Date(v.data) - hoje) / 86400000);
+        const color = diff < 0 ? '#ef4444' : diff < 90 ? '#f59e0b' : '#10b981';
+        const status = diff < 0 ? 'VENCIDO' : diff < 90 ? `Vence em ${diff} dias` : `OK (${diff}d)`;
+        return `<div class="info-row"><span class="info-label">${v.label}</span>
+          <span class="info-value" style="color:${color};">${new Date(v.data+'T12:00:00').toLocaleDateString('pt-BR')} — ${status}</span></div>`;
+      }).join('');
+
+      veiLoadManutencao();
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.getElementById('page-veiculo-detalhes').classList.add('active');
+      document.getElementById('top-title').textContent = nome;
+      // reset tab
+      document.querySelectorAll('#page-veiculo-detalhes .tab-btn').forEach((b,i)=>b.classList.toggle('active',i===0));
+      document.querySelectorAll('#page-veiculo-detalhes .tab-content').forEach((c,i)=>c.classList.toggle('active',i===0));
+    }
+
+    async function veiLoadManutencao() {
+      try {
+        const nome = veiculosData[veiAtualIndex][0];
+        const resp = await gapi.client.sheets.spreadsheets.values.get({
+          spreadsheetId: VEI_SHEET_ID, range: 'Manutencao!A2:G200', valueRenderOption:'UNFORMATTED_VALUE'
+        });
+        const rows = (resp.result.values||[]).filter(r=>r[0]===nome);
+        const tbody = document.getElementById('vei-manutencao-tbody');
+        if (!rows.length) { tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Nenhuma manutenção registrada</td></tr>'; return; }
+        tbody.innerHTML = rows.map((r,i) => {
+          const data = r[1] ? new Date(r[1]+'T12:00:00').toLocaleDateString('pt-BR') : '—';
+          return `<tr><td>${data}</td><td>${r[2]||''}</td><td>${r[3]||'—'} km</td><td>${r[4]?fmt(r[4]):'—'}</td>
+            <td><button class="btn-icon" onclick="veiExcluirManutencao(${i+2})">🗑️</button></td></tr>`;
+        }).join('');
+      } catch(e) { console.error(e); }
+    }
+
+    function veiSwitchTab(tab, btn) {
+      document.querySelectorAll('#page-veiculo-detalhes .tab-btn').forEach(b=>b.classList.remove('active'));
+      document.querySelectorAll('#page-veiculo-detalhes .tab-content').forEach(c=>c.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById(`vei-tab-${tab}`).classList.add('active');
+      if (tab==='manutencao') veiLoadManutencao();
+    }
+
+    function veiAbrirModalManutencao() {
+      document.getElementById('form-manutencao').reset();
+      document.getElementById('form-manutencao').elements['data'].value = new Date().toISOString().split('T')[0];
+      openModal('modal-manutencao');
+    }
+
+    async function veiSalvarManutencao() {
+      const form = document.getElementById('form-manutencao');
+      const nome = veiculosData[veiAtualIndex][0];
+      const row = [nome, form.elements['data'].value, form.elements['descricao'].value,
+        form.elements['km'].value||'', form.elements['valor'].value||'', form.elements['oficina'].value||'', form.elements['obs'].value||''];
+      try {
+        await gapi.client.sheets.spreadsheets.values.append({
+          spreadsheetId: VEI_SHEET_ID, range:'Manutencao!A:G',
+          valueInputOption:'USER_ENTERED', resource:{values:[row]}
+        });
+        closeModal('modal-manutencao'); veiLoadManutencao(); alert('✅ Manutenção registrada!');
+      } catch(e) { alert('Erro: '+e.message); }
+    }
+
+    function veiEditar(i) {
+      const row = veiculosData[i];
+      const form = document.getElementById('form-add-veiculo');
+      const fields = ['nome','tipo','marca','modelo','ano','placa','renavam','cor','valor_atual','data_aquisicao','venc_ipva','venc_seguro','venc_licenciamento','chassi','observacoes'];
+      fields.forEach((f,fi) => { if (form.elements[f]) form.elements[f].value = row[fi]||''; });
+      document.getElementById('modal-vei-titulo').textContent = 'Editar Veículo';
+      document.getElementById('btn-save-veiculo').setAttribute('data-index', i);
+      openModal('modal-add-veiculo');
+    }
+
+    function veiEditarAtual() { veiEditar(veiAtualIndex); }
+
+    async function veiSalvar() {
+      const form = document.getElementById('form-add-veiculo');
+      const btn = document.getElementById('btn-save-veiculo');
+      const idx = btn.getAttribute('data-index');
+      const row = ['nome','tipo','marca','modelo','ano','placa','renavam','cor','valor_atual','data_aquisicao',
+        'venc_ipva','venc_seguro','venc_licenciamento','chassi','observacoes'].map(f=>form.elements[f]?.value||'');
+      try {
+        if (idx !== null && idx !== undefined) {
+          await gapi.client.sheets.spreadsheets.values.update({
+            spreadsheetId:VEI_SHEET_ID, range:`Lista!A${parseInt(idx)+2}:O${parseInt(idx)+2}`,
+            valueInputOption:'USER_ENTERED', resource:{values:[row]}
+          });
+        } else {
+          await gapi.client.sheets.spreadsheets.values.append({
+            spreadsheetId:VEI_SHEET_ID, range:'Lista!A:O',
+            valueInputOption:'USER_ENTERED', resource:{values:[row]}
+          });
+        }
+        closeModal('modal-add-veiculo'); await veiculosLoad(); alert('✅ Veículo salvo!');
+      } catch(e) { alert('Erro: '+e.message); }
+    }
+
+    async function veiExcluir(i) {
+      if (!confirm(`Excluir "${veiculosData[i][0]}"?`)) return;
+      try {
+        const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId:VEI_SHEET_ID});
+        const sh = meta.result.sheets.find(s=>s.properties.title==='Lista');
+        await gapi.client.sheets.spreadsheets.batchUpdate({spreadsheetId:VEI_SHEET_ID, resource:{requests:[{deleteDimension:{range:{sheetId:sh.properties.sheetId,dimension:'ROWS',startIndex:i+1,endIndex:i+2}}}]}});
+        await veiculosLoad(); alert('✅ Veículo excluído!');
+      } catch(e) { alert('Erro: '+e.message); }
+    }
+
+    function veiExcluirAtual() { veiExcluir(veiAtualIndex); navigateTo('veiculos'); }
+
+    async function veiAbrirDocs() {
+      const row = veiculosData[veiAtualIndex];
+      let folderId = row[15];
+      if (!folderId) {
+        const meta = {name:row[0], mimeType:'application/vnd.google-apps.folder', parents:[VEI_FOLDER_ID]};
+        const r = await gapi.client.drive.files.create({resource:meta,fields:'id',supportsAllDrives:true});
+        folderId = r.result.id;
+        row[15] = folderId;
+        await gapi.client.sheets.spreadsheets.values.update({
+          spreadsheetId:VEI_SHEET_ID, range:`Lista!P${veiAtualIndex+2}`,
+          valueInputOption:'USER_ENTERED', resource:{values:[[folderId]]}
+        });
+      }
+      currentDriveFolderId = folderId;
+      document.getElementById('modal-docs-title').textContent = `Documentos: ${row[0]}`;
+      openModal('modal-documentos'); await loadDocumentos(folderId);
+    }
+
+    async function veiExcluirManutencao(rowNum) {
+      if (!confirm('Excluir esta manutenção?')) return;
+      const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId:VEI_SHEET_ID});
+      const sh = meta.result.sheets.find(s=>s.properties.title==='Manutencao');
+      await gapi.client.sheets.spreadsheets.batchUpdate({spreadsheetId:VEI_SHEET_ID,resource:{requests:[{deleteDimension:{range:{sheetId:sh.properties.sheetId,dimension:'ROWS',startIndex:rowNum-1,endIndex:rowNum}}}]}});
+      veiLoadManutencao();
+    }
+
+    // ========== DOCUMENTOS PESSOAIS ==========
+    let docsData = [];
+    let docsEditIndex = null;
+
+    async function docsInit() {
+      try {
+        const resp = await gapi.client.sheets.spreadsheets.values.get({
+          spreadsheetId: resumoSheetId, range:'Documentos_Pessoais!A2:G200', valueRenderOption:'UNFORMATTED_VALUE'
+        });
+        docsData = resp.result.values || [];
+        renderDocs();
+      } catch(e) { document.getElementById('docs-sections').innerHTML = `<p style="color:red;padding:20px;">Erro: ${e.message}</p>`; }
+    }
+
+    const DOCS_CATEGORIAS = {
+      'Identidade': ['RG','CPF','CNH','Passaporte','Título de Eleitor'],
+      'Fiscal': ['Declaração IR','CNPJ','Outros'],
+      'Certidões': ['Certidão de Nascimento','Certidão de Casamento','Outros'],
+      'Seguros': ['Seguro de Vida','Plano de Saúde','Seguro Residencial','Outros'],
+      'Sucessório': ['Testamento','Inventário','Procuração','Outros'],
+      'Profissional': ['OAB','CRM','CRP','CREA','Outros'],
+      'Outros': []
+    };
+
+    function renderDocs() {
+      const hoje = new Date();
+      const sections = document.getElementById('docs-sections');
+      sections.innerHTML = Object.keys(DOCS_CATEGORIAS).map(cat => {
+        const items = docsData.map((r,i)=>({...r, _i:i})).filter(r=>r[0]===cat);
+        if (!items.length) return `
+          <div class="gestao-section">
+            <div class="gestao-header">
+              <h3 class="gestao-title">${cat}</h3>
+              <button class="btn-add-small" onclick="docsAbrirModal('${cat}')">+ Adicionar</button>
+            </div>
+            <p class="empty-state" style="padding:16px;">Nenhum documento cadastrado</p>
+          </div>`;
+        return `
+          <div class="gestao-section">
+            <div class="gestao-header">
+              <h3 class="gestao-title">${cat}</h3>
+              <button class="btn-add-small" onclick="docsAbrirModal('${cat}')">+ Adicionar</button>
+            </div>
+            <table class="gestao-table">
+              <thead><tr><th>Tipo</th><th>Número</th><th>Validade</th><th>Observações</th><th>Ações</th></tr></thead>
+              <tbody>${items.map(r => {
+                const validade = r[3] ? new Date(r[3]+'T12:00:00') : null;
+                const diff = validade ? Math.round((validade - hoje)/86400000) : null;
+                const valdStr = validade ? validade.toLocaleDateString('pt-BR') : '—';
+                const valdColor = diff === null ? '' : diff < 0 ? 'color:#ef4444;font-weight:700;' : diff < 90 ? 'color:#f59e0b;font-weight:700;' : '';
+                const alert = diff !== null && diff < 90 ? ` <span style="font-size:10px;">${diff<0?'VENCIDO':`${diff}d`}</span>` : '';
+                return `<tr>
+                  <td><strong>${r[1]||''}</strong></td>
+                  <td style="font-size:12px;">${r[2]||'—'}</td>
+                  <td style="${valdColor}">${valdStr}${alert}</td>
+                  <td style="font-size:12px;">${r[4]||'—'}</td>
+                  <td class="gestao-actions">
+                    ${r[5] ? `<button class="btn-icon" onclick="docsAbrirArquivo('${r[5]}')" title="Ver arquivo">📄</button>` : ''}
+                    <button class="btn-icon" onclick="docsEditar(${r._i})">✏️</button>
+                    <button class="btn-icon" style="color:#ef4444" onclick="docsExcluir(${r._i})">🗑️</button>
+                  </td>
+                </tr>`;
+              }).join('')}</tbody>
+            </table>
+          </div>`;
+      }).join('');
+    }
+
+    function docsAbrirModal(catPreset) {
+      docsEditIndex = null;
+      document.getElementById('form-doc-pessoal').reset();
+      document.getElementById('modal-doc-titulo').textContent = 'Adicionar Documento';
+      if (catPreset) document.getElementById('form-doc-pessoal').elements['categoria'].value = catPreset;
+      openModal('modal-doc-pessoal');
+    }
+
+    function docsEditar(i) {
+      docsEditIndex = i;
+      const r = docsData[i];
+      const form = document.getElementById('form-doc-pessoal');
+      ['categoria','tipo','numero','validade','observacoes'].forEach((f,fi)=>{ form.elements[f].value=r[fi]||''; });
+      document.getElementById('modal-doc-titulo').textContent = 'Editar Documento';
+      openModal('modal-doc-pessoal');
+    }
+
+    async function docsSalvar() {
+      const form = document.getElementById('form-doc-pessoal');
+      const fileInput = document.getElementById('doc-pessoal-file');
+      const row = ['categoria','tipo','numero','validade','observacoes'].map(f=>form.elements[f].value||'');
+
+      // Upload arquivo se selecionado
+      if (fileInput.files.length > 0) {
+        try {
+          const file = fileInput.files[0];
+          const metadata = {name:`${row[1]}_${row[2]||'doc'}_${file.name}`, parents:[DOCS_FOLDER_ID]};
+          const formData = new FormData();
+          formData.append('metadata', new Blob([JSON.stringify(metadata)],{type:'application/json'}));
+          formData.append('file', file);
+          const r2 = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink&supportsAllDrives=true',{
+            method:'POST', headers:{'Authorization':'Bearer '+gapi.client.getToken().access_token}, body:formData
+          });
+          const fdata = await r2.json();
+          row.push(fdata.id, fdata.webViewLink); // file_id, link
+        } catch(e) { console.warn('Upload falhou:', e); row.push('',''); }
+      } else {
+        if (docsEditIndex !== null) { row.push(docsData[docsEditIndex][5]||'', docsData[docsEditIndex][6]||''); }
+        else row.push('','');
+      }
+
+      try {
+        if (docsEditIndex !== null) {
+          await gapi.client.sheets.spreadsheets.values.update({
+            spreadsheetId:resumoSheetId, range:`Documentos_Pessoais!A${docsEditIndex+2}:G${docsEditIndex+2}`,
+            valueInputOption:'USER_ENTERED', resource:{values:[row]}
+          });
+        } else {
+          await gapi.client.sheets.spreadsheets.values.append({
+            spreadsheetId:resumoSheetId, range:'Documentos_Pessoais!A:G',
+            valueInputOption:'USER_ENTERED', resource:{values:[row]}
+          });
+        }
+        closeModal('modal-doc-pessoal'); await docsInit(); alert('✅ Documento salvo!');
+      } catch(e) { alert('Erro: '+e.message); }
+    }
+
+    async function docsExcluir(i) {
+      if (!confirm('Excluir este documento?')) return;
+      const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId:resumoSheetId});
+      const sh = meta.result.sheets.find(s=>s.properties.title==='Documentos_Pessoais');
+      if (!sh) { alert('Aba Documentos_Pessoais não encontrada na planilha'); return; }
+      await gapi.client.sheets.spreadsheets.batchUpdate({spreadsheetId:resumoSheetId,resource:{requests:[{deleteDimension:{range:{sheetId:sh.properties.sheetId,dimension:'ROWS',startIndex:i+1,endIndex:i+2}}}]}});
+      await docsInit();
+    }
+
+    function docsAbrirArquivo(fileId) {
+      window.open(`https://drive.google.com/file/d/${fileId}/view`, '_blank');
+    }
+
+    // ========== PERFIL & FAMÍLIA ==========
+    let perfilFamData = [];
+
+    async function perfilInit() {
+      try {
+        const resp = await gapi.client.sheets.spreadsheets.values.batchGet({
+          spreadsheetId: resumoSheetId,
+          ranges: ['Familia!A2:H100'],
+          valueRenderOption:'UNFORMATTED_VALUE'
+        });
+        perfilFamData = resp.result.valueRanges[0].values || [];
+        renderPerfil();
+      } catch(e) {
+        document.getElementById('perfil-grid').innerHTML = `<p style="color:red;padding:20px;">Erro: ${e.message}</p>`;
+      }
+    }
+
+    function renderPerfil() {
+      const grid = document.getElementById('perfil-grid');
+      const parentescos = [...new Set(perfilFamData.map(r=>r[0]).filter(Boolean))];
+
+      // Card de cada familiar
+      const famCards = perfilFamData.map((r,i) => {
+        const [parentesco,nome,nascimento,cpf,email,telefone,obs] = r;
+        const nasc = nascimento ? new Date(nascimento+'T12:00:00') : null;
+        const idade = nasc ? Math.floor((new Date()-nasc)/31557600000) : null;
+        const avatarLetters = (nome||'?').split(' ').map(p=>p[0]).slice(0,2).join('').toUpperCase();
+        return `
+          <div class="stat-card" style="position:relative;">
+            <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">
+              <div style="width:48px;height:48px;border-radius:50%;background:var(--azul-terciario);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;color:#fff;flex-shrink:0;">${avatarLetters}</div>
+              <div>
+                <div style="font-size:16px;font-weight:700;color:var(--azul-principal);">${nome||'—'}</div>
+                <div style="font-size:12px;color:var(--text-light);">${parentesco||''} ${idade?`• ${idade} anos`:''}</div>
+              </div>
+              <div style="margin-left:auto;display:flex;gap:4px;">
+                <button class="btn-icon" onclick="perfilEditarFamiliar(${i})">✏️</button>
+                <button class="btn-icon" style="color:#ef4444" onclick="perfilExcluirFamiliar(${i})">🗑️</button>
+              </div>
+            </div>
+            ${[['CPF',cpf],['Email',email],['Tel',telefone],['Obs',obs]].filter(([,v])=>v).map(([l,v])=>`
+              <div class="info-row"><span class="info-label">${l}</span><span class="info-value" style="font-size:13px;">${v}</span></div>`).join('')}
+          </div>`;
+      }).join('');
+
+      grid.innerHTML = `
+        <div style="grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <h2 style="font-size:20px;font-weight:700;color:var(--azul-principal);">👨‍👩‍👧‍👦 Família</h2>
+          <button class="btn-add" onclick="perfilAbrirModalFamiliar()">+ Adicionar Familiar</button>
+        </div>
+        ${famCards || '<div style="grid-column:1/-1;text-align:center;padding:60px;color:#999;">Nenhum familiar cadastrado. Clique em "+ Adicionar Familiar" para começar.</div>'}`;
+    }
+
+    function perfilAbrirModalFamiliar(editIdx) {
+      document.getElementById('form-familiar').reset();
+      document.getElementById('modal-fam-titulo').textContent = editIdx !== undefined ? 'Editar Familiar' : 'Adicionar Familiar';
+      document.getElementById('modal-familiar').setAttribute('data-edit', editIdx ?? '');
+      if (editIdx !== undefined) {
+        const r = perfilFamData[editIdx];
+        const fields = ['parentesco','nome','nascimento','cpf','email','telefone','observacoes'];
+        fields.forEach((f,fi) => { document.getElementById('form-familiar').elements[f].value = r[fi]||''; });
+      }
+      openModal('modal-familiar');
+    }
+
+    function perfilEditarFamiliar(i) { perfilAbrirModalFamiliar(i); }
+
+    async function perfilSalvarFamiliar() {
+      const form = document.getElementById('form-familiar');
+      const editIdx = document.getElementById('modal-familiar').getAttribute('data-edit');
+      const row = ['parentesco','nome','nascimento','cpf','email','telefone','observacoes'].map(f=>form.elements[f].value||'');
+      try {
+        if (editIdx !== '') {
+          await gapi.client.sheets.spreadsheets.values.update({
+            spreadsheetId:resumoSheetId, range:`Familia!A${parseInt(editIdx)+2}:G${parseInt(editIdx)+2}`,
+            valueInputOption:'USER_ENTERED', resource:{values:[row]}
+          });
+        } else {
+          await gapi.client.sheets.spreadsheets.values.append({
+            spreadsheetId:resumoSheetId, range:'Familia!A:G',
+            valueInputOption:'USER_ENTERED', resource:{values:[row]}
+          });
+        }
+        closeModal('modal-familiar'); await perfilInit(); alert('✅ Familiar salvo!');
+      } catch(e) { alert('Erro: '+e.message); }
+    }
+
+    async function perfilExcluirFamiliar(i) {
+      if (!confirm(`Excluir "${perfilFamData[i][1]}"?`)) return;
+      const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId:resumoSheetId});
+      const sh = meta.result.sheets.find(s=>s.properties.title==='Familia');
+      if (!sh) { alert('Aba "Familia" não encontrada na planilha principal'); return; }
+      await gapi.client.sheets.spreadsheets.batchUpdate({spreadsheetId:resumoSheetId,resource:{requests:[{deleteDimension:{range:{sheetId:sh.properties.sheetId,dimension:'ROWS',startIndex:i+1,endIndex:i+2}}}]}});
+      await perfilInit();
     }
 
 
