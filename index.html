@@ -939,13 +939,14 @@
     .fin-mes-selector {
       display: flex;
       align-items: center;
-      gap: 12px;
-      margin-bottom: 28px;
+      gap: 10px;
+      margin-bottom: 20px;
       background: var(--branco);
-      padding: 16px 24px;
+      padding: 14px 20px;
       border-radius: 12px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
+      overflow: visible;
     }
     .fin-mes-selector label {
       font-size: 13px;
@@ -1517,16 +1518,16 @@
         <div class="page" id="page-financeiro">
           <!-- Seletor de mês -->
           <div class="fin-mes-selector">
-            <label>Período</label>
-            <div class="fin-mes-nav">
+            <label style="white-space:nowrap;flex-shrink:0;">Período</label>
+            <div class="fin-mes-nav" style="flex-shrink:0;">
               <button onclick="finNavMes(-1)" title="Mês anterior">‹</button>
               <button onclick="finNavMes(1)" title="Próximo mês">›</button>
             </div>
             <select class="fin-mes-select" id="fin-select-mes" onchange="finLoadData()"></select>
             <select class="fin-mes-select" id="fin-select-ano" onchange="finLoadData()"></select>
-            <span style="margin-left: auto; font-size: 13px; color: var(--text-light);" id="fin-last-updated"></span>
-            <button class="btn-add" onclick="finGerarResumoPDF()" style="padding: 10px 20px; font-size: 13px; background: var(--azul-secundario);">📊 Resumo</button>
-            <button class="btn-add" onclick="finGerarDREPDF()" style="padding: 10px 20px; font-size: 13px; background: var(--azul-principal);">📋 DRE</button>
+            <span style="margin-left:auto;font-size:12px;color:var(--text-light);white-space:nowrap;flex-shrink:1;min-width:0;overflow:hidden;text-overflow:ellipsis;" id="fin-last-updated"></span>
+            <button class="btn-add" onclick="finGerarResumoPDF()" style="padding:10px 16px;font-size:12px;background:var(--azul-secundario);white-space:nowrap;flex-shrink:0;">📊 Resumo</button>
+            <button class="btn-add" onclick="finGerarDREPDF()" style="padding:10px 16px;font-size:12px;background:var(--azul-principal);white-space:nowrap;flex-shrink:0;">📋 DRE</button>
           </div>
 
           <!-- Abas internas -->
@@ -1607,12 +1608,12 @@
                 <table class="fin-lanc-table" style="table-layout:fixed;width:100%;">
                   <thead>
                     <tr>
-                      <th onclick="finOrdenar('data')"    style="width:100px;">Data ⇅</th>
-                      <th onclick="finOrdenar('origem')"  style="width:150px;">Origem ⇅</th>
-                      <th onclick="finOrdenar('referencia')" style="width:200px;">Categoria ⇅</th>
+                      <th onclick="finOrdenar('data')"       style="width:90px;">Data ⇅</th>
+                      <th onclick="finOrdenar('origem')"     style="width:130px;">Origem ⇅</th>
+                      <th onclick="finOrdenar('referencia')" style="width:160px;">Categoria ⇅</th>
                       <th onclick="finOrdenar('extrato')">Extrato ⇅</th>
-                      <th onclick="finOrdenar('valor')"   style="width:110px;text-align:right;">Valor ⇅</th>
-                      <th style="width:72px;text-align:center;">Ações</th>
+                      <th onclick="finOrdenar('valor')"      style="width:100px;text-align:right;">Valor ⇅</th>
+                      <th style="width:68px;text-align:center;">Ações</th>
                     </tr>
                   </thead>
                   <tbody id="fin-lancamentos-tbody">
@@ -4413,7 +4414,20 @@
             origem: String(row[2] || '').trim(),
             referencia: String(row[3] || '').trim(),
             valor: isNaN(valor) ? 0 : valor,
-            data: row[5] ? String(row[5]).split('/').reverse().join('-') : '',
+            data: (function(raw) {
+              if (!raw) return '';
+              var s = String(raw).trim();
+              // Serial numérico do Excel (ex: 45678) → converte para ISO
+              if (/^\d{4,6}$/.test(s)) {
+                var d = new Date(Date.UTC(1899,11,30) + parseInt(s)*86400000);
+                return d.toISOString().split('T')[0];
+              }
+              // Já está em formato de data (YYYY-MM-DD ou similar)
+              if (s.includes('-')) return s.split('T')[0];
+              // M/D/YYYY
+              if (s.includes('/')) { var p=s.split('/'); return p[2]+'-'+p[0].padStart(2,'0')+'-'+p[1].padStart(2,'0'); }
+              return s;
+            })(row[5]),
             extrato: String(row[6] || '').trim(),
             obs: String(row[7] || '').trim(),
             _rowIndex: i + 1  // linha real na planilha (1-based, +1 pq range começa em A1)
@@ -4974,7 +4988,7 @@
         html += `<tr>
           <td style="white-space:nowrap;">${dataFmt}</td>
           <td style="color:var(--text-light);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${l.origem}</td>
-          <td>${badge} <span style="font-size:12px;">${l.referencia}</span></td>
+          <td style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${badge} <span style="font-size:12px;">${l.referencia}</span></td>
           <td style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:0;">${l.extrato}</td>
           <td style="text-align:right;font-weight:600;"><span class="${valClass}">${fmt(l.valor)}</span></td>
           <td style="text-align:center;white-space:nowrap;">
