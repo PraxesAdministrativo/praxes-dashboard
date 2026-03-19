@@ -1603,15 +1603,15 @@
                   <button class="btn-add-small" onclick="finAbrirModalLanc(null)" style="padding:9px 18px;font-size:13px;">+ Adicionar</button>
                 </div>
               </div>
-              <div style="overflow-x:auto;">
-                <table class="fin-lanc-table">
+              <div>
+                <table class="fin-lanc-table" style="table-layout:fixed;width:100%;">
                   <thead>
                     <tr>
-                      <th onclick="finOrdenar('data')">Data ⇅</th>
-                      <th onclick="finOrdenar('origem')">Origem ⇅</th>
-                      <th onclick="finOrdenar('referencia')">Categoria ⇅</th>
+                      <th onclick="finOrdenar('data')"    style="width:100px;">Data ⇅</th>
+                      <th onclick="finOrdenar('origem')"  style="width:150px;">Origem ⇅</th>
+                      <th onclick="finOrdenar('referencia')" style="width:200px;">Categoria ⇅</th>
                       <th onclick="finOrdenar('extrato')">Extrato ⇅</th>
-                      <th onclick="finOrdenar('valor')" style="text-align:right;">Valor ⇅</th>
+                      <th onclick="finOrdenar('valor')"   style="width:110px;text-align:right;">Valor ⇅</th>
                       <th style="width:72px;text-align:center;">Ações</th>
                     </tr>
                   </thead>
@@ -4973,9 +4973,9 @@
         }).replace(/'/g,"\'");
         html += `<tr>
           <td style="white-space:nowrap;">${dataFmt}</td>
-          <td style="color:var(--text-light);font-size:12px;">${l.origem}</td>
+          <td style="color:var(--text-light);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${l.origem}</td>
           <td>${badge} <span style="font-size:12px;">${l.referencia}</span></td>
-          <td style="font-size:12px;">${l.extrato}</td>
+          <td style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:0;">${l.extrato}</td>
           <td style="text-align:right;font-weight:600;"><span class="${valClass}">${fmt(l.valor)}</span></td>
           <td style="text-align:center;white-space:nowrap;">
             <button class="btn-icon" title="Editar" onclick='finAbrirModalLanc(${lancJson})'>✏️</button>
