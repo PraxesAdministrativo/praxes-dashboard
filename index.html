@@ -4421,18 +4421,22 @@
             referencia: String(row[3] || '').trim(),
             valor: isNaN(valor) ? 0 : valor,
             data: (function(raw) {
-              if (!raw) return '';
+              if (!raw && raw !== 0) return '';
               var s = String(raw).trim();
-              // Serial numérico do Excel (ex: 45678) → converte para ISO
-              if (/^\d{4,6}$/.test(s)) {
-                var d = new Date(Date.UTC(1899,11,30) + parseInt(s)*86400000);
-                return d.toISOString().split('T')[0];
+              // YYYY-MM-DD ou ISO
+              if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0,10);
+              // Serial numérico do Excel (datas de 2020-2030 ficam entre 43831 e 48213)
+              var n = parseFloat(s);
+              if (!isNaN(n) && n > 40000 && !s.includes('/') && !s.includes('-')) {
+                var d = new Date(Date.UTC(1899,11,30) + Math.round(n)*86400000);
+                if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
               }
-              // Já está em formato de data (YYYY-MM-DD ou similar)
-              if (s.includes('-')) return s.split('T')[0];
-              // M/D/YYYY
-              if (s.includes('/')) { var p=s.split('/'); return p[2]+'-'+p[0].padStart(2,'0')+'-'+p[1].padStart(2,'0'); }
-              return s;
+              // DD/MM/YYYY (padrão BR)
+              if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) {
+                var p = s.split('/');
+                return p[2]+'-'+p[1].padStart(2,'0')+'-'+p[0].padStart(2,'0');
+              }
+              return '';
             })(row[5]),
             extrato: String(row[6] || '').trim(),
             obs: String(row[7] || '').trim(),
