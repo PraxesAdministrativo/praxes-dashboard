@@ -6494,9 +6494,10 @@ Responda APENAS com o JSON, sem texto adicional.`;
 
       } catch(e) {
         console.error('IA extract error:', e);
-        btn.textContent  = '❌ Erro ao analisar. Tente novamente.';
+        const msg = e.message || String(e);
+        btn.textContent  = '❌ ' + msg;
         icon.textContent = '❌';
-        setTimeout(() => { btn.textContent = 'Preencher automaticamente com IA'; icon.textContent = '✨'; }, 3000);
+        setTimeout(() => { btn.textContent = 'Preencher automaticamente com IA'; icon.textContent = '✨'; }, 6000);
       }
     }
 
