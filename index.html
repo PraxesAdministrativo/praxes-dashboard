@@ -6304,7 +6304,7 @@ Esta ação não pode ser desfeita.`)) return;
     async function docsInit() {
       try {
         const resp = await gapi.client.sheets.spreadsheets.values.get({
-          spreadsheetId: resumoSheetId, range:'Documentos_Pessoais!A2:G200', valueRenderOption:'UNFORMATTED_VALUE'
+          spreadsheetId: resumoSheetId, range:'documentos_pessoais!A2:G200', valueRenderOption:'UNFORMATTED_VALUE'
         });
         docsData = resp.result.values || [];
         renderDocs();
@@ -6316,7 +6316,7 @@ Esta ação não pode ser desfeita.`)) return;
           renderDocs();
           document.getElementById('docs-sections').insertAdjacentHTML('afterbegin',
             `<div style="background:#fff8e1;border:1px solid #f59e0b;border-radius:8px;padding:14px 18px;margin-bottom:20px;font-size:13px;color:#92400e;">
-              ⚠️ Aba <strong>Documentos_Pessoais</strong> não encontrada na planilha. Importe o modelo e reabra esta página.
+              ⚠️ Aba <strong>documentos_pessoais</strong> não encontrada na planilha. Importe o modelo e reabra esta página.
             </div>`);
         } else {
           document.getElementById('docs-sections').innerHTML = `<p style="color:red;padding:20px;">Erro ao carregar: ${msg}</p>`;
@@ -6494,12 +6494,12 @@ Esta ação não pode ser desfeita.`)) return;
       try {
         if (docsEditIndex !== null) {
           await gapi.client.sheets.spreadsheets.values.update({
-            spreadsheetId:resumoSheetId, range:`Documentos_Pessoais!A${docsEditIndex+2}:G${docsEditIndex+2}`,
+            spreadsheetId:resumoSheetId, range:`documentos_pessoais!A${docsEditIndex+2}:G${docsEditIndex+2}`,
             valueInputOption:'USER_ENTERED', resource:{values:[row]}
           });
         } else {
           await gapi.client.sheets.spreadsheets.values.append({
-            spreadsheetId:resumoSheetId, range:'Documentos_Pessoais!A:G',
+            spreadsheetId:resumoSheetId, range:'documentos_pessoais!A:G',
             valueInputOption:'USER_ENTERED', resource:{values:[row]}
           });
         }
@@ -6510,8 +6510,8 @@ Esta ação não pode ser desfeita.`)) return;
     async function docsExcluir(i) {
       if (!confirm('Excluir este documento?')) return;
       const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId:resumoSheetId});
-      const sh = meta.result.sheets.find(s=>s.properties.title==='Documentos_Pessoais');
-      if (!sh) { alert('Aba Documentos_Pessoais não encontrada na planilha'); return; }
+      const sh = meta.result.sheets.find(s=>s.properties.title==='documentos_pessoais');
+      if (!sh) { alert('Aba documentos_pessoais não encontrada na planilha'); return; }
       await gapi.client.sheets.spreadsheets.batchUpdate({spreadsheetId:resumoSheetId,resource:{requests:[{deleteDimension:{range:{sheetId:sh.properties.sheetId,dimension:'ROWS',startIndex:i+1,endIndex:i+2}}}]}});
       await docsInit();
     }
