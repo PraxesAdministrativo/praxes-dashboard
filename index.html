@@ -2305,7 +2305,7 @@
               </div>
             </div>
             <!-- Botão IA — aparece após selecionar arquivo imagem/PDF -->
-            <div id="ai-extract-area" style="display:none;margin-top:10px;">
+            <div id="ai-extract-area" style="display:none !important;margin-top:10px;">
               <button type="button" onclick="docsExtrairComIA()"
                 style="width:100%;padding:11px;border:none;border-radius:8px;background:linear-gradient(135deg,#2e6b8e,#0f3d57);color:#fff;font-weight:700;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
                 <span id="ai-btn-icon">✨</span>
@@ -6413,7 +6413,7 @@ Esta ação não pode ser desfeita.`)) return;
       // Só mostra botão IA para imagens e PDF
       const isImage = file.type.startsWith('image/');
       const isPDF   = file.type === 'application/pdf';
-      document.getElementById('ai-extract-area').style.display = (isImage || isPDF) ? 'block' : 'none';
+      document.getElementById('ai-extract-area').style.display = 'none';
 
       if (isImage || isPDF) {
         const reader = new FileReader();
