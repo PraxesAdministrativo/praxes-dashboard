@@ -2294,8 +2294,27 @@
             <input type="text" class="form-input" name="observacoes" placeholder="Órgão emissor, notas importantes...">
           </div>
           <div class="form-group">
-            <label class="form-label">Anexar Arquivo (opcional)</label>
-            <input type="file" class="form-input" id="doc-pessoal-file" accept=".pdf,.jpg,.jpeg,.png">
+            <label class="form-label">Anexar Arquivo</label>
+            <div style="border:2px dashed var(--azul-terciario);border-radius:8px;padding:16px;background:#f8fbfd;position:relative;">
+              <input type="file" id="doc-pessoal-file" accept=".pdf,.jpg,.jpeg,.png"
+                style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;"
+                onchange="docsOnFileSelect(this)">
+              <div style="text-align:center;pointer-events:none;">
+                <div style="font-size:28px;margin-bottom:6px;">📎</div>
+                <div id="doc-file-name" style="font-size:13px;color:var(--text-light);">Clique ou arraste o arquivo aqui</div>
+              </div>
+            </div>
+            <!-- Botão IA — aparece após selecionar arquivo imagem/PDF -->
+            <div id="ai-extract-area" style="display:none;margin-top:10px;">
+              <button type="button" onclick="docsExtrairComIA()"
+                style="width:100%;padding:11px;border:none;border-radius:8px;background:linear-gradient(135deg,#2e6b8e,#0f3d57);color:#fff;font-weight:700;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
+                <span id="ai-btn-icon">✨</span>
+                <span id="ai-btn-text">Preencher automaticamente com IA</span>
+              </button>
+              <p style="font-size:11px;color:var(--text-light);text-align:center;margin-top:6px;">
+                A IA lê o documento e preenche os campos acima automaticamente
+              </p>
+            </div>
           </div>
         </form>
       </div>
@@ -6362,7 +6381,12 @@ Esta ação não pode ser desfeita.`)) return;
 
     function docsAbrirModal(catPreset) {
       docsEditIndex = null;
+      _docFileBase64 = null; _docFileType = null;
       document.getElementById('form-doc-pessoal').reset();
+      document.getElementById('doc-file-name').textContent = 'Clique ou arraste o arquivo aqui';
+      document.getElementById('ai-extract-area').style.display = 'none';
+      document.getElementById('ai-btn-text').textContent = 'Preencher automaticamente com IA';
+      document.getElementById('ai-btn-icon').textContent = '✨';
       document.getElementById('modal-doc-titulo').textContent = 'Adicionar Documento';
       if (catPreset) document.getElementById('form-doc-pessoal').elements['categoria'].value = catPreset;
       openModal('modal-doc-pessoal');
@@ -6375,6 +6399,94 @@ Esta ação não pode ser desfeita.`)) return;
       ['categoria','tipo','numero','validade','observacoes'].forEach((f,fi)=>{ form.elements[f].value=r[fi]||''; });
       document.getElementById('modal-doc-titulo').textContent = 'Editar Documento';
       openModal('modal-doc-pessoal');
+    }
+
+    // Arquivo selecionado pelo usuário
+    let _docFileBase64 = null;
+    let _docFileType = null;
+
+    function docsOnFileSelect(input) {
+      const file = input.files[0];
+      if (!file) return;
+      document.getElementById('doc-file-name').textContent = file.name;
+
+      // Só mostra botão IA para imagens e PDF
+      const isImage = file.type.startsWith('image/');
+      const isPDF   = file.type === 'application/pdf';
+      document.getElementById('ai-extract-area').style.display = (isImage || isPDF) ? 'block' : 'none';
+
+      if (isImage || isPDF) {
+        const reader = new FileReader();
+        reader.onload = e => {
+          _docFileBase64 = e.target.result.split(',')[1];
+          _docFileType   = file.type;
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    async function docsExtrairComIA() {
+      if (!_docFileBase64) { alert('Selecione um arquivo primeiro.'); return; }
+
+      const btn     = document.getElementById('ai-btn-text');
+      const icon    = document.getElementById('ai-btn-icon');
+      btn.textContent  = 'Analisando documento...';
+      icon.textContent = '⏳';
+
+      try {
+        const prompt = `Analise este documento e extraia as seguintes informações em JSON:
+{
+  "tipo": "tipo do documento (ex: CNH, RG, CPF, Passaporte, Certidão de Nascimento, etc.)",
+  "categoria": "categoria (Identidade, Fiscal, Certidões, Seguros, Profissional ou Outros)",
+  "numero": "número ou registro do documento",
+  "validade": "data de validade no formato YYYY-MM-DD (null se não houver)",
+  "observacoes": "informações relevantes como categoria CNH, órgão emissor, nome do titular, etc."
+}
+Responda APENAS com o JSON, sem texto adicional.`;
+
+        const mediaType = _docFileType === 'application/pdf' ? 'application/pdf' : _docFileType;
+
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'claude-sonnet-4-20250514',
+            max_tokens: 400,
+            messages: [{
+              role: 'user',
+              content: [
+                { type: 'image', source: { type: 'base64', media_type: mediaType, data: _docFileBase64 } },
+                { type: 'text', text: prompt }
+              ]
+            }]
+          })
+        });
+
+        const data = await response.json();
+        const text = data.content?.[0]?.text || '';
+
+        // Parse JSON da resposta
+        const clean = text.replace(/```json|```/g, '').trim();
+        const parsed = JSON.parse(clean);
+
+        // Preenche os campos do formulário
+        const form = document.getElementById('form-doc-pessoal');
+        if (parsed.tipo)       form.elements['tipo'].value      = parsed.tipo;
+        if (parsed.categoria)  form.elements['categoria'].value = parsed.categoria;
+        if (parsed.numero)     form.elements['numero'].value    = parsed.numero;
+        if (parsed.validade)   form.elements['validade'].value  = parsed.validade;
+        if (parsed.observacoes) form.elements['observacoes'].value = parsed.observacoes;
+
+        btn.textContent  = '✅ Campos preenchidos! Verifique e salve.';
+        icon.textContent = '✅';
+        setTimeout(() => { btn.textContent = 'Preencher automaticamente com IA'; icon.textContent = '✨'; }, 4000);
+
+      } catch(e) {
+        console.error('IA extract error:', e);
+        btn.textContent  = '❌ Erro ao analisar. Tente novamente.';
+        icon.textContent = '❌';
+        setTimeout(() => { btn.textContent = 'Preencher automaticamente com IA'; icon.textContent = '✨'; }, 3000);
+      }
     }
 
     async function docsSalvar() {
