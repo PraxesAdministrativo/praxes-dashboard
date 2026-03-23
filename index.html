@@ -2394,7 +2394,8 @@
       supabaseKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVyY2tvbGN5d2lqbGxrZHlqY2djIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyNzU1NDAsImV4cCI6MjA4Njg1MTU0MH0.79Zmto6Dns_2KQWlx6msHaQ98bneTAT74qd2vv5aSLU',
       redirectUrl: 'https://praxes-dashboard.vercel.app',
       apiKey: 'AIzaSyCeUbBYphDkSepCED3ssP4J12AR3tCebxU',
-      driveScopes: 'https://www.googleapis.com/auth/drive.file'
+      driveScopes: 'https://www.googleapis.com/auth/drive.file',
+      anthropicKey: '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'
     };
     
     const db = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey, {
@@ -6448,7 +6449,12 @@ Responda APENAS com o JSON, sem texto adicional.`;
 
         const response = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': cfg.anthropicKey,
+            'anthropic-version': '2023-06-01',
+            'anthropic-dangerous-direct-browser-access': 'true'
+          },
           body: JSON.stringify({
             model: 'claude-sonnet-4-20250514',
             max_tokens: 400,
@@ -6461,6 +6467,11 @@ Responda APENAS com o JSON, sem texto adicional.`;
             }]
           })
         });
+
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error?.message || `HTTP ${response.status}`);
+        }
 
         const data = await response.json();
         const text = data.content?.[0]?.text || '';
