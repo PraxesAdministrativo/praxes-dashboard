@@ -7126,8 +7126,11 @@ Esta ação não pode ser desfeita.`)) return;
         invData.serie = [];
         for (let i = 1; i < p14.length; i++) {
           const r = p14[i];
+          if (!r || !r[0]) continue;
           const dt = parseSheetDate(r[0]); if (!dt) continue;
-          invData.serie.push({ data:dt, mercado:parseFloat(r[1])||0, cdi:parseFloat(r[2])||0, curva:parseFloat(r[3])||0 });
+          const mercado = parseFloat(r[1]); const cdi = parseFloat(r[2]); const curva = parseFloat(r[3]);
+          if (isNaN(mercado) && isNaN(cdi)) continue; // linha inválida
+          invData.serie.push({ data:dt, mercado:isNaN(mercado)?0:mercado, cdi:isNaN(cdi)?0:cdi, curva:isNaN(curva)?0:curva });
         }
         invData.serie.sort((a,b)=>a.data.localeCompare(b.data));
 
@@ -7343,8 +7346,11 @@ Esta ação não pode ser desfeita.`)) return;
       const serie12m  = (() => { const d=new Date(hoje); d.setFullYear(d.getFullYear()-1); const iso=d.toISOString().split('T')[0]; return invData.serie.filter(r=>r.data>=iso); })();
 
       const rentPct = (s, key) => {
-        if (!s.length) return '—';
-        const v = s[s.length-1][key] - s[0][key];
+        if (!s || !s.length) return '—';
+        const a = parseFloat(s[0][key]);
+        const b = parseFloat(s[s.length-1][key]);
+        if (isNaN(a) || isNaN(b)) return '—';
+        const v = b - a;
         return (v>=0?'+':'') + v.toFixed(2) + '%';
       };
 
@@ -7366,17 +7372,17 @@ Esta ação não pode ser desfeita.`)) return;
       document.getElementById('inv-rent-periodo').style.color = 'var(--verde)';
 
       // CDI
-      document.getElementById('inv-cdi-mes').textContent  = (() => { const yr=invData.cdiMensal; if(!yr) return '—'; const y=yr[anoAtual]; if(!y) return '—'; const v=y[mesAtual]; return v!==null ? v.toFixed(2)+'%' : '—'; })();
+      document.getElementById('inv-cdi-mes').textContent  = (() => { const yr=invData.cdiMensal; if(!yr) return '—'; const y=yr[anoAtual]; if(!y) return '—'; const v=y[mesAtual]; return (v!=null && !isNaN(v)) ? v.toFixed(2)+'%' : '—'; })();
       document.getElementById('inv-cdi-ano').textContent  = rentPct(serieAno, 'cdi');
       document.getElementById('inv-cdi-12m').textContent  = rentPct(serie12m, 'cdi');
       const rentCartPeriodo = invData.serie.length ? invData.serie[invData.serie.length-1][cartKey] - invData.serie[0][cartKey] : 0;
       const rentCDIPeriodo  = invData.serie.length ? invData.serie[invData.serie.length-1].cdi    - invData.serie[0].cdi    : 0;
-      document.getElementById('inv-pct-cdi').textContent  = rentCDIPeriodo > 0 ? (rentCartPeriodo/rentCDIPeriodo*100).toFixed(1)+'%' : '—';
+      document.getElementById('inv-pct-cdi').textContent  = (rentCDIPeriodo > 0 && !isNaN(rentCartPeriodo) && !isNaN(rentCDIPeriodo)) ? (rentCartPeriodo/rentCDIPeriodo*100).toFixed(1)+'%' : '—';
 
       // Fluxo de resgate
       const liqEl = document.getElementById('inv-liquidez-body');
-      const totalLiq = Object.values(invData.liqMap).reduce((s,v)=>s+v,0);
-      liqEl.innerHTML = Object.entries(invData.liqMap).filter(([,v])=>v>0).map(([k,v])=>{
+      const totalLiq = invData.liqMap ? Object.values(invData.liqMap).reduce((s,v)=>s+v,0) : 0;
+      liqEl.innerHTML = (invData.liqMap ? Object.entries(invData.liqMap) : []).filter(([,v])=>v>0).map(([k,v])=>{
         const pct = totalLiq > 0 ? (v/totalLiq*100).toFixed(1) : 0;
         return `<div style="display:flex;justify-content:space-between;align-items:center;">
           <span style="color:var(--text-light);">${k}</span>
