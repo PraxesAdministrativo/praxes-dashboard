@@ -1613,78 +1613,168 @@
 
         <!-- OUTRAS PÁGINAS (placeholders) -->
         <div class="page" id="page-investimentos">
-          <!-- Período tabs -->
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-            <div id="inv-data-ref" style="font-size:12px;color:var(--text-light);"></div>
-            <div style="display:flex;gap:4px;background:var(--branco);border-radius:8px;padding:4px;border:1px solid var(--borda);">
-              <button class="inv-period-btn active" data-period="ytd" onclick="invSetPeriod('ytd',this)">YTD</button>
-              <button class="inv-period-btn" data-period="6m"  onclick="invSetPeriod('6m',this)">6M</button>
-              <button class="inv-period-btn" data-period="12m" onclick="invSetPeriod('12m',this)">12M</button>
-              <button class="inv-period-btn" data-period="all" onclick="invSetPeriod('all',this)">Início</button>
-            </div>
+
+          <!-- Sem planilha configurada -->
+          <div id="inv-no-sheet" style="display:none;text-align:center;padding:60px 20px;">
+            <div style="font-size:15px;font-weight:600;color:var(--azul-principal);margin-bottom:8px;">Planilha de investimentos não configurada</div>
+            <div style="font-size:13px;color:var(--text-light);">Adicione o ID na coluna <code>investimentos_sheet_id</code> no Supabase.</div>
           </div>
 
-          <!-- KPIs -->
-          <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px;" id="inv-kpis">
-            <div class="stat-card"><div class="stat-label">Patrimônio Total</div><div class="stat-value" id="inv-patrimonio">—</div><div class="stat-change" id="inv-patrimonio-sub">Carregando...</div></div>
-            <div class="stat-card"><div class="stat-label">Rentab. a Mercado</div><div class="stat-value" id="inv-rent-mercado">—</div><div class="stat-change" id="inv-rent-mercado-sub">—</div></div>
-            <div class="stat-card"><div class="stat-label">Rentab. na Curva</div><div class="stat-value" id="inv-rent-curva">—</div><div class="stat-change" id="inv-rent-curva-sub">—</div></div>
-            <div class="stat-card"><div class="stat-label">CDI no Período</div><div class="stat-value" id="inv-cdi">—</div><div class="stat-change">Benchmark</div></div>
-          </div>
+          <!-- Conteúdo principal -->
+          <div id="inv-content" style="display:none;">
 
-          <!-- Gráfico de performance -->
-          <div class="gestao-section" style="margin-bottom:20px;">
-            <div class="gestao-header">
-              <h3 class="gestao-title">Performance acumulada</h3>
-              <div style="display:flex;gap:16px;font-size:12px;color:var(--text-light);">
-                <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:3px;background:#0F3D57;border-radius:2px;display:inline-block;"></span>Mercado</span>
-                <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:3px;background:#1D9E75;border-radius:2px;display:inline-block;"></span>Curva</span>
-                <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:3px;background:#B4B2A9;border-radius:2px;display:inline-block;"></span>CDI</span>
+            <!-- Barra de controles -->
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span id="inv-data-ref" style="font-size:12px;color:var(--text-light);"></span>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px;">
+                <!-- Toggle Mercado/Curva -->
+                <div style="display:flex;background:var(--branco);border-radius:8px;padding:3px;border:1px solid var(--borda);">
+                  <button class="inv-mark-btn active" data-mark="mercado" onclick="invSetMarcacao('mercado',this)"
+                    style="padding:5px 14px;font-size:12px;font-weight:600;border:none;border-radius:6px;cursor:pointer;background:var(--azul-principal);color:#fff;font-family:'Montserrat',sans-serif;transition:all .2s;">
+                    A Mercado
+                  </button>
+                  <button class="inv-mark-btn" data-mark="curva" onclick="invSetMarcacao('curva',this)"
+                    style="padding:5px 14px;font-size:12px;font-weight:600;border:none;border-radius:6px;cursor:pointer;background:transparent;color:var(--text-light);font-family:'Montserrat',sans-serif;transition:all .2s;">
+                    Na Curva
+                  </button>
+                </div>
+                <!-- Período -->
+                <div style="display:flex;background:var(--branco);border-radius:8px;padding:3px;border:1px solid var(--borda);">
+                  <button class="inv-period-btn active" data-period="ytd" onclick="invSetPeriod('ytd',this)">YTD</button>
+                  <button class="inv-period-btn" data-period="6m"  onclick="invSetPeriod('6m',this)">6M</button>
+                  <button class="inv-period-btn" data-period="12m" onclick="invSetPeriod('12m',this)">12M</button>
+                  <button class="inv-period-btn" data-period="all" onclick="invSetPeriod('all',this)">Início</button>
+                </div>
+                <!-- PDF -->
+                <button class="btn-add" onclick="invGerarPDF()" style="padding:8px 16px;font-size:12px;background:var(--azul-secundario);">📄 Relatório PDF</button>
               </div>
             </div>
-            <div style="position:relative;width:100%;height:260px;">
-              <canvas id="inv-chart-perf"></canvas>
-            </div>
-          </div>
 
-          <!-- Linha inferior: pizza + posições -->
-          <div style="display:grid;grid-template-columns:280px 1fr;gap:20px;">
-            <!-- Alocação por IF -->
-            <div class="gestao-section">
-              <div class="gestao-header"><h3 class="gestao-title">Alocação por IF</h3></div>
-              <div style="position:relative;width:100%;height:200px;"><canvas id="inv-chart-if"></canvas></div>
-              <div id="inv-if-legend" style="font-size:11px;margin-top:12px;display:flex;flex-direction:column;gap:6px;"></div>
+            <!-- KPIs: 3 cards + fluxo de resgate -->
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr 220px;gap:16px;margin-bottom:20px;">
+              <div class="stat-card">
+                <div class="stat-label">Patrimônio Total</div>
+                <div class="stat-value" id="inv-patrimonio">—</div>
+                <div class="stat-change" id="inv-patrimonio-sub">—</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-label" id="inv-rent-label">Rentab. a Mercado</div>
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px;">
+                  <div style="text-align:center;">
+                    <div style="font-size:10px;color:var(--text-light);margin-bottom:3px;">Mês</div>
+                    <div style="font-size:15px;font-weight:700;color:var(--azul-principal);" id="inv-rent-mes">—</div>
+                  </div>
+                  <div style="text-align:center;">
+                    <div style="font-size:10px;color:var(--text-light);margin-bottom:3px;">Ano</div>
+                    <div style="font-size:15px;font-weight:700;color:var(--azul-principal);" id="inv-rent-ano">—</div>
+                  </div>
+                  <div style="text-align:center;">
+                    <div style="font-size:10px;color:var(--text-light);margin-bottom:3px;">12m</div>
+                    <div style="font-size:15px;font-weight:700;color:var(--azul-principal);" id="inv-rent-12m">—</div>
+                  </div>
+                  <div style="text-align:center;">
+                    <div style="font-size:10px;color:var(--text-light);margin-bottom:3px;">Período</div>
+                    <div style="font-size:15px;font-weight:700;color:var(--azul-principal);" id="inv-rent-periodo">—</div>
+                  </div>
+                </div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-label">CDI</div>
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px;">
+                  <div style="text-align:center;">
+                    <div style="font-size:10px;color:var(--text-light);margin-bottom:3px;">Mês</div>
+                    <div style="font-size:15px;font-weight:700;color:var(--text-light);" id="inv-cdi-mes">—</div>
+                  </div>
+                  <div style="text-align:center;">
+                    <div style="font-size:10px;color:var(--text-light);margin-bottom:3px;">Ano</div>
+                    <div style="font-size:15px;font-weight:700;color:var(--text-light);" id="inv-cdi-ano">—</div>
+                  </div>
+                  <div style="text-align:center;">
+                    <div style="font-size:10px;color:var(--text-light);margin-bottom:3px;">12m</div>
+                    <div style="font-size:15px;font-weight:700;color:var(--text-light);" id="inv-cdi-12m">—</div>
+                  </div>
+                  <div style="text-align:center;">
+                    <div style="font-size:10px;color:var(--text-light);margin-bottom:3px;">% CDI</div>
+                    <div style="font-size:15px;font-weight:700;color:var(--verde);" id="inv-pct-cdi">—</div>
+                  </div>
+                </div>
+              </div>
+              <!-- Fluxo de Resgate -->
+              <div class="stat-card" style="padding:16px;">
+                <div class="stat-label" style="margin-bottom:10px;">Liquidez</div>
+                <div id="inv-liquidez-body" style="display:flex;flex-direction:column;gap:5px;font-size:11px;"></div>
+              </div>
             </div>
 
-            <!-- Posições -->
+            <!-- Gráfico de performance -->
+            <div class="gestao-section" style="margin-bottom:20px;">
+              <div class="gestao-header">
+                <h3 class="gestao-title" id="inv-chart-title">Performance acumulada — A Mercado</h3>
+                <div style="display:flex;gap:16px;font-size:12px;color:var(--text-light);">
+                  <span style="display:flex;align-items:center;gap:5px;"><span id="inv-leg-carteira" style="width:10px;height:3px;background:#0F3D57;border-radius:2px;display:inline-block;"></span><span id="inv-leg-carteira-txt">Mercado</span></span>
+                  <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:3px;background:#B4B2A9;border-radius:2px;display:inline-block;"></span>CDI</span>
+                </div>
+              </div>
+              <div style="position:relative;width:100%;height:260px;">
+                <canvas id="inv-chart-perf"></canvas>
+              </div>
+            </div>
+
+            <!-- Linha: 2 pizzas + tabela de retorno mensal -->
+            <div style="display:grid;grid-template-columns:220px 220px 1fr;gap:20px;margin-bottom:20px;">
+              <!-- Pizza por Classe -->
+              <div class="gestao-section">
+                <div class="gestao-header"><h3 class="gestao-title">Por classe</h3></div>
+                <div style="position:relative;width:100%;height:160px;"><canvas id="inv-chart-classe"></canvas></div>
+                <div id="inv-classe-legend" style="font-size:11px;margin-top:10px;display:flex;flex-direction:column;gap:5px;"></div>
+              </div>
+              <!-- Pizza por Custodiante -->
+              <div class="gestao-section">
+                <div class="gestao-header"><h3 class="gestao-title">Por custodiante</h3></div>
+                <div style="position:relative;width:100%;height:160px;"><canvas id="inv-chart-cust"></canvas></div>
+                <div id="inv-cust-legend" style="font-size:11px;margin-top:10px;display:flex;flex-direction:column;gap:5px;"></div>
+              </div>
+              <!-- Tabela retorno mensal -->
+              <div class="gestao-section">
+                <div class="gestao-header"><h3 class="gestao-title">Retorno mensal (%)</h3></div>
+                <div style="overflow-x:auto;">
+                  <table class="gestao-table" style="width:100%;font-size:11px;" id="inv-table-mensal">
+                    <thead><tr><th>Ano</th><th>Jan</th><th>Fev</th><th>Mar</th><th>Abr</th><th>Mai</th><th>Jun</th><th>Jul</th><th>Ago</th><th>Set</th><th>Out</th><th>Nov</th><th>Dez</th><th>Ano</th></tr></thead>
+                    <tbody id="inv-mensal-tbody"><tr><td colspan="14" class="empty-state">—</td></tr></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- Posição Consolidada por classe -->
             <div class="gestao-section">
-              <div class="gestao-header"><h3 class="gestao-title">Posições</h3></div>
+              <div class="gestao-header">
+                <h3 class="gestao-title">Posição Consolidada</h3>
+                <span style="font-size:12px;color:var(--text-light);" id="inv-pos-data"></span>
+              </div>
               <div style="overflow-x:auto;">
                 <table class="gestao-table" style="table-layout:fixed;width:100%;">
                   <thead>
                     <tr>
-                      <th style="width:35%;">Ativo</th>
-                      <th style="width:15%;text-align:right;">Aplicado</th>
-                      <th style="width:15%;text-align:right;">Saldo Atual</th>
-                      <th style="width:12%;text-align:right;">Rentab.</th>
-                      <th style="width:10%;text-align:right;">% Cart.</th>
-                      <th style="width:13%;">Instituição</th>
+                      <th style="width:32%;">Ativo</th>
+                      <th style="width:13%;text-align:right;">Saldo Bruto</th>
+                      <th style="width:8%;text-align:right;">%</th>
+                      <th style="width:13%;text-align:right;">Provisão IR</th>
+                      <th style="width:13%;text-align:right;">Saldo Líquido</th>
+                      <th style="width:10%;">Liquidez</th>
+                      <th style="width:11%;">Custodiante</th>
                     </tr>
                   </thead>
                   <tbody id="inv-posicoes-tbody">
-                    <tr><td colspan="6" class="empty-state">Carregando...</td></tr>
+                    <tr><td colspan="7" class="empty-state">Carregando...</td></tr>
                   </tbody>
                 </table>
               </div>
             </div>
-          </div>
 
-          <!-- Sem planilha configurada -->
-          <div id="inv-no-sheet" style="display:none;text-align:center;padding:60px 20px;">
-            <div style="font-size:32px;margin-bottom:16px;">📊</div>
-            <div style="font-size:15px;font-weight:600;color:var(--azul-principal);margin-bottom:8px;">Planilha de investimentos não configurada</div>
-            <div style="font-size:13px;color:var(--text-light);">Adicione o ID da planilha na coluna <code>investimentos_sheet_id</code> da tabela clients no Supabase.</div>
-          </div>
+          </div><!-- /inv-content -->
         </div>
 
         <!-- CONTROLE FINANCEIRO PAGE -->
@@ -6993,20 +7083,21 @@ Esta ação não pode ser desfeita.`)) return;
     }
 
     // ========== INVESTIMENTOS ==========
-    let invData = { loaded: false };
-    let invPeriod = 'ytd';
-    let _invChartPerf = null;
-    let _invChartIF   = null;
+    let invData     = { loaded: false };
+    let invPeriod   = 'ytd';
+    let invMarcacao = 'mercado'; // 'mercado' | 'curva'
+    let _invChartPerf  = null;
+    let _invChartClasse = null;
+    let _invChartCust   = null;
+
+    const INV_COLORS = ['#0F3D57','#2E6B8E','#1D9E75','#629EC1','#85B7EB','#B4B2A9','#5F5E5A','#0A2A3D','#4AABB8'];
+    const MESES_ABR  = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
     async function invInit() {
       const sheetId = window.invSheetId;
-      if (!sheetId) {
-        document.getElementById('inv-no-sheet').style.display = 'block';
-        document.getElementById('inv-kpis').style.display = 'none';
-        return;
-      }
-      document.getElementById('inv-no-sheet').style.display = 'none';
-      document.getElementById('inv-kpis').style.display = '';
+      document.getElementById('inv-no-sheet').style.display  = sheetId ? 'none' : 'block';
+      document.getElementById('inv-content').style.display   = sheetId ? 'block' : 'none';
+      if (!sheetId) return;
       if (!invData.loaded) await invLoad(sheetId);
       invRender();
     }
@@ -7015,66 +7106,171 @@ Esta ação não pode ser desfeita.`)) return;
       try {
         const resp = await gapi.client.sheets.spreadsheets.values.batchGet({
           spreadsheetId: sheetId,
-          ranges: ['Página14!A1:D500', 'carteira!A1:R2000', 'curva_smart!A1:H500'],
+          ranges: ['Página14!A1:D500','carteira!A1:R3000','curva_smart!A1:H500','rentabilidade_curva!A1:H500'],
           valueRenderOption: 'UNFORMATTED_VALUE'
         });
 
-        // Página14 — série histórica
-        const p14Rows = resp.result.valueRanges[0].values || [];
+        // ---- Página14: série histórica mercado/curva/CDI ----
+        const p14 = resp.result.valueRanges[0].values || [];
         invData.serie = [];
-        for (let i = 1; i < p14Rows.length; i++) {
-          const r = p14Rows[i];
-          if (!r[0]) continue;
-          const dt = parseSheetDate(r[0]);
-          if (!dt) continue;
-          invData.serie.push({
-            data: dt,
-            mercado: parseFloat(r[1]) || 0,
-            cdi:     parseFloat(r[2]) || 0,
-            curva:   parseFloat(r[3]) || 0
-          });
+        for (let i = 1; i < p14.length; i++) {
+          const r = p14[i];
+          const dt = parseSheetDate(r[0]); if (!dt) continue;
+          invData.serie.push({ data:dt, mercado:parseFloat(r[1])||0, cdi:parseFloat(r[2])||0, curva:parseFloat(r[3])||0 });
         }
-        invData.serie.sort((a,b) => a.data.localeCompare(b.data));
+        invData.serie.sort((a,b)=>a.data.localeCompare(b.data));
 
-        // curva_smart — patrimônio mais recente
-        const csRows = resp.result.valueRanges[2].values || [];
-        const lastCS = csRows.filter(r => r[4]).pop();
+        // ---- curva_smart: patrimônio e rentab mensal ----
+        const cs = resp.result.valueRanges[2].values || [];
+        invData.csRows = cs;
+        const lastCS = cs.filter(r=>r[4]).pop();
         invData.patrimonio = lastCS ? parseFloat(lastCS[4]) : 0;
         invData.dataRef = lastCS ? parseSheetDate(lastCS[0]) : '';
 
-        // carteira — posições (última data disponível)
-        const cartRows = resp.result.valueRanges[1].values || [];
-        const headers = cartRows[0] || [];
-        const colMap = {};
-        headers.forEach((h, i) => { colMap[String(h||'').trim()] = i; });
-
-        // Pega data mais recente
-        const datas = cartRows.slice(1).map(r => parseSheetDate(r[0])).filter(Boolean).sort();
-        const ultimaData = datas[datas.length - 1];
-
-        const posMap = {};
-        cartRows.slice(1).forEach(r => {
-          if (parseSheetDate(r[0]) !== ultimaData) return;
-          const desc = String(r[colMap['Descrição']||5]||'').trim();
-          const if_  = String(r[colMap['Instituição Financeira do Ativo']||10]||'').trim();
-          const aplicado = parseFloat(r[colMap['Valor Aplicado']||6]) || 0;
-          const saldo    = parseFloat(r[colMap['Saldo Bruto']||8]) || 0;
-          if (!desc || saldo === 0) return;
-          const key = desc;
-          if (!posMap[key]) posMap[key] = { desc, if_, aplicado: 0, saldo: 0 };
-          posMap[key].aplicado += aplicado;
-          posMap[key].saldo    += saldo;
+        // Rentabilidade mensal (curva_smart: col 0=data, col 5=rent_dia, col 7=rent_acumulada)
+        invData.rentMensal = {}; // { '2025': {1: 1.22, 2: 1.04, ...}, '2026': {...} }
+        let prevAcum = null; let prevMes = null;
+        cs.slice(1).forEach(r => {
+          const dt = parseSheetDate(r[0]); if (!dt) return;
+          const d = new Date(dt+'T12:00:00');
+          const ano = d.getFullYear(); const mes = d.getMonth()+1;
+          const acum = parseFloat(r[7])||0;
+          if (prevMes && (d.getMonth()+1 !== prevMes || d.getFullYear() !== parseInt(Object.keys(invData.rentMensal).pop()||ano))) {
+            // virou o mês
+          }
+          if (!invData.rentMensal[ano]) invData.rentMensal[ano] = {};
+          invData.rentMensal[ano][mes] = acum; // guardamos acumulado do último dia do mês
         });
 
-        invData.posicoes = Object.values(posMap).sort((a,b) => b.saldo - a.saldo);
-        invData.totalSaldo = invData.posicoes.reduce((s,p) => s+p.saldo, 0);
-        invData.loaded = true;
+        // Calcula retorno mensal de fato (acum_fim - acum_inicio) / (1 + acum_inicio)
+        const rentMensalCalc = {};
+        const allMonths = [];
+        cs.slice(1).forEach(r => {
+          const dt = parseSheetDate(r[0]); if (!dt || !r[5]) return;
+          const d = new Date(dt+'T12:00:00');
+          allMonths.push({ ano:d.getFullYear(), mes:d.getMonth()+1, rentDia: parseFloat(r[5])||0 });
+        });
+        // agrupa por mês e soma rent diária composta
+        const monthMap = {};
+        allMonths.forEach(m => {
+          const k = `${m.ano}-${m.mes}`;
+          if (!monthMap[k]) monthMap[k] = { ano:m.ano, mes:m.mes, acum:1 };
+          monthMap[k].acum *= (1 + m.rentDia);
+        });
+        Object.values(monthMap).forEach(m => {
+          if (!rentMensalCalc[m.ano]) rentMensalCalc[m.ano] = {};
+          rentMensalCalc[m.ano][m.mes] = (m.acum - 1) * 100;
+        });
+        invData.rentMensalCalc = rentMensalCalc;
 
+        // CDI mensal (da Página14, diferença diária somada por mês)
+        const cdiMensal = {};
+        invData.serie.forEach(s => {
+          const d = new Date(s.data+'T12:00:00');
+          const ano = d.getFullYear(); const mes = d.getMonth()+1;
+          if (!cdiMensal[ano]) cdiMensal[ano] = {};
+          if (!cdiMensal[ano][mes]) cdiMensal[ano][mes] = { vals:[] };
+          cdiMensal[ano][mes].vals.push(s.cdi);
+        });
+        invData.cdiMensal = {};
+        Object.entries(cdiMensal).forEach(([ano, meses]) => {
+          invData.cdiMensal[ano] = {};
+          const anosArr = Object.keys(cdiMensal).sort();
+          Object.entries(meses).forEach(([mes, obj]) => {
+            const vals = obj.vals.sort((a,b)=>a-b);
+            // diferença entre último e primeiro dia do mês
+            invData.cdiMensal[ano][mes] = vals.length > 1 ? vals[vals.length-1] - vals[0] : null;
+          });
+        });
+
+        // ---- carteira: posições consolidadas ----
+        const cart = resp.result.valueRanges[1].values || [];
+        const hdr = cart[0]||[];
+        const ci = {}; hdr.forEach((h,i)=>ci[String(h||'').trim()]=i);
+
+        const datas = cart.slice(1).map(r=>parseSheetDate(r[0])).filter(Boolean).sort();
+        const ultimaData = datas[datas.length-1];
+        invData.posData = ultimaData;
+
+        const posMap = {};
+        cart.slice(1).forEach(r => {
+          if (parseSheetDate(r[0]) !== ultimaData) return;
+          const desc   = String(r[ci['Descrição']||5]||'').trim();
+          const ifinst = String(r[ci['Instituição Financeira do Ativo']||10]||'').trim();
+          const marc   = String(r[ci['Marcação']||9]||'').trim();
+          const aplicado = parseFloat(r[ci['Valor Aplicado']||6])||0;
+          const saldo    = parseFloat(r[ci['Saldo Bruto']||8])||0;
+          const pct_sb   = parseFloat(r[ci['% sb']||16])||0;
+          if (!desc || saldo === 0) return;
+          if (!posMap[desc]) posMap[desc] = {desc, if_:ifinst, marc, aplicado:0, saldo:0};
+          posMap[desc].aplicado += aplicado;
+          posMap[desc].saldo    += saldo;
+          posMap[desc].pct_sb    = pct_sb;
+        });
+        invData.posicoes    = Object.values(posMap).sort((a,b)=>b.saldo-a.saldo);
+        invData.totalSaldo  = invData.posicoes.reduce((s,p)=>s+p.saldo,0);
+
+        // ---- Alocação por classe (baseada na marcação) ----
+        const classeMap = {};
+        invData.posicoes.forEach(p => {
+          const cls = invClasseFromDesc(p.desc, p.marc);
+          if (!classeMap[cls]) classeMap[cls] = 0;
+          classeMap[cls] += p.saldo;
+        });
+        invData.classeMap = classeMap;
+
+        // ---- Alocação por custodiante ----
+        const custMap = {};
+        invData.posicoes.forEach(p => {
+          const k = p.if_ || 'Outros';
+          if (!custMap[k]) custMap[k] = 0;
+          custMap[k] += p.saldo;
+        });
+        invData.custMap = custMap;
+
+        // ---- Fluxo de resgate (% sb = dias de resgate) ----
+        // Agrupamos por faixa de liquidez usando a coluna auxiliar_rf ou Liquidez
+        const liqMap = { 'D0-D1':0, 'D2-D5':0, 'D6-D30':0, 'D31+':0, 'N/I':0 };
+        invData.posicoes.forEach(p => {
+          const s = p.saldo;
+          if (p.pct_sb <= 1)       liqMap['D0-D1'] += s;
+          else if (p.pct_sb <= 5)  liqMap['D2-D5'] += s;
+          else if (p.pct_sb <= 30) liqMap['D6-D30'] += s;
+          else if (p.pct_sb > 30)  liqMap['D31+'] += s;
+          else                     liqMap['N/I'] += s;
+        });
+        invData.liqMap = liqMap;
+
+        invData.loaded = true;
       } catch(e) {
         console.error('❌ invLoad:', e);
         document.getElementById('inv-posicoes-tbody').innerHTML =
-          `<tr><td colspan="6" style="color:red;padding:20px;">Erro: ${e.result?.error?.message||e.message}</td></tr>`;
+          `<tr><td colspan="7" style="color:red;padding:20px;">Erro: ${e.result?.error?.message||e.message}</td></tr>`;
       }
+    }
+
+    function invClasseFromDesc(desc, marc) {
+      const d = (desc||'').toLowerCase();
+      const m = (marc||'').toLowerCase();
+      if (d.includes('prev') || d.includes('icatu') || d.includes('zurich')) return 'Previdência';
+      if (d.includes('cri') || d.includes('cra'))                             return 'CRI/CRA';
+      if (d.includes('fiagro') || d.includes('fidc'))                        return 'Genérico';
+      if (d.includes('lft') || d.includes('ntnb') || d.includes('ntnbp') || d.includes('tesouro')) return 'Títulos Públicos';
+      if (d.includes('fif') || d.includes('ficfi') || d.includes('fundo') || d.includes(' fi ') || d.match(/\bfi\b/)) return 'Fundos';
+      if (d.includes('cdb') || d.includes('lca') || d.includes('lci') || d.includes('lci'))        return 'Renda Fixa';
+      if (m.includes('curva'))   return 'Renda Fixa';
+      if (m.includes('mercado')) return 'Fundos';
+      return 'Outros';
+    }
+
+    function invSetMarcacao(mark, btn) {
+      invMarcacao = mark;
+      document.querySelectorAll('.inv-mark-btn').forEach(b => {
+        const active = b.dataset.mark === mark;
+        b.style.background = active ? 'var(--azul-principal)' : 'transparent';
+        b.style.color       = active ? '#fff' : 'var(--text-light)';
+      });
+      invRender();
     }
 
     function invSetPeriod(period, btn) {
@@ -7084,156 +7280,206 @@ Esta ação não pode ser desfeita.`)) return;
       invRender();
     }
 
-    function invGetSeriePeriod() {
+    function invGetSerie() {
       if (!invData.serie || !invData.serie.length) return [];
       const all = invData.serie;
-      const last = all[all.length - 1].data;
-      const lastDt = new Date(last + 'T12:00:00');
-      let startDt;
+      const last = all[all.length-1].data;
+      const lastDt = new Date(last+'T12:00:00');
+      let startISO;
       if (invPeriod === 'ytd') {
-        startDt = new Date(lastDt.getFullYear(), 0, 1);
+        startISO = `${lastDt.getFullYear()}-01-01`;
       } else if (invPeriod === '6m') {
-        startDt = new Date(lastDt); startDt.setMonth(startDt.getMonth() - 6);
+        const d = new Date(lastDt); d.setMonth(d.getMonth()-6); startISO = d.toISOString().split('T')[0];
       } else if (invPeriod === '12m') {
-        startDt = new Date(lastDt); startDt.setFullYear(startDt.getFullYear() - 1);
-      } else {
-        return all;
-      }
-      const startISO = startDt.toISOString().split('T')[0];
-      return all.filter(r => r.data >= startISO);
+        const d = new Date(lastDt); d.setFullYear(d.getFullYear()-1); startISO = d.toISOString().split('T')[0];
+      } else return all;
+      return all.filter(r=>r.data >= startISO);
     }
 
     function invRender() {
       if (!invData.loaded) return;
-      const serie = invGetSeriePeriod();
+      const serie = invGetSerie();
       if (!serie.length) return;
-
-      const ultimo = serie[serie.length - 1];
+      const isMerc = invMarcacao === 'mercado';
+      const cartKey = isMerc ? 'mercado' : 'curva';
+      const ultimo  = serie[serie.length-1];
       const primeiro = serie[0];
 
-      // KPIs
+      // Ref data
+      if (invData.dataRef)
+        document.getElementById('inv-data-ref').textContent =
+          'Posição em ' + new Date(invData.dataRef+'T12:00:00').toLocaleDateString('pt-BR');
+
+      // Patrimônio
       document.getElementById('inv-patrimonio').textContent = fmt(invData.patrimonio || invData.totalSaldo);
-      document.getElementById('inv-data-ref').textContent = invData.dataRef
-        ? 'Posição em ' + new Date(invData.dataRef + 'T12:00:00').toLocaleDateString('pt-BR') : '';
+      document.getElementById('inv-patrimonio-sub').textContent = `${invData.posicoes.length} ativos`;
 
-      const rentM = ultimo.mercado - primeiro.mercado;
-      const rentC = ultimo.curva   - primeiro.curva;
-      const rentCDI = ultimo.cdi   - primeiro.cdi;
-      const pctCDI = rentCDI > 0 ? (rentM / rentCDI * 100).toFixed(1) : '—';
+      // Label do card de rentabilidade
+      document.getElementById('inv-rent-label').textContent = isMerc ? 'Rentab. a Mercado' : 'Rentab. na Curva';
+      document.getElementById('inv-chart-title').textContent = `Performance acumulada — ${isMerc?'A Mercado':'Na Curva'}`;
+      document.getElementById('inv-leg-carteira-txt').textContent = isMerc ? 'Mercado' : 'Curva';
 
-      const elM = document.getElementById('inv-rent-mercado');
-      elM.textContent = (rentM >= 0 ? '+' : '') + rentM.toFixed(2) + '%';
-      elM.style.color = rentM >= 0 ? 'var(--verde)' : '#ef4444';
-      document.getElementById('inv-rent-mercado-sub').textContent = pctCDI !== '—' ? pctCDI + '% do CDI' : '';
+      // KPI rentabilidade: Mês, Ano, 12m, Período
+      const hoje = new Date();
+      const mesAtual = hoje.getMonth()+1;
+      const anoAtual = hoje.getFullYear();
+      const serieAno  = invData.serie.filter(r=>r.data.startsWith(anoAtual));
+      const serie12m  = (() => { const d=new Date(hoje); d.setFullYear(d.getFullYear()-1); const iso=d.toISOString().split('T')[0]; return invData.serie.filter(r=>r.data>=iso); })();
 
-      const elC = document.getElementById('inv-rent-curva');
-      elC.textContent = (rentC >= 0 ? '+' : '') + rentC.toFixed(2) + '%';
-      elC.style.color = rentC >= 0 ? 'var(--verde)' : '#ef4444';
-      document.getElementById('inv-rent-curva-sub').textContent = rentCDI > 0 ? (rentC/rentCDI*100).toFixed(1) + '% do CDI' : '';
+      const rentPct = (s, key) => {
+        if (!s.length) return '—';
+        const v = s[s.length-1][key] - s[0][key];
+        return (v>=0?'+':'') + v.toFixed(2) + '%';
+      };
 
-      document.getElementById('inv-cdi').textContent = '+' + rentCDI.toFixed(2) + '%';
+      // Mês atual da curva_smart
+      const rentMes = (() => {
+        const yr = invData.rentMensalCalc; if (!yr) return '—';
+        const yData = yr[anoAtual]; if (!yData) return '—';
+        const v = yData[mesAtual]; if (v === undefined) return '—';
+        return (v>=0?'+':'') + v.toFixed(2) + '%';
+      })();
+
+      document.getElementById('inv-rent-mes').textContent     = rentMes;
+      document.getElementById('inv-rent-mes').style.color     = rentMes.startsWith('+') ? 'var(--verde)' : '#ef4444';
+      document.getElementById('inv-rent-ano').textContent     = rentPct(serieAno, cartKey);
+      document.getElementById('inv-rent-ano').style.color     = serieAno.length && serieAno[serieAno.length-1][cartKey] >= serieAno[0][cartKey] ? 'var(--verde)' : '#ef4444';
+      document.getElementById('inv-rent-12m').textContent     = rentPct(serie12m, cartKey);
+      document.getElementById('inv-rent-12m').style.color     = serie12m.length && serie12m[serie12m.length-1][cartKey] >= serie12m[0][cartKey] ? 'var(--verde)' : '#ef4444';
+      document.getElementById('inv-rent-periodo').textContent = rentPct(invData.serie, cartKey);
+      document.getElementById('inv-rent-periodo').style.color = 'var(--verde)';
+
+      // CDI
+      document.getElementById('inv-cdi-mes').textContent  = (() => { const yr=invData.cdiMensal; if(!yr) return '—'; const y=yr[anoAtual]; if(!y) return '—'; const v=y[mesAtual]; return v!==null ? v.toFixed(2)+'%' : '—'; })();
+      document.getElementById('inv-cdi-ano').textContent  = rentPct(serieAno, 'cdi');
+      document.getElementById('inv-cdi-12m').textContent  = rentPct(serie12m, 'cdi');
+      const rentCartPeriodo = invData.serie.length ? invData.serie[invData.serie.length-1][cartKey] - invData.serie[0][cartKey] : 0;
+      const rentCDIPeriodo  = invData.serie.length ? invData.serie[invData.serie.length-1].cdi    - invData.serie[0].cdi    : 0;
+      document.getElementById('inv-pct-cdi').textContent  = rentCDIPeriodo > 0 ? (rentCartPeriodo/rentCDIPeriodo*100).toFixed(1)+'%' : '—';
+
+      // Fluxo de resgate
+      const liqEl = document.getElementById('inv-liquidez-body');
+      const totalLiq = Object.values(invData.liqMap).reduce((s,v)=>s+v,0);
+      liqEl.innerHTML = Object.entries(invData.liqMap).filter(([,v])=>v>0).map(([k,v])=>{
+        const pct = totalLiq > 0 ? (v/totalLiq*100).toFixed(1) : 0;
+        return `<div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="color:var(--text-light);">${k}</span>
+          <span style="font-weight:600;color:var(--azul-principal);">${pct}%</span>
+        </div>`;
+      }).join('');
 
       // Gráfico performance
-      const labels = serie.filter((_,i) => i % Math.max(1, Math.floor(serie.length/40)) === 0 || i === serie.length-1)
-        .map(r => { const d = new Date(r.data+'T12:00:00'); return `${d.getDate()}/${d.getMonth()+1}`; });
-      const step = Math.max(1, Math.floor(serie.length/40));
-      const filtered = serie.filter((_,i) => i % step === 0 || i === serie.length-1);
-
+      const step = Math.max(1, Math.floor(serie.length/50));
+      const filtered = serie.filter((_,i)=>i%step===0||i===serie.length-1);
       if (_invChartPerf) { _invChartPerf.destroy(); _invChartPerf = null; }
       const ctxP = document.getElementById('inv-chart-perf');
-      if (ctxP) {
-        _invChartPerf = new Chart(ctxP, {
-          type: 'line',
-          data: {
-            labels: filtered.map(r => { const d=new Date(r.data+'T12:00:00'); return `${d.getDate()}/${d.getMonth()+1}`; }),
-            datasets: [
-              { label:'Mercado', data: filtered.map(r=>parseFloat(r.mercado.toFixed(4))),
-                borderColor:'#0F3D57', borderWidth:2, pointRadius:0, tension:0.3, fill:false },
-              { label:'Curva',   data: filtered.map(r=>parseFloat(r.curva.toFixed(4))),
-                borderColor:'#1D9E75', borderWidth:1.5, pointRadius:0, tension:0.3, fill:false, borderDash:[4,3] },
-              { label:'CDI',     data: filtered.map(r=>parseFloat(r.cdi.toFixed(4))),
-                borderColor:'#B4B2A9', borderWidth:1.5, pointRadius:0, tension:0.3, fill:false, borderDash:[2,3] }
-            ]
-          },
-          options: {
-            responsive:true, maintainAspectRatio:false,
-            plugins:{ legend:{ display:false }, tooltip:{ callbacks:{
-              label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)}%`
-            }}},
-            scales:{
-              x:{ grid:{ display:false }, ticks:{ font:{size:10}, maxTicksLimit:8, color:'#999' }},
-              y:{ grid:{ color:'rgba(0,0,0,0.04)' }, ticks:{ font:{size:10}, color:'#999',
-                  callback: v => v.toFixed(1)+'%' }}
-            }
-          }
-        });
-      }
-
-      // Gráfico pizza por IF
-      const ifMap = {};
-      invData.posicoes.forEach(p => {
-        const k = p.if_ || 'Outros';
-        ifMap[k] = (ifMap[k]||0) + p.saldo;
+      if (ctxP) _invChartPerf = new Chart(ctxP, {
+        type:'line',
+        data:{ labels: filtered.map(r=>{ const d=new Date(r.data+'T12:00:00'); return `${d.getDate()}/${d.getMonth()+1}`; }),
+          datasets:[
+            { label:isMerc?'Mercado':'Curva', data: filtered.map(r=>parseFloat(r[cartKey].toFixed(4))),
+              borderColor:'#0F3D57', borderWidth:2.5, pointRadius:0, tension:0.3, fill:false },
+            { label:'CDI', data: filtered.map(r=>parseFloat(r.cdi.toFixed(4))),
+              borderColor:'#B4B2A9', borderWidth:1.5, pointRadius:0, tension:0.3, fill:false, borderDash:[3,3] }
+          ]},
+        options:{ responsive:true, maintainAspectRatio:false,
+          plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)}%` }}},
+          scales:{ x:{ grid:{display:false}, ticks:{font:{size:10},maxTicksLimit:8,color:'#999'}},
+            y:{ grid:{color:'rgba(0,0,0,0.04)'}, ticks:{font:{size:10},color:'#999',callback:v=>v.toFixed(1)+'%'} } } }
       });
-      const ifEntries = Object.entries(ifMap).sort((a,b)=>b[1]-a[1]);
-      const COLORS = ['#0F3D57','#2E6B8E','#1D9E75','#629EC1','#85B7EB','#B4B2A9','#5F5E5A'];
 
-      if (_invChartIF) { _invChartIF.destroy(); _invChartIF = null; }
-      const ctxIF = document.getElementById('inv-chart-if');
-      if (ctxIF) {
-        _invChartIF = new Chart(ctxIF, {
-          type: 'doughnut',
-          data: {
-            labels: ifEntries.map(e=>e[0]),
-            datasets:[{ data: ifEntries.map(e=>parseFloat(e[1].toFixed(2))),
-              backgroundColor: ifEntries.map((_,i)=>COLORS[i%COLORS.length]),
-              borderWidth:0, hoverOffset:4 }]
-          },
-          options:{ responsive:true, maintainAspectRatio:false, cutout:'68%',
-            plugins:{ legend:{display:false}, tooltip:{ callbacks:{
-              label: ctx => ` ${ctx.label}: ${fmt(ctx.parsed)}`
-            }}}
-          }
-        });
-      }
+      // Gráfico por classe
+      _invRenderDoughnut('inv-chart-classe','inv-classe-legend', invData.classeMap, _invChartClasse, c=>_invChartClasse=c);
+      // Gráfico por custodiante
+      _invRenderDoughnut('inv-chart-cust','inv-cust-legend', invData.custMap, _invChartCust, c=>_invChartCust=c);
 
-      // Legenda IF
-      const legend = document.getElementById('inv-if-legend');
-      if (legend) {
-        legend.innerHTML = ifEntries.map((e,i) => {
-          const pct = invData.totalSaldo > 0 ? (e[1]/invData.totalSaldo*100).toFixed(1) : 0;
-          return `<div style="display:flex;justify-content:space-between;align-items:center;">
-            <span style="display:flex;align-items:center;gap:6px;">
-              <span style="width:8px;height:8px;border-radius:2px;background:${COLORS[i%COLORS.length]};flex-shrink:0;"></span>
-              <span style="font-size:11px;color:var(--text-dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px;">${e[0]}</span>
-            </span>
-            <span style="font-size:11px;color:var(--text-light);margin-left:8px;">${pct}%</span>
-          </div>`;
-        }).join('');
-      }
-
-      // Tabela de posições
-      const total = invData.totalSaldo;
-      const tbody = document.getElementById('inv-posicoes-tbody');
-      if (!invData.posicoes.length) {
-        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Nenhuma posição encontrada</td></tr>';
-        return;
-      }
-      tbody.innerHTML = invData.posicoes.map(p => {
-        const rentab = p.aplicado > 0 ? ((p.saldo - p.aplicado) / p.aplicado * 100) : 0;
-        const pctCart = total > 0 ? (p.saldo / total * 100).toFixed(1) : '0';
-        const cor = rentab >= 0 ? 'var(--verde)' : '#ef4444';
-        const rentStr = (rentab>=0?'+':'') + rentab.toFixed(2) + '%';
-        const desc = p.desc.length > 35 ? p.desc.substring(0,33)+'…' : p.desc;
+      // Tabela retorno mensal
+      const tbody = document.getElementById('inv-mensal-tbody');
+      const anos = Object.keys(invData.rentMensalCalc||{}).sort();
+      tbody.innerHTML = anos.map(ano => {
+        const meses = invData.rentMensalCalc[ano]||{};
+        const anoTotal = Object.values(meses).reduce((s,v)=>s*(1+v/100),1)-1;
         return `<tr>
-          <td style="font-size:12px;" title="${p.desc}">${desc}</td>
-          <td style="text-align:right;font-size:12px;">${fmt(p.aplicado)}</td>
-          <td style="text-align:right;font-size:12px;font-weight:600;">${fmt(p.saldo)}</td>
-          <td style="text-align:right;font-size:12px;color:${cor};">${rentStr}</td>
-          <td style="text-align:right;font-size:12px;">${pctCart}%</td>
-          <td style="font-size:11px;color:var(--text-light);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px;" title="${p.if_}">${p.if_||'—'}</td>
+          <td style="font-weight:600;">${ano}</td>
+          ${MESES_ABR.map((_,i)=>{
+            const v = meses[i+1];
+            const cor = v===undefined?'color:#ccc':v>=0?'color:var(--verde)':'color:#ef4444';
+            return `<td style="text-align:right;${cor};">${v!==undefined?v.toFixed(2):'—'}</td>`;
+          }).join('')}
+          <td style="text-align:right;font-weight:600;${anoTotal>=0?'color:var(--verde)':'color:#ef4444'};">${(anoTotal*100).toFixed(2)}</td>
         </tr>`;
       }).join('');
+
+      // Tabela posição consolidada
+      const posBody = document.getElementById('inv-posicoes-tbody');
+      if (invData.posData)
+        document.getElementById('inv-pos-data').textContent =
+          new Date(invData.posData+'T12:00:00').toLocaleDateString('pt-BR');
+
+      // Agrupa por classe
+      const classeGrupos = {};
+      invData.posicoes.forEach(p => {
+        const cls = invClasseFromDesc(p.desc, p.marc);
+        if (!classeGrupos[cls]) classeGrupos[cls] = [];
+        classeGrupos[cls].push(p);
+      });
+
+      const totalPos = invData.totalSaldo;
+      posBody.innerHTML = Object.entries(classeGrupos).map(([cls, ativos]) => {
+        const clsTotal = ativos.reduce((s,a)=>s+a.saldo,0);
+        const clsPct   = totalPos>0?(clsTotal/totalPos*100).toFixed(2):0;
+        const header   = `<tr style="background:var(--cinza-claro);">
+          <td colspan="7" style="font-weight:700;font-size:12px;color:var(--azul-principal);padding:8px 12px;">${cls} — ${fmt(clsTotal)} (${clsPct}%)</td>
+        </tr>`;
+        const rows = ativos.map(p => {
+          const pct = totalPos>0?(p.saldo/totalPos*100).toFixed(2):0;
+          const desc = p.desc.length>40?p.desc.substring(0,38)+'…':p.desc;
+          return `<tr>
+            <td style="font-size:11px;padding-left:20px;" title="${p.desc}">${desc}</td>
+            <td style="text-align:right;font-size:12px;">${fmt(p.saldo)}</td>
+            <td style="text-align:right;font-size:12px;">${pct}%</td>
+            <td style="text-align:right;font-size:12px;color:var(--text-light);">—</td>
+            <td style="text-align:right;font-size:12px;">${fmt(p.saldo)}</td>
+            <td style="font-size:11px;color:var(--text-light);">—</td>
+            <td style="font-size:11px;color:var(--text-light);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${p.if_}">${p.if_||'—'}</td>
+          </tr>`;
+        }).join('');
+        return header + rows;
+      }).join('');
+    }
+
+    function _invRenderDoughnut(canvasId, legendId, dataMap, chartRef, setRef) {
+      if (chartRef) { chartRef.destroy(); setRef(null); }
+      const entries = Object.entries(dataMap).sort((a,b)=>b[1]-a[1]);
+      const total   = entries.reduce((s,[,v])=>s+v,0);
+      const ctx = document.getElementById(canvasId);
+      if (!ctx) return;
+      const chart = new Chart(ctx, {
+        type:'doughnut',
+        data:{ labels:entries.map(e=>e[0]),
+          datasets:[{ data:entries.map(e=>parseFloat(e[1].toFixed(2))),
+            backgroundColor:entries.map((_,i)=>INV_COLORS[i%INV_COLORS.length]),
+            borderWidth:0, hoverOffset:4 }]},
+        options:{ responsive:true, maintainAspectRatio:false, cutout:'65%',
+          plugins:{ legend:{display:false}, tooltip:{ callbacks:{
+            label: ctx => ` ${ctx.label}: ${fmt(ctx.parsed)}` }}}}
+      });
+      setRef(chart);
+      const legendEl = document.getElementById(legendId);
+      if (legendEl) legendEl.innerHTML = entries.map(([k,v],i)=>{
+        const pct = total>0?(v/total*100).toFixed(1):0;
+        return `<div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="display:flex;align-items:center;gap:5px;">
+            <span style="width:8px;height:8px;border-radius:2px;background:${INV_COLORS[i%INV_COLORS.length]};flex-shrink:0;"></span>
+            <span style="color:var(--text-dark);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px;" title="${k}">${k}</span>
+          </span>
+          <span style="color:var(--text-light);margin-left:6px;">${pct}%</span>
+        </div>`;
+      }).join('');
+    }
+
+    async function invGerarPDF() {
+      alert('📄 PDF em desenvolvimento — em breve!');
     }
 
     // ========== FIM INVESTIMENTOS ==========
