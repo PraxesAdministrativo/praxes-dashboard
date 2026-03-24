@@ -912,6 +912,50 @@
       display: none;
     }
 
+    /* ADMIN */
+    .admin-panel {
+      position: fixed; inset: 0; background: var(--azul-principal);
+      z-index: 5000; display: flex; flex-direction: column;
+      align-items: center; justify-content: flex-start;
+      padding: 40px 24px; overflow-y: auto;
+    }
+    .admin-header {
+      width: 100%; max-width: 900px; display: flex;
+      align-items: center; justify-content: space-between; margin-bottom: 32px;
+    }
+    .admin-logo { font-size: 28px; font-weight: 700; color: #fff; letter-spacing: 2px; }
+    .admin-subtitle { font-size: 14px; color: rgba(255,255,255,0.6); margin-top: 4px; }
+    .admin-clients-grid {
+      width: 100%; max-width: 900px;
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(260px,1fr)); gap: 16px;
+    }
+    .admin-client-card {
+      background: rgba(255,255,255,0.08); border-radius: 14px;
+      padding: 22px; cursor: pointer; transition: all 0.2s;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .admin-client-card:hover {
+      background: rgba(255,255,255,0.15); transform: translateY(-3px);
+      border-color: rgba(255,255,255,0.3);
+    }
+    .admin-client-avatar {
+      width: 44px; height: 44px; border-radius: 50%;
+      background: var(--azul-terciario); display: flex; align-items: center;
+      justify-content: center; font-weight: 700; font-size: 16px;
+      color: #fff; margin-bottom: 14px;
+    }
+    .admin-client-name { font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+    .admin-client-email { font-size: 12px; color: rgba(255,255,255,0.5); }
+    .admin-back-btn {
+      position: fixed; bottom: 28px; right: 28px; z-index: 6000;
+      background: var(--azul-principal); color: #fff;
+      border: 2px solid rgba(255,255,255,0.3); border-radius: 50px;
+      padding: 12px 24px; font-size: 13px; font-weight: 700;
+      cursor: pointer; box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      transition: all 0.2s; font-family: 'Montserrat', sans-serif;
+    }
+    .admin-back-btn:hover { background: var(--azul-secundario); transform: scale(1.05); }
+
     /* ===== CONTROLE FINANCEIRO ===== */
     .fin-tabs-header {
       display: flex;
@@ -2062,6 +2106,50 @@
     </div>
   </div>
 
+  <!-- ADMIN PANEL -->
+  <div id="admin-panel" style="display:none;" class="admin-panel">
+    <div class="admin-header">
+      <div>
+        <div class="admin-logo">PRAXES</div>
+        <div class="admin-subtitle">Painel Administrativo</div>
+      </div>
+      <div style="font-size:13px;color:rgba(255,255,255,0.5);" id="admin-count"></div>
+    </div>
+    <div class="admin-clients-grid" id="admin-clients-grid">
+      <div style="color:rgba(255,255,255,0.5);padding:40px;grid-column:1/-1;text-align:center;">
+        <div class="spinner" style="border-color:rgba(255,255,255,0.2);border-top-color:#fff;"></div>
+        <p style="margin-top:16px;">Carregando clientes...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTÃO VOLTAR ADMIN (aparece quando admin está vendo cliente) -->
+  <button id="admin-back-btn" class="admin-back-btn" style="display:none;" onclick="adminVoltar()">
+    ← Voltar ao Painel Admin
+  </button>
+
+  <!-- ADMIN PANEL -->
+  <div id="admin-panel" style="display:none;" class="admin-panel">
+    <div class="admin-header">
+      <div>
+        <div class="admin-logo">PRAXES</div>
+        <div class="admin-subtitle">Painel Administrativo</div>
+      </div>
+      <div style="font-size:13px;color:rgba(255,255,255,0.5);" id="admin-count"></div>
+    </div>
+    <div class="admin-clients-grid" id="admin-clients-grid">
+      <div style="color:rgba(255,255,255,0.5);padding:40px;grid-column:1/-1;text-align:center;">
+        <div class="spinner" style="border-color:rgba(255,255,255,0.2);border-top-color:#fff;margin:0 auto;"></div>
+        <p style="margin-top:16px;">Carregando clientes...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTÃO VOLTAR ADMIN -->
+  <button id="admin-back-btn" class="admin-back-btn" style="display:none;" onclick="adminVoltar()">
+    ← Voltar ao Painel Admin
+  </button>
+
   <!-- MODAL LANÇAMENTO (add/edit) -->
   <div class="modal" id="modal-lanc">
     <div class="modal-content" style="max-width:560px;">
@@ -2483,7 +2571,7 @@
         
         const { data: client, error } = await db
           .from('clients')
-          .select('spreadsheet_id, name, imoveis_sheet_id, imoveis_folder_id, financeiro_sheet_id')
+          .select('spreadsheet_id, name, imoveis_sheet_id, imoveis_folder_id, financeiro_sheet_id, is_admin')
           .eq('email', email)
           .single();
         
@@ -2549,12 +2637,12 @@
         }
         
         document.getElementById('auth-section').style.display = 'none';
-        document.getElementById('app-container').style.display = 'flex';
-        
-        document.getElementById('sidebar-name').textContent = client.name;
-        document.getElementById('sidebar-avatar').textContent = client.name.substring(0, 2).toUpperCase();
-        
-        loadDashboard();
+
+        if (client.is_admin) {
+          await adminShowPanel();
+        } else {
+          adminCarregarCliente(client);
+        }
       }
     });
 
@@ -6750,6 +6838,85 @@ Esta ação não pode ser desfeita.`)) return;
       if (isNaN(n)) return 'R$ 0';
       return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
     }
+
+    // ========== ADMIN ==========
+    let _adminClients = [];
+    let _adminOriginalClient = null;
+
+    async function adminShowPanel() {
+      document.getElementById('admin-panel').style.display = 'flex';
+      document.getElementById('app-container').style.display = 'none';
+
+      // Busca todos os clientes
+      const { data: clients } = await db.from('clients').select('*').order('name');
+      _adminClients = clients || [];
+
+      document.getElementById('admin-count').textContent = _adminClients.length + ' cliente(s)';
+
+      const grid = document.getElementById('admin-clients-grid');
+      if (!_adminClients.length) {
+        grid.innerHTML = '<p style="color:rgba(255,255,255,0.5);grid-column:1/-1;text-align:center;padding:40px;">Nenhum cliente cadastrado.</p>';
+        return;
+      }
+
+      grid.innerHTML = _adminClients.map((c, i) => {
+        const initials = c.name.split(' ').map(p=>p[0]).slice(0,2).join('').toUpperCase();
+        const colors = ['#629ec1','#10b981','#8b5cf6','#f59e0b','#ef4444','#06b6d4'];
+        const bg = colors[i % colors.length];
+        return `<div class="admin-client-card" onclick="adminEntrarComoCliente(${i})">
+          <div class="admin-client-avatar" style="background:${bg};">${initials}</div>
+          <div class="admin-client-name">${c.name}</div>
+          <div class="admin-client-email">${c.email}</div>
+        </div>`;
+      }).join('');
+    }
+
+    async function adminEntrarComoCliente(idx) {
+      const client = _adminClients[idx];
+      document.getElementById('admin-panel').style.display = 'none';
+      document.getElementById('admin-back-btn').style.display = 'block';
+      adminCarregarCliente(client);
+    }
+
+    function adminCarregarCliente(client) {
+      resumoSheetId    = client.spreadsheet_id;
+      imoveisSheetId   = client.imoveis_sheet_id || '1FL7TlnRqTAkBUDM5ICMFvo5-6ezV92zPFAWevyEJT90';
+      imoveisFolderId  = client.imoveis_folder_id || '1fhcguz-nrayJ0kAS-y1j9LQggs5wbD7i';
+      window.finSheetOverride = client.financeiro_sheet_id || client.spreadsheet_id;
+
+      // Reseta dados em memória do cliente anterior
+      imoveisData    = [];
+      finLancamentos = [];
+      finGerRows     = [];
+      finColMap      = {};
+      docsData       = [];
+      veiculosData   = [];
+
+      document.getElementById('app-container').style.display = 'flex';
+      document.getElementById('sidebar-name').textContent = client.name;
+      document.getElementById('sidebar-avatar').textContent = client.name.substring(0,2).toUpperCase();
+
+      // Destaca quando admin está vendo outro cliente
+      const backBtn = document.getElementById('admin-back-btn');
+      if (backBtn.style.display === 'block') {
+        backBtn.textContent = '← Voltar ao Admin  |  Visualizando: ' + client.name;
+      }
+
+      navigateTo('dashboard');
+      loadDashboard();
+    }
+
+    async function adminVoltar() {
+      document.getElementById('admin-back-btn').style.display = 'none';
+      document.getElementById('app-container').style.display = 'none';
+
+      // Reseta dados
+      imoveisData=[]; finLancamentos=[]; finGerRows=[]; finColMap={}; docsData=[]; veiculosData=[];
+
+      await adminShowPanel();
+    }
+
+    // ========== FIM ADMIN ==========
 
     // EVENT LISTENERS
     window.addEventListener('load', async () => {
