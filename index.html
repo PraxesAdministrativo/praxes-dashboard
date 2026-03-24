@@ -1310,19 +1310,19 @@
         <div class="page active" id="page-dashboard">
           <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);">
             <div class="stat-card">
+              <div class="stat-label">Patrimônio Total</div>
+              <div class="stat-value" id="total-patrimonio">R$ 0</div>
+              <div class="stat-change" id="patrimonio-change">Carregando...</div>
+            </div>
+            <div class="stat-card">
               <div class="stat-label">Imóveis</div>
               <div class="stat-value" id="total-imoveis">R$ 0</div>
               <div class="stat-change" id="imoveis-change">Carregando...</div>
             </div>
             <div class="stat-card">
-              <div class="stat-label">Rendas — Mês Atual</div>
-              <div class="stat-value" id="total-investimentos">R$ 0</div>
-              <div class="stat-change" id="investimentos-change">Carregando...</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-label">Resultado — Mês Atual</div>
-              <div class="stat-value" id="total-patrimonio">R$ 0</div>
-              <div class="stat-change" id="patrimonio-change">Carregando...</div>
+              <div class="stat-label">Investimentos</div>
+              <div class="stat-value" id="total-investimentos">—</div>
+              <div class="stat-change" id="investimentos-change">Em breve</div>
             </div>
           </div>
           <!-- Alertas de vencimento com carrossel -->
@@ -2626,15 +2626,16 @@
         const saldo = rendaTotal - despTotal;
         const mesTxt = MESES_PT[mesAtual-1]+' '+anoAtual;
 
-        document.getElementById('total-investimentos').textContent = fmt(rendaTotal);
-        document.getElementById('investimentos-change').textContent = mesTxt;
-        document.getElementById('investimentos-change').className = 'stat-change';
-
-        const elRes = document.getElementById('total-patrimonio');
-        elRes.textContent = (saldo>=0?'+':'')+fmt(saldo);
-        elRes.style.color = saldo>=0?'#10b981':'#ef4444';
-        document.getElementById('patrimonio-change').textContent = 'Despesas: '+fmt(despTotal)+' · '+mesTxt;
+        // Patrimônio Total = Imóveis + (futuramente Investimentos)
+        const totalPatrimonio = totalImoveis; // será expandido quando investimentos for conectado
+        document.getElementById('total-patrimonio').textContent = fmt(totalPatrimonio);
+        document.getElementById('patrimonio-change').textContent = imoveisData.length+' imóvel(is) · '+veiculosData.length+' veículo(s)';
         document.getElementById('patrimonio-change').className = 'stat-change';
+
+        // Investimentos — placeholder até integração
+        document.getElementById('total-investimentos').textContent = '—';
+        document.getElementById('investimentos-change').textContent = 'Em breve';
+        document.getElementById('investimentos-change').className = 'stat-change';
 
         // ---- VEÍCULOS (carrega silenciosamente se não carregou) ----
         if (!veiculosData.length) await veiculosLoad();
