@@ -2803,40 +2803,32 @@
 
     function _dashRenderCarrossel(alertas, hoje) {
       const container = document.getElementById('dash-alertas');
-      if (!alertas.length) { container.innerHTML=''; return; }
+      if (_dashCarrosselInterval) { clearInterval(_dashCarrosselInterval); _dashCarrosselInterval = null; }
+      if (!alertas.length) { container.innerHTML = ''; return; }
 
-      if (_dashCarrosselInterval) clearInterval(_dashCarrosselInterval);
+      const rows = alertas.map(a => {
+        const cor = a.diff < 0 ? '#dc2626' : a.diff < 30 ? '#b45309' : '#1e4d6b';
+        const tag = a.diff < 0 ? 'Vencido' : a.diff < 30 ? `${a.diff} dias` : `${a.diff} dias`;
+        const dot = a.diff < 0 ? '#dc2626' : a.diff < 30 ? '#d97706' : '#3b82f6';
+        const tipo = a.tipo === 'doc' ? 'Documento' : 'Veículo';
+        return `<tr style="border-bottom:1px solid #f1f1f1;">
+          <td style="padding:11px 0;width:8px;vertical-align:middle;">
+            <div style="width:6px;height:6px;border-radius:50%;background:${dot};margin-right:0;"></div>
+          </td>
+          <td style="padding:11px 12px;font-size:13px;color:var(--text-dark);font-weight:500;">${a.label}</td>
+          <td style="padding:11px 12px;font-size:11px;color:#999;text-transform:uppercase;letter-spacing:.5px;">${tipo}</td>
+          <td style="padding:11px 0;font-size:12px;font-weight:600;color:${cor};text-align:right;white-space:nowrap;">${tag}</td>
+        </tr>`;
+      }).join('');
 
-      const ITEMS_VISIVEIS = 4;
-      let offset = 0;
-
-      function render() {
-        const slice = [];
-        for (let i=0; i<ITEMS_VISIVEIS; i++) slice.push(alertas[(offset+i)%alertas.length]);
-        container.innerHTML = `
-          <div style="background:#fff;border-radius:14px;padding:20px 24px;box-shadow:0 4px 16px rgba(15,61,87,.07);margin-top:8px;">
-            <div style="font-size:14px;font-weight:700;color:var(--azul-principal);margin-bottom:14px;">🔔 Alertas de Vencimento <span style="font-size:11px;font-weight:400;color:var(--text-light);margin-left:8px;">${alertas.length} item(s)</span></div>
-            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
-              ${slice.map(a=>{
-                const cor = a.diff<0?'#ef4444':a.diff<30?'#f59e0b':'#2e6b8e';
-                const bg  = a.diff<0?'#fee2e2':a.diff<30?'#fef3c7':'#eff6ff';
-                const txt = a.diff<0?'VENCIDO':`${a.diff}d`;
-                const ico = a.tipo==='doc'?'📄':'🚗';
-                return `<div style="background:${bg};border-radius:10px;padding:14px;border-left:3px solid ${cor};transition:all .3s;">
-                  <div style="font-size:11px;color:#888;margin-bottom:4px;">${ico} ${a.tipo==='doc'?'Documento':'Veículo'}</div>
-                  <div style="font-size:13px;font-weight:600;color:#333;margin-bottom:6px;line-height:1.3;">${a.label}</div>
-                  <div style="font-size:13px;font-weight:700;color:${cor};">${txt}</div>
-                </div>`;
-              }).join('')}
-            </div>
-          </div>`;
-        offset = (offset + ITEMS_VISIVEIS) % alertas.length;
-      }
-
-      render();
-      if (alertas.length > ITEMS_VISIVEIS) {
-        _dashCarrosselInterval = setInterval(render, 10000);
-      }
+      container.innerHTML = `
+        <div style="background:#fff;border-radius:14px;padding:24px 28px;box-shadow:0 2px 12px rgba(15,61,87,.06);margin-top:16px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <span style="font-size:13px;font-weight:700;color:var(--azul-principal);letter-spacing:.3px;text-transform:uppercase;">Vencimentos</span>
+            <span style="font-size:11px;color:#aaa;">${alertas.length} item${alertas.length > 1 ? 's' : ''}</span>
+          </div>
+          <table style="width:100%;border-collapse:collapse;">${rows}</table>
+        </div>`;
     }
 
     // LOAD IMOVEIS
