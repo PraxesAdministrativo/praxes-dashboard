@@ -304,12 +304,47 @@
     }
     .imovel-image {
       width: 100%;
-      height: 200px;
-      background: linear-gradient(135deg, var(--azul-principal) 0%, var(--azul-terciario) 100%);
+      height: 160px;
+      background: linear-gradient(135deg, #0f3d57 0%, #1a5a7a 60%, #2e6b8e 100%);
       display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 60px;
+      align-items: flex-end;
+      justify-content: space-between;
+      padding: 16px 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    .imovel-image::before {
+      content: '';
+      position: absolute;
+      top: -40px; right: -40px;
+      width: 160px; height: 160px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.04);
+    }
+    .imovel-image::after {
+      content: '';
+      position: absolute;
+      bottom: -20px; left: -20px;
+      width: 100px; height: 100px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.04);
+    }
+    .card-type-badge {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.7);
+      background: rgba(255,255,255,0.1);
+      border-radius: 20px;
+      padding: 4px 10px;
+      position: relative;
+      z-index: 1;
+    }
+    .card-type-icon {
+      position: relative;
+      z-index: 1;
+      opacity: 0.9;
     }
     .imovel-body {
       padding: 20px;
@@ -2923,11 +2958,14 @@
         const variacaoClass = variacao >= 0 ? 'positive' : 'negative';
         const variacaoSymbol = variacao >= 0 ? '+' : '';
         
-        const emoji = tipo === 'Apartamento' ? '🏢' : tipo === 'Casa' ? '🏡' : tipo === 'Terreno' ? '🏞️' : '🏠';
+        const tipoLabel = tipo || 'Imóvel';
         
         html += `
           <div class="imovel-card">
-            <div class="imovel-image">${emoji}</div>
+            <div class="imovel-image">
+              <span class="card-type-badge">${tipoLabel}</span>
+              <span class="card-type-icon">${svgImovel(grupo)}</span>
+            </div>
             <div class="imovel-body">
               <div class="imovel-title">${nome}</div>
               <div class="imovel-meta">${grupo} • ${subgrupo}</div>
@@ -6264,16 +6302,47 @@ Esta ação não pode ser desfeita.`)) return;
       }
     }
 
+    // SVG icons minimalistas para cards
+    function svgImovel(grupo) {
+      const isInv = (grupo||'').toLowerCase().includes('invest');
+      return `<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="8" y="20" width="32" height="22" rx="2" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
+        <path d="M4 22L24 8L44 22" stroke="rgba(255,255,255,0.6)" stroke-width="2" stroke-linecap="round"/>
+        <rect x="18" y="30" width="12" height="12" rx="1" fill="rgba(255,255,255,0.25)"/>
+        <rect x="12" y="26" width="5" height="5" rx="0.5" fill="rgba(255,255,255,0.3)"/>
+        <rect x="31" y="26" width="5" height="5" rx="0.5" fill="rgba(255,255,255,0.3)"/>
+        ${isInv ? '<circle cx="38" cy="12" r="6" fill="rgba(16,185,129,0.8)"/><path d="M35 12l2 2 4-4" stroke="white" stroke-width="1.5" stroke-linecap="round"/>' : ''}
+      </svg>`;
+    }
+
+    function svgVeiculo(tipo) {
+      const isBarco = ['Lancha','Veleiro','Jet Ski'].includes(tipo);
+      if (isBarco) return `<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M8 30L24 18L40 30" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
+        <path d="M4 34h40l-4 6H8z" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
+        <path d="M24 8v22" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
+      </svg>`;
+      return `<svg width="52" height="36" viewBox="0 0 52 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="6" y="12" width="40" height="16" rx="4" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
+        <path d="M12 12V8a2 2 0 012-2h14l8 6H12z" fill="rgba(255,255,255,0.2)" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
+        <circle cx="14" cy="29" r="5" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
+        <circle cx="14" cy="29" r="2" fill="rgba(255,255,255,0.3)"/>
+        <circle cx="38" cy="29" r="5" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
+        <circle cx="38" cy="29" r="2" fill="rgba(255,255,255,0.3)"/>
+        <rect x="28" y="16" width="12" height="1.5" rx="0.75" fill="rgba(255,255,255,0.3)"/>
+      </svg>`;
+    }
+
     function renderVeiculos() {
       const grid = document.getElementById('veiculos-grid');
       if (!veiculosData.length) {
         grid.innerHTML = '<p style="text-align:center;padding:60px;color:#999;">Nenhum veículo cadastrado.</p>';
         return;
       }
-      const emojis = {Carro:'🚗',SUV:'🚙',Caminhonete:'🛻',Moto:'🏍️',Lancha:'⛵',Veleiro:'⛵',Caminhão:'🚛','Jet Ski':'🏄'};
+      const tiposVei = ['Carro','SUV','Caminhonete','Moto','Lancha','Veleiro','Caminhão','Jet Ski','Outro'];
       grid.innerHTML = veiculosData.map((row, i) => {
         const [nome,tipo,marca,modelo,ano,placa,,cor,valor,,vencIPVA,vencSeg,vencLic] = row;
-        const emoji = emojis[tipo] || '🚗';
+        const tipoVei = tipo || 'Veículo';
         const hoje = new Date();
         const alertas = [
           {label:'IPVA', data: vencIPVA},
@@ -6289,7 +6358,10 @@ Esta ação não pode ser desfeita.`)) return;
         }).filter(Boolean).join(' ');
 
         return `<div class="imovel-card">
-          <div class="imovel-image">${emoji}</div>
+          <div class="imovel-image" style="background:linear-gradient(135deg,#1a3a4a 0%,#1e5068 60%,#246080 100%);">
+              <span class="card-type-badge">${tipoVei}</span>
+              <span class="card-type-icon">${svgVeiculo(tipoVei)}</span>
+            </div>
           <div class="imovel-body">
             <div class="imovel-title">${nome}</div>
             <div class="imovel-meta">${[marca,modelo,ano].filter(Boolean).join(' • ')}</div>
