@@ -954,6 +954,16 @@
       display: none;
     }
 
+    /* INVESTIMENTOS */
+    .inv-period-btn {
+      padding: 5px 12px; font-size: 12px; font-weight: 500;
+      border: none; background: transparent; border-radius: 6px;
+      cursor: pointer; color: var(--text-light); font-family: 'Montserrat',sans-serif;
+      transition: all 0.15s;
+    }
+    .inv-period-btn.active { background: var(--azul-terciario); color: var(--azul-principal); }
+    .inv-period-btn:hover:not(.active) { background: var(--cinza-claro); }
+
     /* ADMIN */
     .admin-panel {
       position: fixed; inset: 0; background: var(--azul-principal);
@@ -1603,8 +1613,78 @@
 
         <!-- OUTRAS PÁGINAS (placeholders) -->
         <div class="page" id="page-investimentos">
-          <h2>Investimentos</h2>
-          <p>Em desenvolvimento...</p>
+          <!-- Período tabs -->
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+            <div id="inv-data-ref" style="font-size:12px;color:var(--text-light);"></div>
+            <div style="display:flex;gap:4px;background:var(--branco);border-radius:8px;padding:4px;border:1px solid var(--borda);">
+              <button class="inv-period-btn active" data-period="ytd" onclick="invSetPeriod('ytd',this)">YTD</button>
+              <button class="inv-period-btn" data-period="6m"  onclick="invSetPeriod('6m',this)">6M</button>
+              <button class="inv-period-btn" data-period="12m" onclick="invSetPeriod('12m',this)">12M</button>
+              <button class="inv-period-btn" data-period="all" onclick="invSetPeriod('all',this)">Início</button>
+            </div>
+          </div>
+
+          <!-- KPIs -->
+          <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px;" id="inv-kpis">
+            <div class="stat-card"><div class="stat-label">Patrimônio Total</div><div class="stat-value" id="inv-patrimonio">—</div><div class="stat-change" id="inv-patrimonio-sub">Carregando...</div></div>
+            <div class="stat-card"><div class="stat-label">Rentab. a Mercado</div><div class="stat-value" id="inv-rent-mercado">—</div><div class="stat-change" id="inv-rent-mercado-sub">—</div></div>
+            <div class="stat-card"><div class="stat-label">Rentab. na Curva</div><div class="stat-value" id="inv-rent-curva">—</div><div class="stat-change" id="inv-rent-curva-sub">—</div></div>
+            <div class="stat-card"><div class="stat-label">CDI no Período</div><div class="stat-value" id="inv-cdi">—</div><div class="stat-change">Benchmark</div></div>
+          </div>
+
+          <!-- Gráfico de performance -->
+          <div class="gestao-section" style="margin-bottom:20px;">
+            <div class="gestao-header">
+              <h3 class="gestao-title">Performance acumulada</h3>
+              <div style="display:flex;gap:16px;font-size:12px;color:var(--text-light);">
+                <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:3px;background:#0F3D57;border-radius:2px;display:inline-block;"></span>Mercado</span>
+                <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:3px;background:#1D9E75;border-radius:2px;display:inline-block;"></span>Curva</span>
+                <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:3px;background:#B4B2A9;border-radius:2px;display:inline-block;"></span>CDI</span>
+              </div>
+            </div>
+            <div style="position:relative;width:100%;height:260px;">
+              <canvas id="inv-chart-perf"></canvas>
+            </div>
+          </div>
+
+          <!-- Linha inferior: pizza + posições -->
+          <div style="display:grid;grid-template-columns:280px 1fr;gap:20px;">
+            <!-- Alocação por IF -->
+            <div class="gestao-section">
+              <div class="gestao-header"><h3 class="gestao-title">Alocação por IF</h3></div>
+              <div style="position:relative;width:100%;height:200px;"><canvas id="inv-chart-if"></canvas></div>
+              <div id="inv-if-legend" style="font-size:11px;margin-top:12px;display:flex;flex-direction:column;gap:6px;"></div>
+            </div>
+
+            <!-- Posições -->
+            <div class="gestao-section">
+              <div class="gestao-header"><h3 class="gestao-title">Posições</h3></div>
+              <div style="overflow-x:auto;">
+                <table class="gestao-table" style="table-layout:fixed;width:100%;">
+                  <thead>
+                    <tr>
+                      <th style="width:35%;">Ativo</th>
+                      <th style="width:15%;text-align:right;">Aplicado</th>
+                      <th style="width:15%;text-align:right;">Saldo Atual</th>
+                      <th style="width:12%;text-align:right;">Rentab.</th>
+                      <th style="width:10%;text-align:right;">% Cart.</th>
+                      <th style="width:13%;">Instituição</th>
+                    </tr>
+                  </thead>
+                  <tbody id="inv-posicoes-tbody">
+                    <tr><td colspan="6" class="empty-state">Carregando...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sem planilha configurada -->
+          <div id="inv-no-sheet" style="display:none;text-align:center;padding:60px 20px;">
+            <div style="font-size:32px;margin-bottom:16px;">📊</div>
+            <div style="font-size:15px;font-weight:600;color:var(--azul-principal);margin-bottom:8px;">Planilha de investimentos não configurada</div>
+            <div style="font-size:13px;color:var(--text-light);">Adicione o ID da planilha na coluna <code>investimentos_sheet_id</code> da tabela clients no Supabase.</div>
+          </div>
         </div>
 
         <!-- CONTROLE FINANCEIRO PAGE -->
@@ -2559,7 +2639,8 @@
       if (pageName === 'imoveis') {
         loadImoveis();
       }
-      if (pageName === 'financeiro') { finInit(); }
+      if (pageName === 'financeiro')    { finInit(); }
+      if (pageName === 'investimentos') { invInit(); }
       if (pageName === 'veiculos')   { veiculosInit(); }
       if (pageName === 'documentos') { docsInit(); }
       if (pageName === 'perfil')     { perfilInit(); }
@@ -2613,7 +2694,7 @@
         
         const { data: client, error } = await db
           .from('clients')
-          .select('spreadsheet_id, name, imoveis_sheet_id, imoveis_folder_id, financeiro_sheet_id, is_admin')
+          .select('spreadsheet_id, name, imoveis_sheet_id, imoveis_folder_id, financeiro_sheet_id, is_admin, investimentos_sheet_id')
           .eq('email', email)
           .single();
         
@@ -2635,6 +2716,7 @@
         // Controle Financeiro usa a planilha de orçamento do cliente
         // Se tiver um sheet específico, usa ele; caso contrário, usa o spreadsheet_id (mesmo do resumo)
         window.finSheetOverride = client.financeiro_sheet_id || client.spreadsheet_id;
+        window.invSheetId = client.investimentos_sheet_id || null;
         
         console.log('✅ Using Imoveis Sheet:', imoveisSheetId);
         console.log('✅ Using Imoveis Folder:', imoveisFolderId);
@@ -6910,6 +6992,252 @@ Esta ação não pode ser desfeita.`)) return;
       return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
     }
 
+    // ========== INVESTIMENTOS ==========
+    let invData = { loaded: false };
+    let invPeriod = 'ytd';
+    let _invChartPerf = null;
+    let _invChartIF   = null;
+
+    async function invInit() {
+      const sheetId = window.invSheetId;
+      if (!sheetId) {
+        document.getElementById('inv-no-sheet').style.display = 'block';
+        document.getElementById('inv-kpis').style.display = 'none';
+        return;
+      }
+      document.getElementById('inv-no-sheet').style.display = 'none';
+      document.getElementById('inv-kpis').style.display = '';
+      if (!invData.loaded) await invLoad(sheetId);
+      invRender();
+    }
+
+    async function invLoad(sheetId) {
+      try {
+        const resp = await gapi.client.sheets.spreadsheets.values.batchGet({
+          spreadsheetId: sheetId,
+          ranges: ['Página14!A1:D500', 'carteira!A1:R2000', 'curva_smart!A1:H500'],
+          valueRenderOption: 'UNFORMATTED_VALUE'
+        });
+
+        // Página14 — série histórica
+        const p14Rows = resp.result.valueRanges[0].values || [];
+        invData.serie = [];
+        for (let i = 1; i < p14Rows.length; i++) {
+          const r = p14Rows[i];
+          if (!r[0]) continue;
+          const dt = parseSheetDate(r[0]);
+          if (!dt) continue;
+          invData.serie.push({
+            data: dt,
+            mercado: parseFloat(r[1]) || 0,
+            cdi:     parseFloat(r[2]) || 0,
+            curva:   parseFloat(r[3]) || 0
+          });
+        }
+        invData.serie.sort((a,b) => a.data.localeCompare(b.data));
+
+        // curva_smart — patrimônio mais recente
+        const csRows = resp.result.valueRanges[2].values || [];
+        const lastCS = csRows.filter(r => r[4]).pop();
+        invData.patrimonio = lastCS ? parseFloat(lastCS[4]) : 0;
+        invData.dataRef = lastCS ? parseSheetDate(lastCS[0]) : '';
+
+        // carteira — posições (última data disponível)
+        const cartRows = resp.result.valueRanges[1].values || [];
+        const headers = cartRows[0] || [];
+        const colMap = {};
+        headers.forEach((h, i) => { colMap[String(h||'').trim()] = i; });
+
+        // Pega data mais recente
+        const datas = cartRows.slice(1).map(r => parseSheetDate(r[0])).filter(Boolean).sort();
+        const ultimaData = datas[datas.length - 1];
+
+        const posMap = {};
+        cartRows.slice(1).forEach(r => {
+          if (parseSheetDate(r[0]) !== ultimaData) return;
+          const desc = String(r[colMap['Descrição']||5]||'').trim();
+          const if_  = String(r[colMap['Instituição Financeira do Ativo']||10]||'').trim();
+          const aplicado = parseFloat(r[colMap['Valor Aplicado']||6]) || 0;
+          const saldo    = parseFloat(r[colMap['Saldo Bruto']||8]) || 0;
+          if (!desc || saldo === 0) return;
+          const key = desc;
+          if (!posMap[key]) posMap[key] = { desc, if_, aplicado: 0, saldo: 0 };
+          posMap[key].aplicado += aplicado;
+          posMap[key].saldo    += saldo;
+        });
+
+        invData.posicoes = Object.values(posMap).sort((a,b) => b.saldo - a.saldo);
+        invData.totalSaldo = invData.posicoes.reduce((s,p) => s+p.saldo, 0);
+        invData.loaded = true;
+
+      } catch(e) {
+        console.error('❌ invLoad:', e);
+        document.getElementById('inv-posicoes-tbody').innerHTML =
+          `<tr><td colspan="6" style="color:red;padding:20px;">Erro: ${e.result?.error?.message||e.message}</td></tr>`;
+      }
+    }
+
+    function invSetPeriod(period, btn) {
+      invPeriod = period;
+      document.querySelectorAll('.inv-period-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      invRender();
+    }
+
+    function invGetSeriePeriod() {
+      if (!invData.serie || !invData.serie.length) return [];
+      const all = invData.serie;
+      const last = all[all.length - 1].data;
+      const lastDt = new Date(last + 'T12:00:00');
+      let startDt;
+      if (invPeriod === 'ytd') {
+        startDt = new Date(lastDt.getFullYear(), 0, 1);
+      } else if (invPeriod === '6m') {
+        startDt = new Date(lastDt); startDt.setMonth(startDt.getMonth() - 6);
+      } else if (invPeriod === '12m') {
+        startDt = new Date(lastDt); startDt.setFullYear(startDt.getFullYear() - 1);
+      } else {
+        return all;
+      }
+      const startISO = startDt.toISOString().split('T')[0];
+      return all.filter(r => r.data >= startISO);
+    }
+
+    function invRender() {
+      if (!invData.loaded) return;
+      const serie = invGetSeriePeriod();
+      if (!serie.length) return;
+
+      const ultimo = serie[serie.length - 1];
+      const primeiro = serie[0];
+
+      // KPIs
+      document.getElementById('inv-patrimonio').textContent = fmt(invData.patrimonio || invData.totalSaldo);
+      document.getElementById('inv-data-ref').textContent = invData.dataRef
+        ? 'Posição em ' + new Date(invData.dataRef + 'T12:00:00').toLocaleDateString('pt-BR') : '';
+
+      const rentM = ultimo.mercado - primeiro.mercado;
+      const rentC = ultimo.curva   - primeiro.curva;
+      const rentCDI = ultimo.cdi   - primeiro.cdi;
+      const pctCDI = rentCDI > 0 ? (rentM / rentCDI * 100).toFixed(1) : '—';
+
+      const elM = document.getElementById('inv-rent-mercado');
+      elM.textContent = (rentM >= 0 ? '+' : '') + rentM.toFixed(2) + '%';
+      elM.style.color = rentM >= 0 ? 'var(--verde)' : '#ef4444';
+      document.getElementById('inv-rent-mercado-sub').textContent = pctCDI !== '—' ? pctCDI + '% do CDI' : '';
+
+      const elC = document.getElementById('inv-rent-curva');
+      elC.textContent = (rentC >= 0 ? '+' : '') + rentC.toFixed(2) + '%';
+      elC.style.color = rentC >= 0 ? 'var(--verde)' : '#ef4444';
+      document.getElementById('inv-rent-curva-sub').textContent = rentCDI > 0 ? (rentC/rentCDI*100).toFixed(1) + '% do CDI' : '';
+
+      document.getElementById('inv-cdi').textContent = '+' + rentCDI.toFixed(2) + '%';
+
+      // Gráfico performance
+      const labels = serie.filter((_,i) => i % Math.max(1, Math.floor(serie.length/40)) === 0 || i === serie.length-1)
+        .map(r => { const d = new Date(r.data+'T12:00:00'); return `${d.getDate()}/${d.getMonth()+1}`; });
+      const step = Math.max(1, Math.floor(serie.length/40));
+      const filtered = serie.filter((_,i) => i % step === 0 || i === serie.length-1);
+
+      if (_invChartPerf) { _invChartPerf.destroy(); _invChartPerf = null; }
+      const ctxP = document.getElementById('inv-chart-perf');
+      if (ctxP) {
+        _invChartPerf = new Chart(ctxP, {
+          type: 'line',
+          data: {
+            labels: filtered.map(r => { const d=new Date(r.data+'T12:00:00'); return `${d.getDate()}/${d.getMonth()+1}`; }),
+            datasets: [
+              { label:'Mercado', data: filtered.map(r=>parseFloat(r.mercado.toFixed(4))),
+                borderColor:'#0F3D57', borderWidth:2, pointRadius:0, tension:0.3, fill:false },
+              { label:'Curva',   data: filtered.map(r=>parseFloat(r.curva.toFixed(4))),
+                borderColor:'#1D9E75', borderWidth:1.5, pointRadius:0, tension:0.3, fill:false, borderDash:[4,3] },
+              { label:'CDI',     data: filtered.map(r=>parseFloat(r.cdi.toFixed(4))),
+                borderColor:'#B4B2A9', borderWidth:1.5, pointRadius:0, tension:0.3, fill:false, borderDash:[2,3] }
+            ]
+          },
+          options: {
+            responsive:true, maintainAspectRatio:false,
+            plugins:{ legend:{ display:false }, tooltip:{ callbacks:{
+              label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)}%`
+            }}},
+            scales:{
+              x:{ grid:{ display:false }, ticks:{ font:{size:10}, maxTicksLimit:8, color:'#999' }},
+              y:{ grid:{ color:'rgba(0,0,0,0.04)' }, ticks:{ font:{size:10}, color:'#999',
+                  callback: v => v.toFixed(1)+'%' }}
+            }
+          }
+        });
+      }
+
+      // Gráfico pizza por IF
+      const ifMap = {};
+      invData.posicoes.forEach(p => {
+        const k = p.if_ || 'Outros';
+        ifMap[k] = (ifMap[k]||0) + p.saldo;
+      });
+      const ifEntries = Object.entries(ifMap).sort((a,b)=>b[1]-a[1]);
+      const COLORS = ['#0F3D57','#2E6B8E','#1D9E75','#629EC1','#85B7EB','#B4B2A9','#5F5E5A'];
+
+      if (_invChartIF) { _invChartIF.destroy(); _invChartIF = null; }
+      const ctxIF = document.getElementById('inv-chart-if');
+      if (ctxIF) {
+        _invChartIF = new Chart(ctxIF, {
+          type: 'doughnut',
+          data: {
+            labels: ifEntries.map(e=>e[0]),
+            datasets:[{ data: ifEntries.map(e=>parseFloat(e[1].toFixed(2))),
+              backgroundColor: ifEntries.map((_,i)=>COLORS[i%COLORS.length]),
+              borderWidth:0, hoverOffset:4 }]
+          },
+          options:{ responsive:true, maintainAspectRatio:false, cutout:'68%',
+            plugins:{ legend:{display:false}, tooltip:{ callbacks:{
+              label: ctx => ` ${ctx.label}: ${fmt(ctx.parsed)}`
+            }}}
+          }
+        });
+      }
+
+      // Legenda IF
+      const legend = document.getElementById('inv-if-legend');
+      if (legend) {
+        legend.innerHTML = ifEntries.map((e,i) => {
+          const pct = invData.totalSaldo > 0 ? (e[1]/invData.totalSaldo*100).toFixed(1) : 0;
+          return `<div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="display:flex;align-items:center;gap:6px;">
+              <span style="width:8px;height:8px;border-radius:2px;background:${COLORS[i%COLORS.length]};flex-shrink:0;"></span>
+              <span style="font-size:11px;color:var(--text-dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px;">${e[0]}</span>
+            </span>
+            <span style="font-size:11px;color:var(--text-light);margin-left:8px;">${pct}%</span>
+          </div>`;
+        }).join('');
+      }
+
+      // Tabela de posições
+      const total = invData.totalSaldo;
+      const tbody = document.getElementById('inv-posicoes-tbody');
+      if (!invData.posicoes.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Nenhuma posição encontrada</td></tr>';
+        return;
+      }
+      tbody.innerHTML = invData.posicoes.map(p => {
+        const rentab = p.aplicado > 0 ? ((p.saldo - p.aplicado) / p.aplicado * 100) : 0;
+        const pctCart = total > 0 ? (p.saldo / total * 100).toFixed(1) : '0';
+        const cor = rentab >= 0 ? 'var(--verde)' : '#ef4444';
+        const rentStr = (rentab>=0?'+':'') + rentab.toFixed(2) + '%';
+        const desc = p.desc.length > 35 ? p.desc.substring(0,33)+'…' : p.desc;
+        return `<tr>
+          <td style="font-size:12px;" title="${p.desc}">${desc}</td>
+          <td style="text-align:right;font-size:12px;">${fmt(p.aplicado)}</td>
+          <td style="text-align:right;font-size:12px;font-weight:600;">${fmt(p.saldo)}</td>
+          <td style="text-align:right;font-size:12px;color:${cor};">${rentStr}</td>
+          <td style="text-align:right;font-size:12px;">${pctCart}%</td>
+          <td style="font-size:11px;color:var(--text-light);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px;" title="${p.if_}">${p.if_||'—'}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    // ========== FIM INVESTIMENTOS ==========
+
     // ========== ADMIN ==========
     let _adminClients = [];
     let _adminOriginalClient = null;
@@ -6962,6 +7290,8 @@ Esta ação não pode ser desfeita.`)) return;
       finColMap      = {};
       docsData       = [];
       veiculosData   = [];
+      invData        = { loaded: false };
+      window.invSheetId = client.investimentos_sheet_id || null;
 
       document.getElementById('app-container').style.display = 'flex';
       document.getElementById('sidebar-name').textContent = client.name;
