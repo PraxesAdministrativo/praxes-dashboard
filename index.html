@@ -7095,11 +7095,22 @@ Esta ação não pode ser desfeita.`)) return;
 
     async function invInit() {
       const sheetId = window.invSheetId;
-      document.getElementById('inv-no-sheet').style.display  = sheetId ? 'none' : 'block';
-      document.getElementById('inv-content').style.display   = sheetId ? 'block' : 'none';
-      if (!sheetId) return;
+      if (!sheetId) {
+        document.getElementById('inv-no-sheet').style.display = 'block';
+        document.getElementById('inv-content').style.display  = 'none';
+        return;
+      }
+      document.getElementById('inv-no-sheet').style.display = 'none';
+      document.getElementById('inv-content').style.display  = 'block';
+
+      // Mostra loading na tabela
+      document.getElementById('inv-posicoes-tbody').innerHTML =
+        '<tr><td colspan="7" class="empty-state"><div class="spinner" style="margin:0 auto 8px;"></div>Carregando...</td></tr>';
+
       if (!invData.loaded) await invLoad(sheetId);
-      invRender();
+
+      // Aguarda um tick para o canvas ficar visível no DOM antes de renderizar
+      setTimeout(() => invRender(), 50);
     }
 
     async function invLoad(sheetId) {
@@ -7299,7 +7310,12 @@ Esta ação não pode ser desfeita.`)) return;
     function invRender() {
       if (!invData.loaded) return;
       const serie = invGetSerie();
-      if (!serie.length) return;
+      if (!serie.length) {
+        console.warn('invRender: série vazia. invData.serie:', invData.serie?.length);
+        // Ainda renderiza posições mesmo sem série temporal
+        if (invData.posicoes) invRenderPosicoes();
+        return;
+      }
       const isMerc = invMarcacao === 'mercado';
       const cartKey = isMerc ? 'mercado' : 'curva';
       const ultimo  = serie[serie.length-1];
@@ -7373,6 +7389,7 @@ Esta ação não pode ser desfeita.`)) return;
       const filtered = serie.filter((_,i)=>i%step===0||i===serie.length-1);
       if (_invChartPerf) { _invChartPerf.destroy(); _invChartPerf = null; }
       const ctxP = document.getElementById('inv-chart-perf');
+      if (!ctxP) { console.warn('Canvas inv-chart-perf not found'); return; }
       if (ctxP) _invChartPerf = new Chart(ctxP, {
         type:'line',
         data:{ labels: filtered.map(r=>{ const d=new Date(r.data+'T12:00:00'); return `${d.getDate()}/${d.getMonth()+1}`; }),
@@ -7446,6 +7463,12 @@ Esta ação não pode ser desfeita.`)) return;
         }).join('');
         return header + rows;
       }).join('');
+    }
+
+    function invRenderPosicoes() {
+      // Renderiza apenas posições sem gráfico temporal
+      _invRenderDoughnut('inv-chart-classe','inv-classe-legend', invData.classeMap||{}, _invChartClasse, c=>_invChartClasse=c);
+      _invRenderDoughnut('inv-chart-cust','inv-cust-legend', invData.custMap||{}, _invChartCust, c=>_invChartCust=c);
     }
 
     function _invRenderDoughnut(canvasId, legendId, dataMap, chartRef, setRef) {
