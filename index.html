@@ -2564,63 +2564,153 @@
     // LOAD DASHBOARD
     async function loadDashboard() {
       try {
-        // Carrega resumo
-        const response = await gapi.client.sheets.spreadsheets.values.get({
-          spreadsheetId: resumoSheetId,
-          range: "Resumo!A1:B10"
+        const hoje = new Date();
+        const mesAtual = hoje.getMonth() + 1;
+        const anoAtual = hoje.getFullYear();
+    
+        // ---- IMÓVEIS (carrega se ainda não carregou) ----
+        if (!imoveisData.length) await loadAllDataOptimized();
+        let totalImoveis = 0, totalCompra = 0;
+        imoveisData.forEach(row => {
+          totalImoveis += parseFloat(String(row[7]||'0').replace(/[^\d.-]/g,''))||0;
+          totalCompra  += parseFloat(String(row[5]||'0').replace(/[^\d.-]/g,''))||0;
         });
-        const rows = response.result.values;
-        if (rows) {
-          rows.forEach(([k, v]) => {
-            if (k === "Patrimônio Total") {
-              document.getElementById("total-patrimonio").textContent = fmt(v);
-            } else if (k === "Total Investimentos") {
-              document.getElementById("total-investimentos").textContent = fmt(v);
-            } else if (k === "Renda Passiva Mensal") {
-              document.getElementById("renda-passiva").textContent = fmt(v);
-            } else if (k === "Variação Patrimônio") {
-              const el = document.getElementById("patrimonio-change");
-              el.textContent = v;
-              el.className = "stat-change " + (v.includes("+") ? "positive" : "negative");
-            } else if (k === "Variação Investimentos") {
-              const el = document.getElementById("investimentos-change");
-              el.textContent = v;
-              el.className = "stat-change " + (v.includes("+") ? "positive" : "negative");
-            }
-          });
+        document.getElementById('total-imoveis').textContent = fmt(totalImoveis);
+        if (totalCompra > 0) {
+          const var_ = ((totalImoveis - totalCompra) / totalCompra * 100).toFixed(1);
+          const el = document.getElementById('imoveis-change');
+          el.textContent = (var_ >= 0 ? '+' : '') + var_ + '%';
+          el.className = 'stat-change ' + (var_ >= 0 ? 'positive' : 'negative');
         }
-        
-        // Calcula total de imóveis automaticamente
-        const imoveisResponse = await gapi.client.sheets.spreadsheets.values.get({
-          spreadsheetId: imoveisSheetId,
-          range: "Lista!A2:H100"
-        });
-        const imoveisRows = imoveisResponse.result.values || [];
-        
-        let totalImoveis = 0;
-        let valorCompraTotal = 0;
-        
-        imoveisRows.forEach(row => {
-          if (row[0]) { // Se tem nome
-            const valorAtual = parseFloat(String(row[7] || '0').replace(/[^\d.-]/g, '')) || 0;
-            const valorCompra = parseFloat(String(row[5] || '0').replace(/[^\d.-]/g, '')) || 0;
-            totalImoveis += valorAtual;
-            valorCompraTotal += valorCompra;
+    
+        // ---- VEÍCULOS (carrega se ainda não carregou) ----
+        if (!veiculosData.length) await veiculosLoad();
+    
+        // ---- FINANCEIRO (carrega se ainda não carregou) ----
+        if (!finGerRows.length) {
+          finSheetId = window.finSheetOverride || resumoSheetId;
+          const resp = await gapi.client.sheets.spreadsheets.values.batchGet({
+            spreadsheetId: finSheetId,
+            ranges: ['Lançamentos!A1:J5000', 'Gerencial!A1:AJ200'],
+            valueRenderOption: 'UNFORMATTED_VALUE',
+            dateTimeRenderOption: 'FORMATTED_STRING'
+          });
+          const lancRows = resp.result.valueRanges[0].values || [];
+          finGerRows     = resp.result.valueRanges[1].values || [];
+          finColMap      = finGetColMap(finGerRows);
+          finLancamentos = [];
+          for (let i = 2; i < lancRows.length; i++) {
+            const row = lancRows[i];
+            if (!row || row.length < 3) continue;
+            const anoVal = parseInt(row[1]);
+            if (!anoVal || isNaN(anoVal) || !row[2]) continue;
+            const valor = parseFloat(String(row[4]||'0').replace(',','.'));
+            finLancamentos.push({
+              mes: String(row[0]||'').trim(), ano: anoVal,
+              origem: String(row[2]||'').trim(), referencia: String(row[3]||'').trim(),
+              valor: isNaN(valor) ? 0 : valor,
+              data: (function(r){
+                if (!r) return ''; const s=String(r).trim();
+                if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0,10);
+                if (/^\d{4,6}(\.\d+)?$/.test(s)) {
+                  const d=new Date(Date.UTC(1899,11,30)+Math.floor(parseFloat(s))*86400000);
+                  return isNaN(d)?'':d.toISOString().split('T')[0];
+                }
+                return s;
+              })(row[5]),
+              extrato: String(row[6]||'').trim(), obs: String(row[7]||'').trim(),
+              _rowIndex: i + 1
+            });
+          }
+        }
+    
+        // Financeiro — mês atual
+        const colAtual = finColMap[`${anoAtual}-${mesAtual}`];
+        const ytdCol   = finColMap[`ytd_${anoAtual}`];
+        let rendaTotal = 0, despTotal = 0, rendaYTD = 0, despYTD = 0;
+        finGerRows.forEach(row => {
+          if (!row) return;
+          const lbl = String(row[1]||'').trim();
+          if (lbl === 'Rendas totais') {
+            if (colAtual !== undefined) rendaTotal = Math.abs(parseFloat(String(row[colAtual]||'0'))||0);
+            if (ytdCol   !== undefined) rendaYTD   = Math.abs(parseFloat(String(row[ytdCol]  ||'0'))||0);
+          }
+          if (lbl === 'Total de despesas') {
+            if (colAtual !== undefined) despTotal = Math.abs(parseFloat(String(row[colAtual]||'0'))||0);
+            if (ytdCol   !== undefined) despYTD   = Math.abs(parseFloat(String(row[ytdCol]  ||'0'))||0);
           }
         });
-        
-        document.getElementById("total-imoveis").textContent = fmt(totalImoveis);
-        
-        // Calcula variação dos imóveis
-        if (valorCompraTotal > 0) {
-          const variacaoImoveis = ((totalImoveis - valorCompraTotal) / valorCompraTotal * 100).toFixed(1);
-          const el = document.getElementById("imoveis-change");
-          el.textContent = (variacaoImoveis >= 0 ? '+' : '') + variacaoImoveis + '%';
-          el.className = "stat-change " + (variacaoImoveis >= 0 ? "positive" : "negative");
+        const saldoMes = rendaTotal - despTotal;
+    
+        // ---- DOCUMENTOS — alertas de vencimento ----
+        let alertasDoc = [];
+        if (!docsData.length) {
+          try {
+            const r = await gapi.client.sheets.spreadsheets.values.get({
+              spreadsheetId: resumoSheetId, range:'Documentos_Pessoais!A2:G200', valueRenderOption:'UNFORMATTED_VALUE'
+            });
+            docsData = r.result.values || [];
+          } catch(e) { /* aba ainda não existe */ }
         }
-        
-      } catch (e) {
-        console.error('❌', e);
+        docsData.forEach(row => {
+          const iso = parseSheetDate(row[3]);
+          if (!iso) return;
+          const diff = Math.round((new Date(iso+'T12:00:00') - hoje) / 86400000);
+          if (diff <= 90) alertasDoc.push({ label: `${row[1]} (${row[0]})`, diff });
+        });
+        veiculosData.forEach(row => {
+          [['IPVA',row[10]],['Seguro',row[11]],['Licenciamento',row[12]]].forEach(([label,raw]) => {
+            const iso = parseSheetDate(raw);
+            if (!iso) return;
+            const diff = Math.round((new Date(iso+'T12:00:00') - hoje) / 86400000);
+            if (diff <= 90) alertasDoc.push({ label: `${label} — ${row[0]}`, diff });
+          });
+        });
+        alertasDoc.sort((a,b) => a.diff - b.diff);
+    
+        // ---- RENDERIZA ----
+        // Cards financeiros
+        document.getElementById('total-patrimonio').textContent = fmt(totalImoveis);
+        document.getElementById('patrimonio-change').textContent = `${imoveisData.length} imóvel(is) · ${veiculosData.length} veículo(s)`;
+        document.getElementById('total-investimentos').textContent = fmt(rendaTotal);
+        document.getElementById('investimentos-change').textContent = `Rendas — ${MESES_PT[mesAtual-1]}`;
+        document.getElementById('total-imoveis').textContent = fmt(despTotal);
+        document.getElementById('imoveis-change').textContent = `Despesas — ${MESES_PT[mesAtual-1]}`;
+        const elSaldo = document.getElementById('renda-passiva');
+        const elSaldoLbl = document.getElementById('renda-passiva').previousElementSibling;
+        elSaldo.textContent = (saldoMes >= 0 ? '+' : '') + fmt(saldoMes);
+        elSaldo.style.color = saldoMes >= 0 ? '#10b981' : '#ef4444';
+    
+        // Alertas — injeta abaixo dos cards
+        let alertasHtml = '';
+        if (alertasDoc.length) {
+          alertasHtml = `
+            <div style="background:#fff;border-radius:14px;padding:24px;box-shadow:0 4px 16px rgba(15,61,87,.07);margin-top:8px;">
+              <div style="font-size:15px;font-weight:700;color:var(--azul-principal);margin-bottom:16px;">🔔 Alertas de Vencimento</div>
+              <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;">
+                ${alertasDoc.map(a => {
+                  const cor = a.diff < 0 ? '#ef4444' : a.diff < 30 ? '#f59e0b' : '#2e6b8e';
+                  const txt = a.diff < 0 ? 'VENCIDO' : `${a.diff} dias`;
+                  return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:#f8fbfd;border-radius:8px;border-left:3px solid ${cor};">
+                    <span style="font-size:13px;color:var(--text-dark);">${a.label}</span>
+                    <span style="font-size:12px;font-weight:700;color:${cor};">${txt}</span>
+                  </div>`;
+                }).join('')}
+              </div>
+            </div>`;
+        }
+    
+        // Remove alertas anteriores e injeta novos
+        const oldAlerts = document.getElementById('dash-alertas');
+        if (oldAlerts) oldAlerts.remove();
+        const dashPage = document.getElementById('page-dashboard');
+        const alertDiv = document.createElement('div');
+        alertDiv.id = 'dash-alertas';
+        alertDiv.innerHTML = alertasHtml;
+        dashPage.appendChild(alertDiv);
+    
+      } catch(e) {
+        console.error('❌ Dashboard:', e);
       }
     }
 
