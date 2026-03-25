@@ -2032,13 +2032,16 @@
 
   <!-- MODAL ADD IMOVEL -->
   <div class="modal" id="modal-add-imovel">
-    <div class="modal-content">
+    <div class="modal-content" style="max-width:700px;">
       <div class="modal-header">
         <h3 class="modal-title">Adicionar Imóvel</h3>
         <button class="modal-close" onclick="closeModal('modal-add-imovel')">&times;</button>
       </div>
       <div class="modal-body">
         <form id="form-add-imovel">
+
+          <!-- IDENTIFICAÇÃO -->
+          <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-light);margin:0 0 12px;padding-bottom:6px;border-bottom:1px solid var(--cinza-claro);">Identificação</div>
           <div class="form-group">
             <label class="form-label">Nome do Imóvel *</label>
             <input type="text" class="form-input" name="nome" required placeholder="Ex: Apartamento Trindade">
@@ -2048,45 +2051,94 @@
               <label class="form-label">Tipo *</label>
               <select class="form-select" name="tipo" required>
                 <option value="">Selecione...</option>
-                <option value="Apartamento">Apartamento</option>
-                <option value="Casa">Casa</option>
-                <option value="Terreno">Terreno</option>
-                <option value="Comercial">Comercial</option>
-                <option value="Galpão">Galpão</option>
+                <option>Apartamento</option><option>Casa</option><option>Terreno</option>
+                <option>Comercial</option><option>Galpão</option><option>Outro</option>
               </select>
             </div>
             <div class="form-group">
-              <label class="form-label">Titularidade *</label>
-              <select class="form-select" name="titularidade" required>
+              <label class="form-label">% do Imóvel *</label>
+              <input type="number" class="form-input" name="percentual" value="100" min="0.01" max="100" step="0.01" placeholder="100">
+            </div>
+          </div>
+
+          <!-- CLASSIFICAÇÃO -->
+          <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-light);margin:16px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--cinza-claro);">Classificação</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Grupo *</label>
+              <select class="form-select" name="grupo" required onchange="imovelUpdateSubgrupo(this.value)">
                 <option value="">Selecione...</option>
-                <option value="Holding">Holding</option>
-                <option value="Pessoa Física">Pessoa Física (PF)</option>
+                <option value="Uso Pessoal">Uso Pessoal</option>
+                <option value="Investimento">Investimento</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Subgrupo *</label>
+              <select class="form-select" name="subgrupo" required id="imovel-subgrupo">
+                <option value="">Selecione o grupo primeiro</option>
               </select>
             </div>
           </div>
           <div class="form-row">
             <div class="form-group">
-              <label class="form-label">Grupo *</label>
-              <select class="form-select" name="grupo" required>
+              <label class="form-label">Titular *</label>
+              <select class="form-select" name="titularidade" required id="imovel-titular">
                 <option value="">Selecione...</option>
-                <option value="Investimento">Investimento</option>
-                <option value="Bem Pessoal">Bem Pessoal</option>
+                <option value="Pessoa Física">Pessoa Física</option>
+                <option value="Administradora de Bens">Administradora de Bens</option>
+                <option value="Empresa">Empresa</option>
+                <option value="Outros">Outros</option>
               </select>
             </div>
             <div class="form-group">
-              <label class="form-label">Subgrupo *</label>
-              <select class="form-select" name="subgrupo" required>
-                <option value="">Selecione...</option>
-                <option value="Carteira Locação">Carteira Locação</option>
-                <option value="Carteira Valorização">Carteira Valorização</option>
-                <option value="Uso Próprio">Uso Próprio</option>
+              <label class="form-label">Membro da Família</label>
+              <select class="form-select" name="familiar" id="imovel-familiar">
+                <option value="">Nenhum / Titular</option>
               </select>
             </div>
           </div>
-          <div class="form-group">
-            <label class="form-label">Endereço Completo *</label>
-            <input type="text" class="form-input" name="endereco" required placeholder="Rua, número, bairro, cidade">
+
+          <!-- LOCALIZAÇÃO -->
+          <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-light);margin:16px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--cinza-claro);">Localização</div>
+          <div class="form-row">
+            <div class="form-group" style="flex:0 0 160px;">
+              <label class="form-label">CEP</label>
+              <div style="display:flex;gap:6px;">
+                <input type="text" class="form-input" name="cep" id="imovel-cep" placeholder="00000-000" maxlength="9"
+                  oninput="imovelMaskCEP(this)" onblur="imovelBuscarCEP(this.value)">
+                <div id="cep-spinner" style="display:none;align-items:center;"><div class="spinner" style="width:16px;height:16px;border-width:2px;"></div></div>
+              </div>
+            </div>
+            <div class="form-group" style="flex:1;">
+              <label class="form-label">Logradouro</label>
+              <input type="text" class="form-input" name="logradouro" id="imovel-logradouro" placeholder="Rua, Avenida...">
+            </div>
+            <div class="form-group" style="flex:0 0 80px;">
+              <label class="form-label">Número</label>
+              <input type="text" class="form-input" name="numero_end" placeholder="123">
+            </div>
           </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Bairro</label>
+              <input type="text" class="form-input" name="bairro" id="imovel-bairro" placeholder="Bairro">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Cidade</label>
+              <input type="text" class="form-input" name="cidade" id="imovel-cidade" placeholder="Cidade">
+            </div>
+            <div class="form-group" style="flex:0 0 80px;">
+              <label class="form-label">UF</label>
+              <input type="text" class="form-input" name="uf" id="imovel-uf" placeholder="SC" maxlength="2">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Complemento</label>
+            <input type="text" class="form-input" name="complemento" placeholder="Apto 302, Bloco B...">
+          </div>
+
+          <!-- VALORES -->
+          <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-light);margin:16px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--cinza-claro);">Valores</div>
           <div class="form-row">
             <div class="form-group">
               <label class="form-label">Valor de Compra *</label>
@@ -2097,10 +2149,45 @@
               <input type="date" class="form-input" name="data_compra" required>
             </div>
           </div>
-          <div class="form-group">
-            <label class="form-label">Valor Atual (Avaliação) *</label>
-            <input type="number" class="form-input" name="valor_atual" required placeholder="850000" step="0.01">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Valor Atual (Avaliação) *</label>
+              <input type="number" class="form-input" name="valor_atual" required placeholder="850000" step="0.01">
+            </div>
+            <div class="form-group">
+              <label class="form-label">IPTU Anual</label>
+              <input type="number" class="form-input" name="iptu_anual" placeholder="2400" step="0.01">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Condomínio Mensal</label>
+              <input type="number" class="form-input" name="condominio_mensal" placeholder="400" step="0.01">
+            </div>
           </div>
+
+          <!-- REGISTROS -->
+          <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-light);margin:16px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--cinza-claro);">Registros Cartoriais</div>
+          <div id="imovel-codigos-list">
+            <div class="imovel-registro-row form-row" style="align-items:flex-end;">
+              <div class="form-group" style="flex:1;">
+                <label class="form-label">Código de Contribuição (IPTU)</label>
+                <input type="text" class="form-input imovel-cod-contrib" placeholder="Ex: 00000-0">
+              </div>
+              <div class="form-group" style="flex:1;">
+                <label class="form-label">Nº Registro no Cartório</label>
+                <input type="text" class="form-input imovel-num-registro" placeholder="Matrícula nº...">
+              </div>
+              <div class="form-group" style="flex:1;">
+                <label class="form-label">Cartório</label>
+                <input type="text" class="form-input imovel-cartorio" placeholder="Ex: 1º Ofício de Registro">
+              </div>
+              <div style="padding-bottom:8px;flex-shrink:0;">
+                <button type="button" class="btn-add-small" onclick="imovelAddRegistro()" style="white-space:nowrap;">+ Adicionar</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- CARACTERÍSTICAS -->
+          <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-light);margin:16px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--cinza-claro);">Características</div>
           <div class="form-row">
             <div class="form-group">
               <label class="form-label">Área Total (m²)</label>
@@ -2110,8 +2197,6 @@
               <label class="form-label">Área Útil (m²)</label>
               <input type="number" class="form-input" name="area_util" placeholder="72" step="0.01">
             </div>
-          </div>
-          <div class="form-row">
             <div class="form-group">
               <label class="form-label">Quartos</label>
               <input type="number" class="form-input" name="quartos" placeholder="3">
@@ -2125,20 +2210,13 @@
               <input type="number" class="form-input" name="vagas" placeholder="2">
             </div>
           </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">IPTU Anual</label>
-              <input type="number" class="form-input" name="iptu_anual" placeholder="2400" step="0.01">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Condomínio Mensal</label>
-              <input type="number" class="form-input" name="condominio_mensal" placeholder="400" step="0.01">
-            </div>
-          </div>
-          <div class="form-group">
+
+          <!-- OBSERVAÇÕES -->
+          <div class="form-group" style="margin-top:8px;">
             <label class="form-label">Observações</label>
             <input type="text" class="form-input" name="observacoes" placeholder="Informações adicionais">
           </div>
+
         </form>
       </div>
       <div class="modal-footer">
@@ -3599,6 +3677,75 @@
       const row = imoveisData[index];
       if (!row) return;
       
+    // ---- IMOVEL FORM HELPERS ----
+    const IMOVEL_SUBGRUPOS = {
+      'Uso Pessoal':  ['Lazer','Moradia','Trabalho','Família','Outros'],
+      'Investimento': ['Renda','Ganho de Capital','Incorporação','Outros']
+    };
+
+    function imovelUpdateSubgrupo(grupo) {
+      const sel = document.getElementById('imovel-subgrupo');
+      sel.innerHTML = '<option value="">Selecione...</option>';
+      (IMOVEL_SUBGRUPOS[grupo]||[]).forEach(s => {
+        sel.innerHTML += `<option value="${s}">${s}</option>`;
+      });
+    }
+
+    function imovelMaskCEP(el) {
+      let v = el.value.replace(/\D/g,'').substring(0,8);
+      if (v.length > 5) v = v.substring(0,5)+'-'+v.substring(5);
+      el.value = v;
+    }
+
+    async function imovelBuscarCEP(cep) {
+      const c = cep.replace(/\D/g,'');
+      if (c.length !== 8) return;
+      document.getElementById('cep-spinner').style.display = 'flex';
+      try {
+        const r = await fetch(`https://viacep.com.br/ws/${c}/json/`);
+        const d = await r.json();
+        if (!d.erro) {
+          document.getElementById('imovel-logradouro').value = d.logradouro||'';
+          document.getElementById('imovel-bairro').value     = d.bairro||'';
+          document.getElementById('imovel-cidade').value     = d.localidade||'';
+          document.getElementById('imovel-uf').value         = d.uf||'';
+        }
+      } catch(e) { console.warn('CEP não encontrado'); }
+      document.getElementById('cep-spinner').style.display = 'none';
+    }
+
+    function imovelAddRegistro() {
+      const list = document.getElementById('imovel-codigos-list');
+      const div = document.createElement('div');
+      div.className = 'imovel-registro-row form-row';
+      div.style.alignItems = 'flex-end';
+      div.innerHTML = `
+        <div class="form-group" style="flex:1;">
+          <input type="text" class="form-input imovel-cod-contrib" placeholder="Código de Contribuição">
+        </div>
+        <div class="form-group" style="flex:1;">
+          <input type="text" class="form-input imovel-num-registro" placeholder="Nº Registro no Cartório">
+        </div>
+        <div class="form-group" style="flex:1;">
+          <input type="text" class="form-input imovel-cartorio" placeholder="Cartório">
+        </div>
+        <div style="padding-bottom:8px;flex-shrink:0;">
+          <button type="button" class="btn-cancel" onclick="this.closest('.imovel-registro-row').remove()" style="padding:6px 10px;font-size:12px;">✕</button>
+        </div>`;
+      list.appendChild(div);
+    }
+
+    function imovelPopularFamiliares() {
+      const sel = document.getElementById('imovel-familiar');
+      if (!sel) return;
+      sel.innerHTML = '<option value="">Nenhum / Titular</option>';
+      (perfilFamData||[]).forEach(r => {
+        if (r[1]) sel.innerHTML += `<option value="${r[1]}">${r[1]} (${r[0]||''})</option>`;
+      });
+    }
+
+    // ---- END IMOVEL FORM HELPERS ----
+
       const form = document.getElementById('form-add-imovel');
       form.elements['nome'].value = row[0] || '';
       form.elements['tipo'].value = row[1] || '';
@@ -4973,12 +5120,20 @@
       const valorAtual = data.get('valor_atual');
       const dataAvaliacao = new Date().toISOString().split('T')[0];
       
+      // Monta endereço completo + coleta registros múltiplos
+      const endParts = [data.get('logradouro'),data.get('numero_end'),data.get('complemento'),data.get('bairro'),data.get('cidade'),data.get('uf'),data.get('cep')].filter(Boolean);
+      const enderecoCompleto = endParts.join(', ');
+
+      const codigos  = [...document.querySelectorAll('#imovel-codigos-list .imovel-cod-contrib')].map(e=>e.value).filter(Boolean).join(' | ');
+      const registros= [...document.querySelectorAll('#imovel-codigos-list .imovel-num-registro')].map(e=>e.value).filter(Boolean).join(' | ');
+      const cartorios= [...document.querySelectorAll('#imovel-codigos-list .imovel-cartorio')].map(e=>e.value).filter(Boolean).join(' | ');
+
       const row = [
         nome,
         data.get('tipo'),
         data.get('grupo'),
         data.get('subgrupo'),
-        data.get('endereco'),
+        enderecoCompleto,
         data.get('valor_compra'),
         data.get('data_compra'),
         valorAtual,
@@ -4992,7 +5147,12 @@
         data.get('vagas') || 0,
         data.get('observacoes') || '',
         '',  // Drive_Folder_ID
-        data.get('titularidade') || 'Pessoa Física'  // Titularidade
+        data.get('titularidade') || 'Pessoa Física',
+        data.get('familiar') || '',          // col T — membro da família
+        data.get('percentual') || '100',     // col U — % do imóvel
+        codigos,                             // col V — códigos de contribuição
+        registros,                           // col W — registros no cartório
+        cartorios                            // col X — cartórios
       ];
       
       try {
@@ -5003,7 +5163,7 @@
           
           await gapi.client.sheets.spreadsheets.values.update({
             spreadsheetId: imoveisSheetId,
-            range: `Lista!A${rowNumber}:S${rowNumber}`,
+            range: `Lista!A${rowNumber}:X${rowNumber}`,
             valueInputOption: 'USER_ENTERED',
             resource: { values: [row] }
           });
@@ -5031,7 +5191,7 @@
           // CREATE
           await gapi.client.sheets.spreadsheets.values.append({
             spreadsheetId: imoveisSheetId,
-            range: 'Lista!A:S',
+            range: 'Lista!A:X',
             valueInputOption: 'USER_ENTERED',
             resource: { values: [row] }
           });
