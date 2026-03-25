@@ -6738,7 +6738,8 @@ Esta ação não pode ser desfeita.`)) return;
       if (!confirm(`Excluir "${veiculosData[i][0]}"?`)) return;
       try {
         const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId:window.veiSheetId});
-        const sh = meta.result.sheets.find(s=>s.properties.title==='Lista');
+        const sh = meta.result.sheets.find(s=>s.properties.title==='Lista') || meta.result.sheets[0];
+        if (!sh) { alert('Aba não encontrada na planilha'); return; }
         await gapi.client.sheets.spreadsheets.batchUpdate({spreadsheetId:window.veiSheetId, resource:{requests:[{deleteDimension:{range:{sheetId:sh.properties.sheetId,dimension:'ROWS',startIndex:i+1,endIndex:i+2}}}]}});
         await veiculosLoad(); alert('✅ Veículo excluído!');
       } catch(e) { alert('Erro: '+e.message); }
@@ -6766,10 +6767,13 @@ Esta ação não pode ser desfeita.`)) return;
 
     async function veiExcluirManutencao(rowNum) {
       if (!confirm('Excluir esta manutenção?')) return;
-      const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId:window.veiSheetId});
-      const sh = meta.result.sheets.find(s=>s.properties.title==='Manutencao');
-      await gapi.client.sheets.spreadsheets.batchUpdate({spreadsheetId:window.veiSheetId,resource:{requests:[{deleteDimension:{range:{sheetId:sh.properties.sheetId,dimension:'ROWS',startIndex:rowNum-1,endIndex:rowNum}}}]}});
-      veiLoadManutencao();
+      try {
+        const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId:window.veiSheetId});
+        const sh = meta.result.sheets.find(s=>s.properties.title==='Manutencao') || meta.result.sheets.find(s=>s.properties.title==='Manutenção');
+        if (!sh) { alert('Aba Manutencao não encontrada'); return; }
+        await gapi.client.sheets.spreadsheets.batchUpdate({spreadsheetId:window.veiSheetId,resource:{requests:[{deleteDimension:{range:{sheetId:sh.properties.sheetId,dimension:'ROWS',startIndex:rowNum-1,endIndex:rowNum}}}]}});
+        veiLoadManutencao();
+      } catch(e) { alert('Erro: '+e.message); }
     }
 
     // ========== DOCUMENTOS PESSOAIS ==========
