@@ -988,48 +988,78 @@
     .inv-period-btn:hover:not(.active) { background: var(--cinza-claro); }
 
     /* ADMIN */
+    /* ADMIN PANEL */
     .admin-panel {
-      position: fixed; inset: 0; background: var(--azul-principal);
-      z-index: 5000; display: flex; flex-direction: column;
-      align-items: center; justify-content: flex-start;
-      padding: 40px 24px; overflow-y: auto;
+      position: fixed; inset: 0; z-index: 5000;
+      display: flex; flex-direction: column; overflow-y: auto;
+      background: #071f30;
     }
-    .admin-header {
-      width: 100%; max-width: 900px; display: flex;
-      align-items: center; justify-content: space-between; margin-bottom: 32px;
+    .admin-panel::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0;
+      background-image: url('./fundo_barco_site.jpg');
+      background-size: cover; background-position: center 30%;
+      opacity: 0.18;
+      pointer-events: none;
     }
-    .admin-logo { font-size: 28px; font-weight: 700; color: #fff; letter-spacing: 2px; }
-    .admin-subtitle { font-size: 14px; color: rgba(255,255,255,0.6); margin-top: 4px; }
+    .admin-topbar {
+      position: relative; z-index: 2;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 48px; height: 68px;
+      background: rgba(0,0,0,0.35);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      backdrop-filter: blur(8px);
+    }
+    .admin-topbar-left {
+      display: flex; flex-direction: column; gap: 2px;
+    }
+    .admin-topbar-title {
+      font-size: 11px; font-weight: 700; letter-spacing: 2px;
+      text-transform: uppercase; color: rgba(255,255,255,0.45);
+    }
+    .admin-topbar-sub {
+      font-size: 18px; font-weight: 700; color: #fff; letter-spacing: 0.3px;
+    }
+    .admin-body {
+      position: relative; z-index: 2;
+      flex: 1; padding: 48px;
+    }
+    .admin-section-label {
+      font-size: 11px; font-weight: 700; letter-spacing: 1.5px;
+      text-transform: uppercase; color: rgba(255,255,255,0.35);
+      margin-bottom: 20px;
+    }
     .admin-clients-grid {
-      width: 100%; max-width: 900px;
-      display: grid; grid-template-columns: repeat(auto-fill, minmax(260px,1fr)); gap: 16px;
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(280px,1fr)); gap: 16px;
     }
     .admin-client-card {
-      background: rgba(255,255,255,0.08); border-radius: 14px;
-      padding: 22px; cursor: pointer; transition: all 0.2s;
-      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 14px; padding: 24px; cursor: pointer;
+      transition: all 0.2s;
+      display: flex; align-items: center; gap: 16px;
     }
     .admin-client-card:hover {
-      background: rgba(255,255,255,0.15); transform: translateY(-3px);
-      border-color: rgba(255,255,255,0.3);
+      background: rgba(255,255,255,0.12);
+      border-color: rgba(255,255,255,0.25);
+      transform: translateY(-2px);
     }
     .admin-client-avatar {
-      width: 44px; height: 44px; border-radius: 50%;
-      background: var(--azul-terciario); display: flex; align-items: center;
-      justify-content: center; font-weight: 700; font-size: 16px;
-      color: #fff; margin-bottom: 14px;
+      width: 46px; height: 46px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 16px; color: #fff; flex-shrink: 0;
     }
-    .admin-client-name { font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 4px; }
-    .admin-client-email { font-size: 12px; color: rgba(255,255,255,0.5); }
+    .admin-client-name { font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 3px; }
+    .admin-client-email { font-size: 12px; color: rgba(255,255,255,0.45); }
     .admin-back-btn {
       position: fixed; bottom: 28px; right: 28px; z-index: 6000;
       background: var(--azul-principal); color: #fff;
-      border: 2px solid rgba(255,255,255,0.3); border-radius: 50px;
+      border: 1.5px solid rgba(255,255,255,0.25); border-radius: 50px;
       padding: 12px 24px; font-size: 13px; font-weight: 700;
-      cursor: pointer; box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      cursor: pointer; box-shadow: 0 4px 20px rgba(0,0,0,0.4);
       transition: all 0.2s; font-family: 'Montserrat', sans-serif;
     }
-    .admin-back-btn:hover { background: var(--azul-secundario); transform: scale(1.05); }
+    .admin-back-btn:hover { background: var(--azul-secundario); transform: scale(1.03); }
 
     /* ===== CONTROLE FINANCEIRO ===== */
     .fin-tabs-header {
@@ -2342,6 +2372,7 @@
   </div>
 
   <!-- ADMIN PANEL -->
+
   <div id="admin-panel" style="display:none;" class="admin-panel">
     <div class="admin-header">
       <div>
@@ -2365,24 +2396,29 @@
 
   <!-- ADMIN PANEL -->
   <div id="admin-panel" style="display:none;" class="admin-panel">
-    <div class="admin-header">
-      <div>
-        <img src="./logo.png" alt="Praxes" style="height:40px;width:auto;display:block;">
-        <div class="admin-subtitle">Painel Administrativo</div>
+    <!-- Topbar -->
+    <div class="admin-topbar">
+      <div class="admin-topbar-left">
+        <div class="admin-topbar-title">Gestão de Clientes</div>
+        <div class="admin-topbar-sub">Portal Praxes</div>
       </div>
-      <div style="font-size:13px;color:rgba(255,255,255,0.5);" id="admin-count"></div>
+      <img src="./logo.png" alt="Praxes" style="height:36px;width:auto;filter:brightness(0) invert(1);opacity:0.9;">
     </div>
-    <div class="admin-clients-grid" id="admin-clients-grid">
-      <div style="color:rgba(255,255,255,0.5);padding:40px;grid-column:1/-1;text-align:center;">
-        <div class="spinner" style="border-color:rgba(255,255,255,0.2);border-top-color:#fff;margin:0 auto;"></div>
-        <p style="margin-top:16px;">Carregando clientes...</p>
+    <!-- Body -->
+    <div class="admin-body">
+      <div class="admin-section-label" id="admin-count">Carregando...</div>
+      <div class="admin-clients-grid" id="admin-clients-grid">
+        <div style="color:rgba(255,255,255,0.4);padding:40px;grid-column:1/-1;text-align:center;">
+          <div class="spinner" style="border-color:rgba(255,255,255,0.15);border-top-color:rgba(255,255,255,0.7);margin:0 auto;"></div>
+          <p style="margin-top:16px;font-size:13px;">Carregando clientes...</p>
+        </div>
       </div>
     </div>
   </div>
 
   <!-- BOTÃO VOLTAR ADMIN -->
   <button id="admin-back-btn" class="admin-back-btn" style="display:none;" onclick="adminVoltar()">
-    ← Voltar ao Painel Admin
+    ← Voltar ao Admin
   </button>
 
   <!-- MODAL LANÇAMENTO (add/edit) -->
@@ -7548,7 +7584,7 @@ Esta ação não pode ser desfeita.`)) return;
       const { data: clients } = await db.from('clients').select('*').order('name');
       _adminClients = clients || [];
 
-      document.getElementById('admin-count').textContent = _adminClients.length + ' cliente(s)';
+      document.getElementById('admin-count').textContent = _adminClients.length + ' cliente(s) cadastrado(s)';
 
       const grid = document.getElementById('admin-clients-grid');
       if (!_adminClients.length) {
@@ -7562,8 +7598,11 @@ Esta ação não pode ser desfeita.`)) return;
         const bg = colors[i % colors.length];
         return `<div class="admin-client-card" onclick="adminEntrarComoCliente(${i})">
           <div class="admin-client-avatar" style="background:${bg};">${initials}</div>
-          <div class="admin-client-name">${c.name}</div>
-          <div class="admin-client-email">${c.email}</div>
+          <div>
+            <div class="admin-client-name">${c.name}</div>
+            <div class="admin-client-email">${c.email}</div>
+          </div>
+          <svg style="margin-left:auto;opacity:0.3;flex-shrink:0;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
         </div>`;
       }).join('');
     }
