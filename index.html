@@ -2837,7 +2837,7 @@
         
         const { data: client, error } = await db
           .from('clients')
-          .select('spreadsheet_id, name, imoveis_sheet_id, imoveis_folder_id, financeiro_sheet_id, is_admin, investimentos_sheet_id')
+          .select('spreadsheet_id, name, imoveis_sheet_id, imoveis_folder_id, financeiro_sheet_id, is_admin, investimentos_sheet_id, veiculos_sheet_id, veiculos_folder_id')
           .eq('email', email)
           .single();
         
@@ -2859,7 +2859,9 @@
         // Controle Financeiro usa a planilha de orçamento do cliente
         // Se tiver um sheet específico, usa ele; caso contrário, usa o spreadsheet_id (mesmo do resumo)
         window.finSheetOverride = client.financeiro_sheet_id || client.spreadsheet_id;
-        window.invSheetId = client.investimentos_sheet_id || null;
+        window.invSheetId      = client.investimentos_sheet_id || null;
+        window.veiSheetId      = client.veiculos_sheet_id || null;
+        window.veiFolderId     = client.veiculos_folder_id || null;
         
         console.log('✅ Using Imoveis Sheet:', imoveisSheetId);
         console.log('✅ Using Imoveis Folder:', imoveisFolderId);
@@ -6488,13 +6490,17 @@ Esta ação não pode ser desfeita.`)) return;
 
 
     // ========== VEÍCULOS ==========
-    const VEI_SHEET_ID  = '1Yl1LQAu3bj1NTdtoFLGTW7EMuMDjPU3BV5e5PX-nroY';
-    const VEI_FOLDER_ID = '10zlSHcLGHV7htjsD4h7_9nx_mnOtASRa';
+    // VEI_SHEET_ID e VEI_FOLDER_ID agora vêm do Supabase via window.veiSheetId / window.veiFolderId
     const DOCS_FOLDER_ID = '1VGJmS1TFQrFs9pj1btfCweD9VsholxJL';
     let veiculosData = [];
     let veiAtualIndex = -1;
 
     async function veiculosInit() {
+      if (!window.veiSheetId) {
+        document.getElementById('veiculos-grid').innerHTML =
+          '<div style="grid-column:1/-1;text-align:center;padding:60px;color:#999;">Planilha de veículos não configurada para este cliente.</div>';
+        return;
+      }
       await veiculosLoad();
       document.getElementById('btn-add-veiculo').onclick = () => {
         document.getElementById('modal-vei-titulo').textContent = 'Adicionar Veículo';
@@ -6507,7 +6513,7 @@ Esta ação não pode ser desfeita.`)) return;
     async function veiculosLoad() {
       try {
         const resp = await gapi.client.sheets.spreadsheets.values.batchGet({
-          spreadsheetId: VEI_SHEET_ID,
+          spreadsheetId: window.veiSheetId,
           ranges: ['Lista!A2:P200'],
           valueRenderOption: 'UNFORMATTED_VALUE'
         });
@@ -6653,7 +6659,7 @@ Esta ação não pode ser desfeita.`)) return;
       try {
         const nome = veiculosData[veiAtualIndex][0];
         const resp = await gapi.client.sheets.spreadsheets.values.get({
-          spreadsheetId: VEI_SHEET_ID, range: 'Manutencao!A2:G200', valueRenderOption:'UNFORMATTED_VALUE'
+          spreadsheetId: window.veiSheetId, range: 'Manutencao!A2:G200', valueRenderOption:'UNFORMATTED_VALUE'
         });
         const rows = (resp.result.values||[]).filter(r=>r[0]===nome);
         const tbody = document.getElementById('vei-manutencao-tbody');
@@ -6687,7 +6693,7 @@ Esta ação não pode ser desfeita.`)) return;
         form.elements['km'].value||'', form.elements['valor'].value||'', form.elements['oficina'].value||'', form.elements['obs'].value||''];
       try {
         await gapi.client.sheets.spreadsheets.values.append({
-          spreadsheetId: VEI_SHEET_ID, range:'Manutencao!A:G',
+          spreadsheetId: window.veiSheetId, range:'Manutencao!A:G',
           valueInputOption:'USER_ENTERED', resource:{values:[row]}
         });
         closeModal('modal-manutencao'); veiLoadManutencao(); alert('✅ Manutenção registrada!');
@@ -6715,12 +6721,12 @@ Esta ação não pode ser desfeita.`)) return;
       try {
         if (idx !== null && idx !== undefined) {
           await gapi.client.sheets.spreadsheets.values.update({
-            spreadsheetId:VEI_SHEET_ID, range:`Lista!A${parseInt(idx)+2}:O${parseInt(idx)+2}`,
+            spreadsheetId:window.veiSheetId, range:`Lista!A${parseInt(idx)+2}:O${parseInt(idx)+2}`,
             valueInputOption:'USER_ENTERED', resource:{values:[row]}
           });
         } else {
           await gapi.client.sheets.spreadsheets.values.append({
-            spreadsheetId:VEI_SHEET_ID, range:'Lista!A:O',
+            spreadsheetId:window.veiSheetId, range:'Lista!A:O',
             valueInputOption:'USER_ENTERED', resource:{values:[row]}
           });
         }
@@ -6731,9 +6737,9 @@ Esta ação não pode ser desfeita.`)) return;
     async function veiExcluir(i) {
       if (!confirm(`Excluir "${veiculosData[i][0]}"?`)) return;
       try {
-        const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId:VEI_SHEET_ID});
+        const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId:window.veiSheetId});
         const sh = meta.result.sheets.find(s=>s.properties.title==='Lista');
-        await gapi.client.sheets.spreadsheets.batchUpdate({spreadsheetId:VEI_SHEET_ID, resource:{requests:[{deleteDimension:{range:{sheetId:sh.properties.sheetId,dimension:'ROWS',startIndex:i+1,endIndex:i+2}}}]}});
+        await gapi.client.sheets.spreadsheets.batchUpdate({spreadsheetId:window.veiSheetId, resource:{requests:[{deleteDimension:{range:{sheetId:sh.properties.sheetId,dimension:'ROWS',startIndex:i+1,endIndex:i+2}}}]}});
         await veiculosLoad(); alert('✅ Veículo excluído!');
       } catch(e) { alert('Erro: '+e.message); }
     }
@@ -6744,12 +6750,12 @@ Esta ação não pode ser desfeita.`)) return;
       const row = veiculosData[veiAtualIndex];
       let folderId = row[15];
       if (!folderId) {
-        const meta = {name:row[0], mimeType:'application/vnd.google-apps.folder', parents:[VEI_FOLDER_ID]};
+        const meta = {name:row[0], mimeType:'application/vnd.google-apps.folder', parents:[window.veiFolderId||""]};
         const r = await gapi.client.drive.files.create({resource:meta,fields:'id',supportsAllDrives:true});
         folderId = r.result.id;
         row[15] = folderId;
         await gapi.client.sheets.spreadsheets.values.update({
-          spreadsheetId:VEI_SHEET_ID, range:`Lista!P${veiAtualIndex+2}`,
+          spreadsheetId:window.veiSheetId, range:`Lista!P${veiAtualIndex+2}`,
           valueInputOption:'USER_ENTERED', resource:{values:[[folderId]]}
         });
       }
@@ -6760,9 +6766,9 @@ Esta ação não pode ser desfeita.`)) return;
 
     async function veiExcluirManutencao(rowNum) {
       if (!confirm('Excluir esta manutenção?')) return;
-      const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId:VEI_SHEET_ID});
+      const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId:window.veiSheetId});
       const sh = meta.result.sheets.find(s=>s.properties.title==='Manutencao');
-      await gapi.client.sheets.spreadsheets.batchUpdate({spreadsheetId:VEI_SHEET_ID,resource:{requests:[{deleteDimension:{range:{sheetId:sh.properties.sheetId,dimension:'ROWS',startIndex:rowNum-1,endIndex:rowNum}}}]}});
+      await gapi.client.sheets.spreadsheets.batchUpdate({spreadsheetId:window.veiSheetId,resource:{requests:[{deleteDimension:{range:{sheetId:sh.properties.sheetId,dimension:'ROWS',startIndex:rowNum-1,endIndex:rowNum}}}]}});
       veiLoadManutencao();
     }
 
@@ -7613,6 +7619,9 @@ Esta ação não pode ser desfeita.`)) return;
       imoveisSheetId   = client.imoveis_sheet_id || '1FL7TlnRqTAkBUDM5ICMFvo5-6ezV92zPFAWevyEJT90';
       imoveisFolderId  = client.imoveis_folder_id || '1fhcguz-nrayJ0kAS-y1j9LQggs5wbD7i';
       window.finSheetOverride = client.financeiro_sheet_id || client.spreadsheet_id;
+      window.invSheetId      = client.investimentos_sheet_id || null;
+      window.veiSheetId      = client.veiculos_sheet_id || null;
+      window.veiFolderId     = client.veiculos_folder_id || null;
 
       // Reseta dados em memória do cliente anterior
       imoveisData    = [];
