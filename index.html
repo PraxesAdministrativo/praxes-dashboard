@@ -49,7 +49,7 @@
       box-shadow: 4px 0 20px rgba(0,0,0,0.1);
     }
     .sidebar-header {
-      padding: 28px 20px 24px;
+      padding: 30px 20px;
       border-bottom: 1px solid rgba(255,255,255,0.1);
     }
     .sidebar-logo {
@@ -84,17 +84,10 @@
       font-weight: 600;
     }
     .nav-icon {
-      font-size: 0;
+      font-size: 20px;
       margin-right: 12px;
-      width: 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      opacity: 0.7;
-      flex-shrink: 0;
+      width: 24px;
     }
-    .nav-item.active .nav-icon,
-    .nav-item:hover .nav-icon { opacity: 1; }
     .sidebar-footer {
       position: absolute;
       bottom: 0;
@@ -174,55 +167,32 @@
       justify-content: center;
       min-height: 100vh;
       text-align: center;
-      position: relative;
-      overflow: hidden;
+      background: var(--branco);
     }
-    #auth-section::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background-image: url('./fundo_barco_site.jpg');
-      background-size: cover;
-      background-position: center 40%;
-      z-index: 0;
-    }
-    #auth-section::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: rgba(8, 24, 40, 0.70);
-      z-index: 1;
-    }
-    #auth-section > * { position: relative; z-index: 2; }
     #auth-section h1 {
-      font-size: 42px;
-      margin-bottom: 16px;
-      color: #ffffff;
-      font-weight: 700;
+      font-size: 48px;
+      margin-bottom: 20px;
+      color: var(--azul-principal);
     }
     #auth-section p {
       font-size: 18px;
-      color: rgba(255,255,255,0.7);
-      margin-bottom: 48px;
-      max-width: 440px;
-      line-height: 1.7;
+      color: var(--text-light);
+      margin-bottom: 40px;
+      max-width: 600px;
     }
     .btn-primary {
-      padding: 18px 56px;
+      padding: 16px 40px;
       font-size: 16px;
-      background: rgba(255,255,255,0.13);
-      color: #ffffff;
-      border: 1px solid rgba(255,255,255,0.35);
-      border-radius: 10px;
+      background: var(--azul-secundario);
+      color: var(--branco);
+      border: none;
+      border-radius: 8px;
       cursor: pointer;
       font-weight: 600;
       transition: all 0.3s;
-      backdrop-filter: blur(10px);
-      font-family: 'Montserrat', sans-serif;
-      letter-spacing: 0.3px;
     }
     .btn-primary:hover {
-      background: rgba(255,255,255,0.24);
+      background: var(--azul-terciario);
       transform: translateY(-2px);
     }
 
@@ -334,47 +304,12 @@
     }
     .imovel-image {
       width: 100%;
-      height: 160px;
-      background: linear-gradient(135deg, #0f3d57 0%, #1a5a7a 60%, #2e6b8e 100%);
+      height: 200px;
+      background: linear-gradient(135deg, var(--azul-principal) 0%, var(--azul-terciario) 100%);
       display: flex;
-      align-items: flex-end;
-      justify-content: space-between;
-      padding: 16px 20px;
-      position: relative;
-      overflow: hidden;
-    }
-    .imovel-image::before {
-      content: '';
-      position: absolute;
-      top: -40px; right: -40px;
-      width: 160px; height: 160px;
-      border-radius: 50%;
-      background: rgba(255,255,255,0.04);
-    }
-    .imovel-image::after {
-      content: '';
-      position: absolute;
-      bottom: -20px; left: -20px;
-      width: 100px; height: 100px;
-      border-radius: 50%;
-      background: rgba(255,255,255,0.04);
-    }
-    .card-type-badge {
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      color: rgba(255,255,255,0.7);
-      background: rgba(255,255,255,0.1);
-      border-radius: 20px;
-      padding: 4px 10px;
-      position: relative;
-      z-index: 1;
-    }
-    .card-type-icon {
-      position: relative;
-      z-index: 1;
-      opacity: 0.9;
+      align-items: center;
+      justify-content: center;
+      font-size: 60px;
     }
     .imovel-body {
       padding: 20px;
@@ -977,84 +912,6 @@
       display: none;
     }
 
-    /* INVESTIMENTOS */
-    .inv-period-btn {
-      padding: 5px 12px; font-size: 12px; font-weight: 500;
-      border: none; background: transparent; border-radius: 6px;
-      cursor: pointer; color: var(--text-light); font-family: 'Montserrat',sans-serif;
-      transition: all 0.15s;
-    }
-    .inv-period-btn.active { background: var(--azul-terciario); color: var(--azul-principal); }
-    .inv-period-btn:hover:not(.active) { background: var(--cinza-claro); }
-
-    /* ADMIN */
-    /* ADMIN PANEL */
-    .admin-panel {
-      position: fixed; inset: 0; z-index: 5000;
-      display: flex; flex-direction: column; overflow-y: auto;
-      background-color: #071a28;
-      background-image: url('./fundo_barco_site.jpg');
-      background-size: cover; background-position: center 35%;
-    }
-    .admin-topbar {
-      position: relative; z-index: 2;
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 0 52px; height: 72px; flex-shrink: 0;
-      background: rgba(4, 14, 24, 0.75);
-      border-bottom: 1px solid rgba(255,255,255,0.08);
-      backdrop-filter: blur(12px);
-    }
-    .admin-topbar-left { display: flex; flex-direction: column; gap: 2px; }
-    .admin-topbar-eyebrow {
-      font-size: 10px; font-weight: 700; letter-spacing: 2.5px;
-      text-transform: uppercase; color: rgba(255,255,255,0.4);
-    }
-    .admin-topbar-title {
-      font-size: 20px; font-weight: 700; color: #fff; letter-spacing: 0.2px;
-    }
-    .admin-body {
-      position: relative; z-index: 2;
-      flex: 1; padding: 52px;
-      background: rgba(4, 14, 24, 0.65);
-    }
-    .admin-section-label {
-      font-size: 10px; font-weight: 700; letter-spacing: 2px;
-      text-transform: uppercase; color: rgba(255,255,255,0.35);
-      margin-bottom: 24px;
-    }
-    .admin-clients-grid {
-      display: grid; grid-template-columns: repeat(auto-fill, minmax(300px,1fr)); gap: 14px;
-    }
-    .admin-client-card {
-      background: rgba(255,255,255,0.07);
-      border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 12px; padding: 20px 24px; cursor: pointer;
-      transition: all 0.2s;
-      display: flex; align-items: center; gap: 16px;
-      backdrop-filter: blur(8px);
-    }
-    .admin-client-card:hover {
-      background: rgba(255,255,255,0.13);
-      border-color: rgba(255,255,255,0.25);
-      transform: translateY(-2px);
-    }
-    .admin-client-avatar {
-      width: 44px; height: 44px; border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      font-weight: 700; font-size: 15px; color: #fff; flex-shrink: 0;
-    }
-    .admin-client-name { font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 3px; }
-    .admin-client-email { font-size: 12px; color: rgba(255,255,255,0.45); }
-    .admin-back-btn {
-      position: fixed; bottom: 28px; right: 28px; z-index: 6000;
-      background: var(--azul-principal); color: #fff;
-      border: 1.5px solid rgba(255,255,255,0.2); border-radius: 50px;
-      padding: 12px 24px; font-size: 13px; font-weight: 700;
-      cursor: pointer; box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-      transition: all 0.2s; font-family: 'Montserrat', sans-serif;
-    }
-    .admin-back-btn:hover { background: var(--azul-secundario); transform: scale(1.03); }
-
     /* ===== CONTROLE FINANCEIRO ===== */
     .fin-tabs-header {
       display: flex;
@@ -1390,8 +1247,8 @@
 
   <!-- AUTH SECTION -->
   <div id="auth-section">
-    <img src="./logo.png" alt="Praxes" style="height:72px;width:auto;display:block;margin:0 auto 40px;filter:brightness(0) invert(1);">
-    <p>Sua vida financeira e patrimonial,<br>organizada em um só lugar.</p>
+    <h1>Bem-vindo à Praxes</h1>
+    <p>Sua vida financeira e patrimonial, organizada em um só lugar.</p>
     <button class="btn-primary" id="authorize-button">Entrar com Google</button>
   </div>
 
@@ -1401,35 +1258,35 @@
     <!-- SIDEBAR -->
     <aside class="sidebar">
       <div class="sidebar-header">
-        <img src="./logo.png" alt="Praxes" style="height:52px;width:auto;display:block;margin:0 auto;">
+        <div class="sidebar-logo">PRAXES</div>
       </div>
       <nav class="sidebar-nav">
         <div class="nav-item active" data-page="dashboard">
-          <span class="nav-icon" style="font-size:0;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>
+          <span class="nav-icon">🏠</span>
           <span>Dashboard</span>
         </div>
         <div class="nav-item" data-page="investimentos">
-          <span class="nav-icon" style="font-size:0;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg></span>
+          <span class="nav-icon">💰</span>
           <span>Investimentos</span>
         </div>
         <div class="nav-item" data-page="imoveis">
-          <span class="nav-icon" style="font-size:0;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 12L12 3l9 9"/><path d="M5 10v9a1 1 0 001 1h4v-4h4v4h4a1 1 0 001-1v-9"/></svg></span>
+          <span class="nav-icon">🏘️</span>
           <span>Imóveis</span>
         </div>
         <div class="nav-item" data-page="financeiro">
-          <span class="nav-icon" style="font-size:0;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="7" y1="15" x2="10" y2="15"/></svg></span>
+          <span class="nav-icon">📈</span>
           <span>Controle Financeiro</span>
         </div>
         <div class="nav-item" data-page="veiculos">
-          <span class="nav-icon" style="font-size:0;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M5 17H3v-5l2-5h14l2 5v5h-2"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="16.5" cy="17.5" r="2.5"/><path d="M5 12h14"/></svg></span>
+          <span class="nav-icon">🚗</span>
           <span>Veículos</span>
         </div>
         <div class="nav-item" data-page="documentos">
-          <span class="nav-icon" style="font-size:0;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/></svg></span>
+          <span class="nav-icon">📁</span>
           <span>Documentos</span>
         </div>
         <div class="nav-item" data-page="perfil">
-          <span class="nav-icon" style="font-size:0;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg></span>
+          <span class="nav-icon">👨‍👩‍👧‍👦</span>
           <span>Perfil & Família</span>
         </div>
       </nav>
@@ -1451,11 +1308,16 @@
 
         <!-- DASHBOARD PAGE -->
         <div class="page active" id="page-dashboard">
-          <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);">
+          <div class="stats-grid">
             <div class="stat-card">
               <div class="stat-label">Patrimônio Total</div>
               <div class="stat-value" id="total-patrimonio">R$ 0</div>
               <div class="stat-change" id="patrimonio-change">Carregando...</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Investimentos</div>
+              <div class="stat-value" id="total-investimentos">R$ 0</div>
+              <div class="stat-change" id="investimentos-change">Carregando...</div>
             </div>
             <div class="stat-card">
               <div class="stat-label">Imóveis</div>
@@ -1463,13 +1325,11 @@
               <div class="stat-change" id="imoveis-change">Carregando...</div>
             </div>
             <div class="stat-card">
-              <div class="stat-label">Investimentos</div>
-              <div class="stat-value" id="total-investimentos">—</div>
-              <div class="stat-change" id="investimentos-change">Em breve</div>
+              <div class="stat-label">Renda Passiva</div>
+              <div class="stat-value" id="renda-passiva">R$ 0</div>
+              <div class="stat-change">por mês</div>
             </div>
           </div>
-          <!-- Alertas de vencimento com carrossel -->
-          <div id="dash-alertas"></div>
         </div>
 
         <!-- IMOVEIS PAGE -->
@@ -1660,168 +1520,8 @@
 
         <!-- OUTRAS PÁGINAS (placeholders) -->
         <div class="page" id="page-investimentos">
-
-          <!-- Sem planilha configurada -->
-          <div id="inv-no-sheet" style="display:none;text-align:center;padding:60px 20px;">
-            <div style="font-size:15px;font-weight:600;color:var(--azul-principal);margin-bottom:8px;">Planilha de investimentos não configurada</div>
-            <div style="font-size:13px;color:var(--text-light);">Adicione o ID na coluna <code>investimentos_sheet_id</code> no Supabase.</div>
-          </div>
-
-          <!-- Conteúdo principal -->
-          <div id="inv-content" style="display:none;">
-
-            <!-- Barra de controles -->
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
-              <div style="display:flex;align-items:center;gap:8px;">
-                <span id="inv-data-ref" style="font-size:12px;color:var(--text-light);"></span>
-              </div>
-              <div style="display:flex;align-items:center;gap:12px;">
-                <!-- Toggle Mercado/Curva -->
-                <div style="display:flex;background:var(--branco);border-radius:8px;padding:3px;border:1px solid var(--borda);">
-                  <button class="inv-mark-btn active" data-mark="mercado" onclick="invSetMarcacao('mercado',this)"
-                    style="padding:5px 14px;font-size:12px;font-weight:600;border:none;border-radius:6px;cursor:pointer;background:var(--azul-principal);color:#fff;font-family:'Montserrat',sans-serif;transition:all .2s;">
-                    A Mercado
-                  </button>
-                  <button class="inv-mark-btn" data-mark="curva" onclick="invSetMarcacao('curva',this)"
-                    style="padding:5px 14px;font-size:12px;font-weight:600;border:none;border-radius:6px;cursor:pointer;background:transparent;color:var(--text-light);font-family:'Montserrat',sans-serif;transition:all .2s;">
-                    Na Curva
-                  </button>
-                </div>
-                <!-- Período -->
-                <div style="display:flex;background:var(--branco);border-radius:8px;padding:3px;border:1px solid var(--borda);">
-                  <button class="inv-period-btn active" data-period="ytd" onclick="invSetPeriod('ytd',this)">YTD</button>
-                  <button class="inv-period-btn" data-period="6m"  onclick="invSetPeriod('6m',this)">6M</button>
-                  <button class="inv-period-btn" data-period="12m" onclick="invSetPeriod('12m',this)">12M</button>
-                  <button class="inv-period-btn" data-period="all" onclick="invSetPeriod('all',this)">Início</button>
-                </div>
-                <!-- PDF -->
-                <button class="btn-add" onclick="invGerarPDF()" style="padding:8px 16px;font-size:12px;background:var(--azul-secundario);">📄 Relatório PDF</button>
-              </div>
-            </div>
-
-            <!-- KPIs: 3 cards + fluxo de resgate -->
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr 220px;gap:16px;margin-bottom:20px;">
-              <div class="stat-card">
-                <div class="stat-label">Patrimônio Total</div>
-                <div class="stat-value" id="inv-patrimonio">—</div>
-                <div class="stat-change" id="inv-patrimonio-sub">—</div>
-              </div>
-              <div class="stat-card">
-                <div class="stat-label" id="inv-rent-label">Rentab. a Mercado</div>
-                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px;">
-                  <div style="text-align:center;">
-                    <div style="font-size:10px;color:var(--text-light);margin-bottom:3px;">Mês</div>
-                    <div style="font-size:15px;font-weight:700;color:var(--azul-principal);" id="inv-rent-mes">—</div>
-                  </div>
-                  <div style="text-align:center;">
-                    <div style="font-size:10px;color:var(--text-light);margin-bottom:3px;">Ano</div>
-                    <div style="font-size:15px;font-weight:700;color:var(--azul-principal);" id="inv-rent-ano">—</div>
-                  </div>
-                  <div style="text-align:center;">
-                    <div style="font-size:10px;color:var(--text-light);margin-bottom:3px;">12m</div>
-                    <div style="font-size:15px;font-weight:700;color:var(--azul-principal);" id="inv-rent-12m">—</div>
-                  </div>
-                  <div style="text-align:center;">
-                    <div style="font-size:10px;color:var(--text-light);margin-bottom:3px;">Período</div>
-                    <div style="font-size:15px;font-weight:700;color:var(--azul-principal);" id="inv-rent-periodo">—</div>
-                  </div>
-                </div>
-              </div>
-              <div class="stat-card">
-                <div class="stat-label">CDI</div>
-                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px;">
-                  <div style="text-align:center;">
-                    <div style="font-size:10px;color:var(--text-light);margin-bottom:3px;">Mês</div>
-                    <div style="font-size:15px;font-weight:700;color:var(--text-light);" id="inv-cdi-mes">—</div>
-                  </div>
-                  <div style="text-align:center;">
-                    <div style="font-size:10px;color:var(--text-light);margin-bottom:3px;">Ano</div>
-                    <div style="font-size:15px;font-weight:700;color:var(--text-light);" id="inv-cdi-ano">—</div>
-                  </div>
-                  <div style="text-align:center;">
-                    <div style="font-size:10px;color:var(--text-light);margin-bottom:3px;">12m</div>
-                    <div style="font-size:15px;font-weight:700;color:var(--text-light);" id="inv-cdi-12m">—</div>
-                  </div>
-                  <div style="text-align:center;">
-                    <div style="font-size:10px;color:var(--text-light);margin-bottom:3px;">% CDI</div>
-                    <div style="font-size:15px;font-weight:700;color:var(--verde);" id="inv-pct-cdi">—</div>
-                  </div>
-                </div>
-              </div>
-              <!-- Fluxo de Resgate -->
-              <div class="stat-card" style="padding:16px;">
-                <div class="stat-label" style="margin-bottom:10px;">Liquidez</div>
-                <div id="inv-liquidez-body" style="display:flex;flex-direction:column;gap:5px;font-size:11px;"></div>
-              </div>
-            </div>
-
-            <!-- Gráfico de performance -->
-            <div class="gestao-section" style="margin-bottom:20px;">
-              <div class="gestao-header">
-                <h3 class="gestao-title" id="inv-chart-title">Performance acumulada — A Mercado</h3>
-                <div style="display:flex;gap:16px;font-size:12px;color:var(--text-light);">
-                  <span style="display:flex;align-items:center;gap:5px;"><span id="inv-leg-carteira" style="width:10px;height:3px;background:#0F3D57;border-radius:2px;display:inline-block;"></span><span id="inv-leg-carteira-txt">Mercado</span></span>
-                  <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:3px;background:#B4B2A9;border-radius:2px;display:inline-block;"></span>CDI</span>
-                </div>
-              </div>
-              <div style="position:relative;width:100%;height:260px;">
-                <canvas id="inv-chart-perf"></canvas>
-              </div>
-            </div>
-
-            <!-- Linha: 2 pizzas + tabela de retorno mensal -->
-            <div style="display:grid;grid-template-columns:220px 220px 1fr;gap:20px;margin-bottom:20px;">
-              <!-- Pizza por Classe -->
-              <div class="gestao-section">
-                <div class="gestao-header"><h3 class="gestao-title">Por classe</h3></div>
-                <div style="position:relative;width:100%;height:160px;"><canvas id="inv-chart-classe"></canvas></div>
-                <div id="inv-classe-legend" style="font-size:11px;margin-top:10px;display:flex;flex-direction:column;gap:5px;"></div>
-              </div>
-              <!-- Pizza por Custodiante -->
-              <div class="gestao-section">
-                <div class="gestao-header"><h3 class="gestao-title">Por custodiante</h3></div>
-                <div style="position:relative;width:100%;height:160px;"><canvas id="inv-chart-cust"></canvas></div>
-                <div id="inv-cust-legend" style="font-size:11px;margin-top:10px;display:flex;flex-direction:column;gap:5px;"></div>
-              </div>
-              <!-- Tabela retorno mensal -->
-              <div class="gestao-section">
-                <div class="gestao-header"><h3 class="gestao-title">Retorno mensal (%)</h3></div>
-                <div style="overflow-x:auto;">
-                  <table class="gestao-table" style="width:100%;font-size:11px;" id="inv-table-mensal">
-                    <thead><tr><th>Ano</th><th>Jan</th><th>Fev</th><th>Mar</th><th>Abr</th><th>Mai</th><th>Jun</th><th>Jul</th><th>Ago</th><th>Set</th><th>Out</th><th>Nov</th><th>Dez</th><th>Ano</th></tr></thead>
-                    <tbody id="inv-mensal-tbody"><tr><td colspan="14" class="empty-state">—</td></tr></tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-
-            <!-- Posição Consolidada por classe -->
-            <div class="gestao-section">
-              <div class="gestao-header">
-                <h3 class="gestao-title">Posição Consolidada</h3>
-                <span style="font-size:12px;color:var(--text-light);" id="inv-pos-data"></span>
-              </div>
-              <div style="overflow-x:auto;">
-                <table class="gestao-table" style="table-layout:fixed;width:100%;">
-                  <thead>
-                    <tr>
-                      <th style="width:32%;">Ativo</th>
-                      <th style="width:13%;text-align:right;">Saldo Bruto</th>
-                      <th style="width:8%;text-align:right;">%</th>
-                      <th style="width:13%;text-align:right;">Provisão IR</th>
-                      <th style="width:13%;text-align:right;">Saldo Líquido</th>
-                      <th style="width:10%;">Liquidez</th>
-                      <th style="width:11%;">Custodiante</th>
-                    </tr>
-                  </thead>
-                  <tbody id="inv-posicoes-tbody">
-                    <tr><td colspan="7" class="empty-state">Carregando...</td></tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-          </div><!-- /inv-content -->
+          <h2>Investimentos</h2>
+          <p>Em desenvolvimento...</p>
         </div>
 
         <!-- CONTROLE FINANCEIRO PAGE -->
@@ -2365,56 +2065,6 @@
     </div>
   </div>
 
-  <!-- ADMIN PANEL -->
-
-  <div id="admin-panel" style="display:none;" class="admin-panel">
-    <div class="admin-header">
-      <div>
-        <img src="./logo.png" alt="Praxes" style="height:40px;width:auto;display:block;">
-        <div class="admin-subtitle">Painel Administrativo</div>
-      </div>
-      <div style="font-size:13px;color:rgba(255,255,255,0.5);" id="admin-count"></div>
-    </div>
-    <div class="admin-clients-grid" id="admin-clients-grid">
-      <div style="color:rgba(255,255,255,0.5);padding:40px;grid-column:1/-1;text-align:center;">
-        <div class="spinner" style="border-color:rgba(255,255,255,0.2);border-top-color:#fff;"></div>
-        <p style="margin-top:16px;">Carregando clientes...</p>
-      </div>
-    </div>
-  </div>
-
-  <!-- BOTÃO VOLTAR ADMIN (aparece quando admin está vendo cliente) -->
-  <button id="admin-back-btn" class="admin-back-btn" style="display:none;" onclick="adminVoltar()">
-    ← Voltar ao Painel Admin
-  </button>
-
-  <!-- ADMIN PANEL -->
-  <div id="admin-panel" style="display:none;" class="admin-panel">
-    <!-- Topbar -->
-    <div class="admin-topbar">
-      <div class="admin-topbar-left">
-        <div class="admin-topbar-eyebrow">Portal Praxes</div>
-        <div class="admin-topbar-title">Gestão de Clientes</div>
-      </div>
-      <img src="./logo.png" alt="Praxes" style="height:34px;width:auto;filter:brightness(0) invert(1);opacity:0.85;">
-    </div>
-    <!-- Body -->
-    <div class="admin-body">
-      <div class="admin-section-label" id="admin-count">Carregando...</div>
-      <div class="admin-clients-grid" id="admin-clients-grid">
-        <div style="color:rgba(255,255,255,0.4);padding:40px;grid-column:1/-1;text-align:center;">
-          <div class="spinner" style="border-color:rgba(255,255,255,0.15);border-top-color:rgba(255,255,255,0.7);margin:0 auto;"></div>
-          <p style="margin-top:16px;font-size:13px;">Carregando clientes...</p>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- BOTÃO VOLTAR ADMIN -->
-  <button id="admin-back-btn" class="admin-back-btn" style="display:none;" onclick="adminVoltar()">
-    ← Voltar ao Admin
-  </button>
-
   <!-- MODAL LANÇAMENTO (add/edit) -->
   <div class="modal" id="modal-lanc">
     <div class="modal-content" style="max-width:560px;">
@@ -2655,7 +2305,7 @@
               </div>
             </div>
             <!-- Botão IA — aparece após selecionar arquivo imagem/PDF -->
-            <div id="ai-extract-area" style="display:none;margin-top:10px;">
+            <div id="ai-extract-area" style="display:none !important;margin-top:10px;">
               <button type="button" onclick="docsExtrairComIA()"
                 style="width:100%;padding:11px;border:none;border-radius:8px;background:linear-gradient(135deg,#2e6b8e,#0f3d57);color:#fff;font-weight:700;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
                 <span id="ai-btn-icon">✨</span>
@@ -2758,6 +2408,8 @@
     let resumoSheetId = null;
     let imoveisSheetId = null;
     let imoveisFolderId = null;
+    let veiculosSheetId = null;
+    let veiculosFolderId = null;
     let currentUser = null;
 
     // NAVEGAÇÃO
@@ -2782,8 +2434,7 @@
       if (pageName === 'imoveis') {
         loadImoveis();
       }
-      if (pageName === 'financeiro')    { finInit(); }
-      if (pageName === 'investimentos') { invInit(); }
+      if (pageName === 'financeiro') { finInit(); }
       if (pageName === 'veiculos')   { veiculosInit(); }
       if (pageName === 'documentos') { docsInit(); }
       if (pageName === 'perfil')     { perfilInit(); }
@@ -2837,7 +2488,7 @@
         
         const { data: client, error } = await db
           .from('clients')
-          .select('spreadsheet_id, name, imoveis_sheet_id, imoveis_folder_id, financeiro_sheet_id, is_admin, investimentos_sheet_id')
+          .select('spreadsheet_id, name, imoveis_sheet_id, imoveis_folder_id, financeiro_sheet_id, veiculos_sheet_id, veiculos_folder_id')
           .eq('email', email)
           .single();
         
@@ -2856,10 +2507,13 @@
         resumoSheetId = client.spreadsheet_id;
         imoveisSheetId = client.imoveis_sheet_id || '1FL7TlnRqTAkBUDM5ICMFvo5-6ezV92zPFAWevyEJT90';
         imoveisFolderId = client.imoveis_folder_id || '1fhcguz-nrayJ0kAS-y1j9LQggs5wbD7i';
+        veiculosSheetId = client.veiculos_sheet_id || null;
+        veiculosFolderId = client.veiculos_folder_id || null;
+        console.log('🚗 Veiculos Sheet:', veiculosSheetId);
+        console.log('📁 Veiculos Folder:', veiculosFolderId);
         // Controle Financeiro usa a planilha de orçamento do cliente
         // Se tiver um sheet específico, usa ele; caso contrário, usa o spreadsheet_id (mesmo do resumo)
         window.finSheetOverride = client.financeiro_sheet_id || client.spreadsheet_id;
-        window.invSheetId = client.investimentos_sheet_id || null;
         
         console.log('✅ Using Imoveis Sheet:', imoveisSheetId);
         console.log('✅ Using Imoveis Folder:', imoveisFolderId);
@@ -2904,156 +2558,76 @@
         }
         
         document.getElementById('auth-section').style.display = 'none';
-
-        if (client.is_admin) {
-          await adminShowPanel();
-        } else {
-          adminCarregarCliente(client);
-        }
+        document.getElementById('app-container').style.display = 'flex';
+        
+        document.getElementById('sidebar-name').textContent = client.name;
+        document.getElementById('sidebar-avatar').textContent = client.name.substring(0, 2).toUpperCase();
+        
+        loadDashboard();
       }
     });
 
     // LOAD DASHBOARD
-    let _dashCarrosselInterval = null;
-
     async function loadDashboard() {
-      const hoje = new Date();
-      const mesAtual = hoje.getMonth() + 1;
-      const anoAtual = hoje.getFullYear();
-
       try {
-        // ---- IMÓVEIS ----
-        if (!imoveisData.length) await loadAllDataOptimized();
-        let totalImoveis = 0, totalCompra = 0;
-        imoveisData.forEach(row => {
-          totalImoveis += parseFloat(String(row[7]||'0').replace(/[^\d.-]/g,''))||0;
-          totalCompra  += parseFloat(String(row[5]||'0').replace(/[^\d.-]/g,''))||0;
+        // Carrega resumo
+        const response = await gapi.client.sheets.spreadsheets.values.get({
+          spreadsheetId: resumoSheetId,
+          range: "Resumo!A1:B10"
         });
-        document.getElementById('total-imoveis').textContent = fmt(totalImoveis);
-        const varIm = totalCompra > 0 ? ((totalImoveis-totalCompra)/totalCompra*100).toFixed(1) : null;
-        const elIm = document.getElementById('imoveis-change');
-        elIm.textContent = varIm !== null ? (varIm>=0?'+':'')+varIm+'% vs compra · '+imoveisData.length+' imóvel(is)' : imoveisData.length+' imóvel(is)';
-        elIm.className = 'stat-change ' + (varIm>=0?'positive':'negative');
-
-        // ---- FINANCEIRO ----
-        if (!finGerRows.length) {
-          finSheetId = window.finSheetOverride || resumoSheetId;
-          finMesAtual = mesAtual; finAnoAtual = anoAtual;
-          const resp = await gapi.client.sheets.spreadsheets.values.batchGet({
-            spreadsheetId: finSheetId,
-            ranges: ['Lançamentos!A1:J5000','Gerencial!A1:AJ200'],
-            valueRenderOption:'UNFORMATTED_VALUE', dateTimeRenderOption:'FORMATTED_STRING'
+        const rows = response.result.values;
+        if (rows) {
+          rows.forEach(([k, v]) => {
+            if (k === "Patrimônio Total") {
+              document.getElementById("total-patrimonio").textContent = fmt(v);
+            } else if (k === "Total Investimentos") {
+              document.getElementById("total-investimentos").textContent = fmt(v);
+            } else if (k === "Renda Passiva Mensal") {
+              document.getElementById("renda-passiva").textContent = fmt(v);
+            } else if (k === "Variação Patrimônio") {
+              const el = document.getElementById("patrimonio-change");
+              el.textContent = v;
+              el.className = "stat-change " + (v.includes("+") ? "positive" : "negative");
+            } else if (k === "Variação Investimentos") {
+              const el = document.getElementById("investimentos-change");
+              el.textContent = v;
+              el.className = "stat-change " + (v.includes("+") ? "positive" : "negative");
+            }
           });
-          const lancRows = resp.result.valueRanges[0].values || [];
-          finGerRows = resp.result.valueRanges[1].values || [];
-          finColMap  = finGetColMap(finGerRows);
-          finLancamentos = [];
-          for (let i=2; i<lancRows.length; i++) {
-            const row = lancRows[i];
-            if (!row||row.length<3) continue;
-            const anoVal = parseInt(row[1]);
-            if (!anoVal||isNaN(anoVal)||!row[2]) continue;
-            const valor = parseFloat(String(row[4]||'0').replace(',','.'));
-            finLancamentos.push({
-              mes:String(row[0]||'').trim(), ano:anoVal,
-              origem:String(row[2]||'').trim(), referencia:String(row[3]||'').trim(),
-              valor:isNaN(valor)?0:valor,
-              data:(function(r){
-                if(!r)return'';const s=String(r).trim();
-                if(/^\d{4}-\d{2}-\d{2}/.test(s))return s.substring(0,10);
-                if(/^\d{4,6}(\.\d+)?$/.test(s)){const d=new Date(Date.UTC(1899,11,30)+Math.floor(parseFloat(s))*86400000);return isNaN(d)?'':d.toISOString().split('T')[0];}
-                return s;
-              })(row[5]),
-              extrato:String(row[6]||'').trim(), obs:String(row[7]||'').trim(), _rowIndex:i+1
-            });
+        }
+        
+        // Calcula total de imóveis automaticamente
+        const imoveisResponse = await gapi.client.sheets.spreadsheets.values.get({
+          spreadsheetId: imoveisSheetId,
+          range: "Lista!A2:H100"
+        });
+        const imoveisRows = imoveisResponse.result.values || [];
+        
+        let totalImoveis = 0;
+        let valorCompraTotal = 0;
+        
+        imoveisRows.forEach(row => {
+          if (row[0]) { // Se tem nome
+            const valorAtual = parseFloat(String(row[7] || '0').replace(/[^\d.-]/g, '')) || 0;
+            const valorCompra = parseFloat(String(row[5] || '0').replace(/[^\d.-]/g, '')) || 0;
+            totalImoveis += valorAtual;
+            valorCompraTotal += valorCompra;
           }
+        });
+        
+        document.getElementById("total-imoveis").textContent = fmt(totalImoveis);
+        
+        // Calcula variação dos imóveis
+        if (valorCompraTotal > 0) {
+          const variacaoImoveis = ((totalImoveis - valorCompraTotal) / valorCompraTotal * 100).toFixed(1);
+          const el = document.getElementById("imoveis-change");
+          el.textContent = (variacaoImoveis >= 0 ? '+' : '') + variacaoImoveis + '%';
+          el.className = "stat-change " + (variacaoImoveis >= 0 ? "positive" : "negative");
         }
-
-        const colAtual = finColMap[anoAtual+'-'+mesAtual];
-        const ytdCol   = finColMap['ytd_'+anoAtual];
-        let rendaTotal=0, despTotal=0;
-        finGerRows.forEach(row => {
-          if(!row)return;
-          const lbl=String(row[1]||'').trim();
-          if(lbl==='Rendas totais'    && colAtual!==undefined) rendaTotal=Math.abs(parseFloat(String(row[colAtual]||'0'))||0);
-          if(lbl==='Total de despesas'&& colAtual!==undefined) despTotal =Math.abs(parseFloat(String(row[colAtual]||'0'))||0);
-        });
-        const saldo = rendaTotal - despTotal;
-        const mesTxt = MESES_PT[mesAtual-1]+' '+anoAtual;
-
-        // Patrimônio Total = Imóveis + (futuramente Investimentos)
-        const totalPatrimonio = totalImoveis; // será expandido quando investimentos for conectado
-        document.getElementById('total-patrimonio').textContent = fmt(totalPatrimonio);
-        document.getElementById('patrimonio-change').textContent = imoveisData.length+' imóvel(is) · '+veiculosData.length+' veículo(s)';
-        document.getElementById('patrimonio-change').className = 'stat-change';
-
-        // Investimentos — placeholder até integração
-        document.getElementById('total-investimentos').textContent = '—';
-        document.getElementById('investimentos-change').textContent = 'Em breve';
-        document.getElementById('investimentos-change').className = 'stat-change';
-
-        // ---- VEÍCULOS (carrega silenciosamente se não carregou) ----
-        if (!veiculosData.length) await veiculosLoad();
-
-        // ---- ALERTAS ----
-        if (!docsData.length) {
-          try {
-            const r = await gapi.client.sheets.spreadsheets.values.get({
-              spreadsheetId:resumoSheetId, range:'Documentos_Pessoais!A2:G200', valueRenderOption:'UNFORMATTED_VALUE'
-            });
-            docsData = r.result.values||[];
-          } catch(e){}
-        }
-
-        const alertas = [];
-        docsData.forEach(row => {
-          const iso=parseSheetDate(row[3]); if(!iso)return;
-          const diff=Math.round((new Date(iso+'T12:00:00')-hoje)/86400000);
-          if(diff<=90) alertas.push({label:`${row[1]||''} (${row[0]||''})`, diff, tipo:'doc'});
-        });
-        veiculosData.forEach(row => {
-          [['IPVA',row[10]],['Seguro',row[11]],['Licenciamento',row[12]]].forEach(([lbl,raw])=>{
-            const iso=parseSheetDate(raw); if(!iso)return;
-            const diff=Math.round((new Date(iso+'T12:00:00')-hoje)/86400000);
-            if(diff<=90) alertas.push({label:`${lbl} — ${row[0]||''}`, diff, tipo:'vei'});
-          });
-        });
-        alertas.sort((a,b)=>a.diff-b.diff);
-
-        // Renderiza carrossel
-        _dashRenderCarrossel(alertas, hoje);
-
-      } catch(e) { console.error('❌ Dashboard:', e); }
-    }
-
-    function _dashRenderCarrossel(alertas, hoje) {
-      const container = document.getElementById('dash-alertas');
-      if (_dashCarrosselInterval) { clearInterval(_dashCarrosselInterval); _dashCarrosselInterval = null; }
-      if (!alertas.length) { container.innerHTML = ''; return; }
-
-      const rows = alertas.map(a => {
-        const cor = a.diff < 0 ? '#dc2626' : a.diff < 30 ? '#b45309' : '#1e4d6b';
-        const tag = a.diff < 0 ? 'Vencido' : a.diff < 30 ? `${a.diff} dias` : `${a.diff} dias`;
-        const dot = a.diff < 0 ? '#dc2626' : a.diff < 30 ? '#d97706' : '#3b82f6';
-        const tipo = a.tipo === 'doc' ? 'Documento' : 'Veículo';
-        return `<tr style="border-bottom:1px solid #f1f1f1;">
-          <td style="padding:11px 0;width:8px;vertical-align:middle;">
-            <div style="width:6px;height:6px;border-radius:50%;background:${dot};margin-right:0;"></div>
-          </td>
-          <td style="padding:11px 12px;font-size:13px;color:var(--text-dark);font-weight:500;">${a.label}</td>
-          <td style="padding:11px 12px;font-size:11px;color:#999;text-transform:uppercase;letter-spacing:.5px;">${tipo}</td>
-          <td style="padding:11px 0;font-size:12px;font-weight:600;color:${cor};text-align:right;white-space:nowrap;">${tag}</td>
-        </tr>`;
-      }).join('');
-
-      container.innerHTML = `
-        <div style="background:#fff;border-radius:14px;padding:24px 28px;box-shadow:0 2px 12px rgba(15,61,87,.06);margin-top:16px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-            <span style="font-size:13px;font-weight:700;color:var(--azul-principal);letter-spacing:.3px;text-transform:uppercase;">Vencimentos</span>
-            <span style="font-size:11px;color:#aaa;">${alertas.length} item${alertas.length > 1 ? 's' : ''}</span>
-          </div>
-          <table style="width:100%;border-collapse:collapse;">${rows}</table>
-        </div>`;
+        
+      } catch (e) {
+        console.error('❌', e);
+      }
     }
 
     // LOAD IMOVEIS
@@ -3182,14 +2756,11 @@
         const variacaoClass = variacao >= 0 ? 'positive' : 'negative';
         const variacaoSymbol = variacao >= 0 ? '+' : '';
         
-        const tipoLabel = tipo || 'Imóvel';
+        const emoji = tipo === 'Apartamento' ? '🏢' : tipo === 'Casa' ? '🏡' : tipo === 'Terreno' ? '🏞️' : '🏠';
         
         html += `
           <div class="imovel-card">
-            <div class="imovel-image">
-              <span class="card-type-badge">${tipoLabel}</span>
-              <span class="card-type-icon">${svgImovel(grupo)}</span>
-            </div>
+            <div class="imovel-image">${emoji}</div>
             <div class="imovel-body">
               <div class="imovel-title">${nome}</div>
               <div class="imovel-meta">${grupo} • ${subgrupo}</div>
@@ -6488,13 +6059,18 @@ Esta ação não pode ser desfeita.`)) return;
 
 
     // ========== VEÍCULOS ==========
-    const VEI_SHEET_ID  = '1Yl1LQAu3bj1NTdtoFLGTW7EMuMDjPU3BV5e5PX-nroY';
-    const VEI_FOLDER_ID = '10zlSHcLGHV7htjsD4h7_9nx_mnOtASRa';
     const DOCS_FOLDER_ID = '1VGJmS1TFQrFs9pj1btfCweD9VsholxJL';
     let veiculosData = [];
     let veiAtualIndex = -1;
 
     async function veiculosInit() {
+      if (!veiculosSheetId) {
+        document.getElementById('veiculos-grid').innerHTML = `
+          <div style="grid-column:1/-1;background:#fff8e1;border:1px solid #f59e0b;border-radius:8px;padding:20px;margin:20px;font-size:13px;color:#92400e;">
+            ⚠️ Planilha de veículos não configurada para este cliente. Entre em contato com o suporte.
+          </div>`;
+        return;
+      }
       await veiculosLoad();
       document.getElementById('btn-add-veiculo').onclick = () => {
         document.getElementById('modal-vei-titulo').textContent = 'Adicionar Veículo';
@@ -6505,9 +6081,10 @@ Esta ação não pode ser desfeita.`)) return;
     }
 
     async function veiculosLoad() {
+      if (!veiculosSheetId) return;
       try {
         const resp = await gapi.client.sheets.spreadsheets.values.batchGet({
-          spreadsheetId: VEI_SHEET_ID,
+          spreadsheetId: veiculosSheetId,
           ranges: ['Lista!A2:P200'],
           valueRenderOption: 'UNFORMATTED_VALUE'
         });
@@ -6526,47 +6103,16 @@ Esta ação não pode ser desfeita.`)) return;
       }
     }
 
-    // SVG icons minimalistas para cards
-    function svgImovel(grupo) {
-      const isInv = (grupo||'').toLowerCase().includes('invest');
-      return `<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="8" y="20" width="32" height="22" rx="2" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
-        <path d="M4 22L24 8L44 22" stroke="rgba(255,255,255,0.6)" stroke-width="2" stroke-linecap="round"/>
-        <rect x="18" y="30" width="12" height="12" rx="1" fill="rgba(255,255,255,0.25)"/>
-        <rect x="12" y="26" width="5" height="5" rx="0.5" fill="rgba(255,255,255,0.3)"/>
-        <rect x="31" y="26" width="5" height="5" rx="0.5" fill="rgba(255,255,255,0.3)"/>
-        ${isInv ? '<circle cx="38" cy="12" r="6" fill="rgba(16,185,129,0.8)"/><path d="M35 12l2 2 4-4" stroke="white" stroke-width="1.5" stroke-linecap="round"/>' : ''}
-      </svg>`;
-    }
-
-    function svgVeiculo(tipo) {
-      const isBarco = ['Lancha','Veleiro','Jet Ski'].includes(tipo);
-      if (isBarco) return `<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M8 30L24 18L40 30" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
-        <path d="M4 34h40l-4 6H8z" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
-        <path d="M24 8v22" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
-      </svg>`;
-      return `<svg width="52" height="36" viewBox="0 0 52 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="6" y="12" width="40" height="16" rx="4" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
-        <path d="M12 12V8a2 2 0 012-2h14l8 6H12z" fill="rgba(255,255,255,0.2)" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
-        <circle cx="14" cy="29" r="5" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
-        <circle cx="14" cy="29" r="2" fill="rgba(255,255,255,0.3)"/>
-        <circle cx="38" cy="29" r="5" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
-        <circle cx="38" cy="29" r="2" fill="rgba(255,255,255,0.3)"/>
-        <rect x="28" y="16" width="12" height="1.5" rx="0.75" fill="rgba(255,255,255,0.3)"/>
-      </svg>`;
-    }
-
     function renderVeiculos() {
       const grid = document.getElementById('veiculos-grid');
       if (!veiculosData.length) {
         grid.innerHTML = '<p style="text-align:center;padding:60px;color:#999;">Nenhum veículo cadastrado.</p>';
         return;
       }
-      const tiposVei = ['Carro','SUV','Caminhonete','Moto','Lancha','Veleiro','Caminhão','Jet Ski','Outro'];
+      const emojis = {Carro:'🚗',SUV:'🚙',Caminhonete:'🛻',Moto:'🏍️',Lancha:'⛵',Veleiro:'⛵',Caminhão:'🚛','Jet Ski':'🏄'};
       grid.innerHTML = veiculosData.map((row, i) => {
         const [nome,tipo,marca,modelo,ano,placa,,cor,valor,,vencIPVA,vencSeg,vencLic] = row;
-        const tipoVei = tipo || 'Veículo';
+        const emoji = emojis[tipo] || '🚗';
         const hoje = new Date();
         const alertas = [
           {label:'IPVA', data: vencIPVA},
@@ -6582,10 +6128,7 @@ Esta ação não pode ser desfeita.`)) return;
         }).filter(Boolean).join(' ');
 
         return `<div class="imovel-card">
-          <div class="imovel-image" style="background:linear-gradient(135deg,#1a3a4a 0%,#1e5068 60%,#246080 100%);">
-              <span class="card-type-badge">${tipoVei}</span>
-              <span class="card-type-icon">${svgVeiculo(tipoVei)}</span>
-            </div>
+          <div class="imovel-image">${emoji}</div>
           <div class="imovel-body">
             <div class="imovel-title">${nome}</div>
             <div class="imovel-meta">${[marca,modelo,ano].filter(Boolean).join(' • ')}</div>
@@ -6653,7 +6196,7 @@ Esta ação não pode ser desfeita.`)) return;
       try {
         const nome = veiculosData[veiAtualIndex][0];
         const resp = await gapi.client.sheets.spreadsheets.values.get({
-          spreadsheetId: VEI_SHEET_ID, range: 'Manutencao!A2:G200', valueRenderOption:'UNFORMATTED_VALUE'
+          spreadsheetId: veiculosSheetId, range: 'Manutencao!A2:G200', valueRenderOption:'UNFORMATTED_VALUE'
         });
         const rows = (resp.result.values||[]).filter(r=>r[0]===nome);
         const tbody = document.getElementById('vei-manutencao-tbody');
@@ -6687,7 +6230,7 @@ Esta ação não pode ser desfeita.`)) return;
         form.elements['km'].value||'', form.elements['valor'].value||'', form.elements['oficina'].value||'', form.elements['obs'].value||''];
       try {
         await gapi.client.sheets.spreadsheets.values.append({
-          spreadsheetId: VEI_SHEET_ID, range:'Manutencao!A:G',
+          spreadsheetId: veiculosSheetId, range:'Manutencao!A:G',
           valueInputOption:'USER_ENTERED', resource:{values:[row]}
         });
         closeModal('modal-manutencao'); veiLoadManutencao(); alert('✅ Manutenção registrada!');
@@ -6715,12 +6258,12 @@ Esta ação não pode ser desfeita.`)) return;
       try {
         if (idx !== null && idx !== undefined) {
           await gapi.client.sheets.spreadsheets.values.update({
-            spreadsheetId:VEI_SHEET_ID, range:`Lista!A${parseInt(idx)+2}:O${parseInt(idx)+2}`,
+            spreadsheetId:veiculosSheetId, range:`Lista!A${parseInt(idx)+2}:O${parseInt(idx)+2}`,
             valueInputOption:'USER_ENTERED', resource:{values:[row]}
           });
         } else {
           await gapi.client.sheets.spreadsheets.values.append({
-            spreadsheetId:VEI_SHEET_ID, range:'Lista!A:O',
+            spreadsheetId:veiculosSheetId, range:'Lista!A:O',
             valueInputOption:'USER_ENTERED', resource:{values:[row]}
           });
         }
@@ -6731,9 +6274,9 @@ Esta ação não pode ser desfeita.`)) return;
     async function veiExcluir(i) {
       if (!confirm(`Excluir "${veiculosData[i][0]}"?`)) return;
       try {
-        const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId:VEI_SHEET_ID});
+        const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId:veiculosSheetId});
         const sh = meta.result.sheets.find(s=>s.properties.title==='Lista');
-        await gapi.client.sheets.spreadsheets.batchUpdate({spreadsheetId:VEI_SHEET_ID, resource:{requests:[{deleteDimension:{range:{sheetId:sh.properties.sheetId,dimension:'ROWS',startIndex:i+1,endIndex:i+2}}}]}});
+        await gapi.client.sheets.spreadsheets.batchUpdate({spreadsheetId:veiculosSheetId, resource:{requests:[{deleteDimension:{range:{sheetId:sh.properties.sheetId,dimension:'ROWS',startIndex:i+1,endIndex:i+2}}}]}});
         await veiculosLoad(); alert('✅ Veículo excluído!');
       } catch(e) { alert('Erro: '+e.message); }
     }
@@ -6744,12 +6287,12 @@ Esta ação não pode ser desfeita.`)) return;
       const row = veiculosData[veiAtualIndex];
       let folderId = row[15];
       if (!folderId) {
-        const meta = {name:row[0], mimeType:'application/vnd.google-apps.folder', parents:[VEI_FOLDER_ID]};
+        const meta = {name:row[0], mimeType:'application/vnd.google-apps.folder', parents:[veiculosFolderId]};
         const r = await gapi.client.drive.files.create({resource:meta,fields:'id',supportsAllDrives:true});
         folderId = r.result.id;
         row[15] = folderId;
         await gapi.client.sheets.spreadsheets.values.update({
-          spreadsheetId:VEI_SHEET_ID, range:`Lista!P${veiAtualIndex+2}`,
+          spreadsheetId:veiculosSheetId, range:`Lista!P${veiAtualIndex+2}`,
           valueInputOption:'USER_ENTERED', resource:{values:[[folderId]]}
         });
       }
@@ -6760,9 +6303,9 @@ Esta ação não pode ser desfeita.`)) return;
 
     async function veiExcluirManutencao(rowNum) {
       if (!confirm('Excluir esta manutenção?')) return;
-      const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId:VEI_SHEET_ID});
+      const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId:veiculosSheetId});
       const sh = meta.result.sheets.find(s=>s.properties.title==='Manutencao');
-      await gapi.client.sheets.spreadsheets.batchUpdate({spreadsheetId:VEI_SHEET_ID,resource:{requests:[{deleteDimension:{range:{sheetId:sh.properties.sheetId,dimension:'ROWS',startIndex:rowNum-1,endIndex:rowNum}}}]}});
+      await gapi.client.sheets.spreadsheets.batchUpdate({spreadsheetId:veiculosSheetId,resource:{requests:[{deleteDimension:{range:{sheetId:sh.properties.sheetId,dimension:'ROWS',startIndex:rowNum-1,endIndex:rowNum}}}]}});
       veiLoadManutencao();
     }
 
@@ -6773,7 +6316,7 @@ Esta ação não pode ser desfeita.`)) return;
     async function docsInit() {
       try {
         const resp = await gapi.client.sheets.spreadsheets.values.get({
-          spreadsheetId: resumoSheetId, range:'Documentos_Pessoais!A2:G200', valueRenderOption:'UNFORMATTED_VALUE'
+          spreadsheetId: resumoSheetId, range:'documentos_pessoais!A2:G200', valueRenderOption:'UNFORMATTED_VALUE'
         });
         docsData = resp.result.values || [];
         renderDocs();
@@ -6785,7 +6328,7 @@ Esta ação não pode ser desfeita.`)) return;
           renderDocs();
           document.getElementById('docs-sections').insertAdjacentHTML('afterbegin',
             `<div style="background:#fff8e1;border:1px solid #f59e0b;border-radius:8px;padding:14px 18px;margin-bottom:20px;font-size:13px;color:#92400e;">
-              ⚠️ Aba <strong>Documentos_Pessoais</strong> não encontrada na planilha. Importe o modelo e reabra esta página.
+              ⚠️ Aba <strong>documentos_pessoais</strong> não encontrada na planilha. Importe o modelo e reabra esta página.
             </div>`);
         } else {
           document.getElementById('docs-sections').innerHTML = `<p style="color:red;padding:20px;">Erro ao carregar: ${msg}</p>`;
@@ -6882,7 +6425,7 @@ Esta ação não pode ser desfeita.`)) return;
       // Só mostra botão IA para imagens e PDF
       const isImage = file.type.startsWith('image/');
       const isPDF   = file.type === 'application/pdf';
-      document.getElementById('ai-extract-area').style.display = (isImage || isPDF) ? 'block' : 'none';
+      document.getElementById('ai-extract-area').style.display = 'none';
 
       if (isImage || isPDF) {
         const reader = new FileReader();
@@ -6963,12 +6506,12 @@ Esta ação não pode ser desfeita.`)) return;
       try {
         if (docsEditIndex !== null) {
           await gapi.client.sheets.spreadsheets.values.update({
-            spreadsheetId:resumoSheetId, range:`Documentos_Pessoais!A${docsEditIndex+2}:G${docsEditIndex+2}`,
+            spreadsheetId:resumoSheetId, range:`documentos_pessoais!A${docsEditIndex+2}:G${docsEditIndex+2}`,
             valueInputOption:'USER_ENTERED', resource:{values:[row]}
           });
         } else {
           await gapi.client.sheets.spreadsheets.values.append({
-            spreadsheetId:resumoSheetId, range:'Documentos_Pessoais!A:G',
+            spreadsheetId:resumoSheetId, range:'documentos_pessoais!A:G',
             valueInputOption:'USER_ENTERED', resource:{values:[row]}
           });
         }
@@ -6979,8 +6522,8 @@ Esta ação não pode ser desfeita.`)) return;
     async function docsExcluir(i) {
       if (!confirm('Excluir este documento?')) return;
       const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId:resumoSheetId});
-      const sh = meta.result.sheets.find(s=>s.properties.title==='Documentos_Pessoais');
-      if (!sh) { alert('Aba Documentos_Pessoais não encontrada na planilha'); return; }
+      const sh = meta.result.sheets.find(s=>s.properties.title==='documentos_pessoais');
+      if (!sh) { alert('Aba documentos_pessoais não encontrada na planilha'); return; }
       await gapi.client.sheets.spreadsheets.batchUpdate({spreadsheetId:resumoSheetId,resource:{requests:[{deleteDimension:{range:{sheetId:sh.properties.sheetId,dimension:'ROWS',startIndex:i+1,endIndex:i+2}}}]}});
       await docsInit();
     }
@@ -7134,521 +6677,6 @@ Esta ação não pode ser desfeita.`)) return;
       if (isNaN(n)) return 'R$ 0';
       return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
     }
-
-    // ========== INVESTIMENTOS ==========
-    let invData     = { loaded: false };
-    let invPeriod   = 'ytd';
-    let invMarcacao = 'mercado'; // 'mercado' | 'curva'
-    let _invChartPerf  = null;
-    let _invChartClasse = null;
-    let _invChartCust   = null;
-
-    const INV_COLORS = ['#0F3D57','#2E6B8E','#1D9E75','#629EC1','#85B7EB','#B4B2A9','#5F5E5A','#0A2A3D','#4AABB8'];
-    const MESES_ABR  = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-
-    async function invInit() {
-      const sheetId = window.invSheetId;
-      if (!sheetId) {
-        document.getElementById('inv-no-sheet').style.display = 'block';
-        document.getElementById('inv-content').style.display  = 'none';
-        return;
-      }
-      document.getElementById('inv-no-sheet').style.display = 'none';
-      document.getElementById('inv-content').style.display  = 'block';
-
-      // Mostra loading na tabela
-      document.getElementById('inv-posicoes-tbody').innerHTML =
-        '<tr><td colspan="7" class="empty-state"><div class="spinner" style="margin:0 auto 8px;"></div>Carregando...</td></tr>';
-
-      if (!invData.loaded) await invLoad(sheetId);
-
-      // Aguarda um tick para o canvas ficar visível no DOM antes de renderizar
-      setTimeout(() => invRender(), 50);
-    }
-
-    async function invLoad(sheetId) {
-      try {
-        const resp = await gapi.client.sheets.spreadsheets.values.batchGet({
-          spreadsheetId: sheetId,
-          ranges: ['Página14!A1:D500','carteira!A1:R3000','curva_smart!A1:H500','rentabilidade_curva!A1:H500'],
-          valueRenderOption: 'UNFORMATTED_VALUE'
-        });
-
-        // ---- Página14: série histórica mercado/curva/CDI ----
-        const p14 = resp.result.valueRanges[0].values || [];
-        invData.serie = [];
-        for (let i = 1; i < p14.length; i++) {
-          const r = p14[i];
-          if (!r || !r[0]) continue;
-          const dt = parseSheetDate(r[0]); if (!dt) continue;
-          const mercado = parseFloat(r[1]); const cdi = parseFloat(r[2]); const curva = parseFloat(r[3]);
-          if (isNaN(mercado) && isNaN(cdi)) continue; // linha inválida
-          invData.serie.push({ data:dt, mercado:isNaN(mercado)?0:mercado, cdi:isNaN(cdi)?0:cdi, curva:isNaN(curva)?0:curva });
-        }
-        invData.serie.sort((a,b)=>a.data.localeCompare(b.data));
-
-        // ---- curva_smart: patrimônio e rentab mensal ----
-        const cs = resp.result.valueRanges[2].values || [];
-        invData.csRows = cs;
-        const lastCS = cs.filter(r=>r[4]).pop();
-        invData.patrimonio = lastCS ? parseFloat(lastCS[4]) : 0;
-        invData.dataRef = lastCS ? parseSheetDate(lastCS[0]) : '';
-
-        // Rentabilidade mensal (curva_smart: col 0=data, col 5=rent_dia, col 7=rent_acumulada)
-        invData.rentMensal = {}; // { '2025': {1: 1.22, 2: 1.04, ...}, '2026': {...} }
-        let prevAcum = null; let prevMes = null;
-        cs.slice(1).forEach(r => {
-          const dt = parseSheetDate(r[0]); if (!dt) return;
-          const d = new Date(dt+'T12:00:00');
-          const ano = d.getFullYear(); const mes = d.getMonth()+1;
-          const acum = parseFloat(r[7])||0;
-          if (prevMes && (d.getMonth()+1 !== prevMes || d.getFullYear() !== parseInt(Object.keys(invData.rentMensal).pop()||ano))) {
-            // virou o mês
-          }
-          if (!invData.rentMensal[ano]) invData.rentMensal[ano] = {};
-          invData.rentMensal[ano][mes] = acum; // guardamos acumulado do último dia do mês
-        });
-
-        // Calcula retorno mensal de fato (acum_fim - acum_inicio) / (1 + acum_inicio)
-        const rentMensalCalc = {};
-        const allMonths = [];
-        cs.slice(1).forEach(r => {
-          const dt = parseSheetDate(r[0]); if (!dt || !r[5]) return;
-          const d = new Date(dt+'T12:00:00');
-          allMonths.push({ ano:d.getFullYear(), mes:d.getMonth()+1, rentDia: parseFloat(r[5])||0 });
-        });
-        // agrupa por mês e soma rent diária composta
-        const monthMap = {};
-        allMonths.forEach(m => {
-          const k = `${m.ano}-${m.mes}`;
-          if (!monthMap[k]) monthMap[k] = { ano:m.ano, mes:m.mes, acum:1 };
-          monthMap[k].acum *= (1 + m.rentDia);
-        });
-        Object.values(monthMap).forEach(m => {
-          if (!rentMensalCalc[m.ano]) rentMensalCalc[m.ano] = {};
-          rentMensalCalc[m.ano][m.mes] = (m.acum - 1) * 100;
-        });
-        invData.rentMensalCalc = rentMensalCalc;
-
-        // CDI mensal (da Página14, diferença diária somada por mês)
-        const cdiMensal = {};
-        invData.serie.forEach(s => {
-          const d = new Date(s.data+'T12:00:00');
-          const ano = d.getFullYear(); const mes = d.getMonth()+1;
-          if (!cdiMensal[ano]) cdiMensal[ano] = {};
-          if (!cdiMensal[ano][mes]) cdiMensal[ano][mes] = { vals:[] };
-          cdiMensal[ano][mes].vals.push(s.cdi);
-        });
-        invData.cdiMensal = {};
-        Object.entries(cdiMensal).forEach(([ano, meses]) => {
-          invData.cdiMensal[ano] = {};
-          const anosArr = Object.keys(cdiMensal).sort();
-          Object.entries(meses).forEach(([mes, obj]) => {
-            const vals = obj.vals.sort((a,b)=>a-b);
-            // diferença entre último e primeiro dia do mês
-            invData.cdiMensal[ano][mes] = vals.length > 1 ? vals[vals.length-1] - vals[0] : null;
-          });
-        });
-
-        // ---- carteira: posições consolidadas ----
-        const cart = resp.result.valueRanges[1].values || [];
-        const hdr = cart[0]||[];
-        const ci = {}; hdr.forEach((h,i)=>ci[String(h||'').trim()]=i);
-
-        const datas = cart.slice(1).map(r=>parseSheetDate(r[0])).filter(Boolean).sort();
-        const ultimaData = datas[datas.length-1];
-        invData.posData = ultimaData;
-
-        const posMap = {};
-        cart.slice(1).forEach(r => {
-          if (parseSheetDate(r[0]) !== ultimaData) return;
-          const desc   = String(r[ci['Descrição']||5]||'').trim();
-          const ifinst = String(r[ci['Instituição Financeira do Ativo']||10]||'').trim();
-          const marc   = String(r[ci['Marcação']||9]||'').trim();
-          const aplicado = parseFloat(r[ci['Valor Aplicado']||6])||0;
-          const saldo    = parseFloat(r[ci['Saldo Bruto']||8])||0;
-          const pct_sb   = parseFloat(r[ci['% sb']||16])||0;
-          if (!desc || saldo === 0) return;
-          if (!posMap[desc]) posMap[desc] = {desc, if_:ifinst, marc, aplicado:0, saldo:0};
-          posMap[desc].aplicado += aplicado;
-          posMap[desc].saldo    += saldo;
-          posMap[desc].pct_sb    = pct_sb;
-        });
-        invData.posicoes    = Object.values(posMap).sort((a,b)=>b.saldo-a.saldo);
-        invData.totalSaldo  = invData.posicoes.reduce((s,p)=>s+p.saldo,0);
-
-        // ---- Alocação por classe (baseada na marcação) ----
-        const classeMap = {};
-        invData.posicoes.forEach(p => {
-          const cls = invClasseFromDesc(p.desc, p.marc);
-          if (!classeMap[cls]) classeMap[cls] = 0;
-          classeMap[cls] += p.saldo;
-        });
-        invData.classeMap = classeMap;
-
-        // ---- Alocação por custodiante ----
-        const custMap = {};
-        invData.posicoes.forEach(p => {
-          const k = p.if_ || 'Outros';
-          if (!custMap[k]) custMap[k] = 0;
-          custMap[k] += p.saldo;
-        });
-        invData.custMap = custMap;
-
-        // ---- Fluxo de resgate (% sb = dias de resgate) ----
-        // Agrupamos por faixa de liquidez usando a coluna auxiliar_rf ou Liquidez
-        const liqMap = { 'D0-D1':0, 'D2-D5':0, 'D6-D30':0, 'D31+':0, 'N/I':0 };
-        invData.posicoes.forEach(p => {
-          const s = p.saldo;
-          if (p.pct_sb <= 1)       liqMap['D0-D1'] += s;
-          else if (p.pct_sb <= 5)  liqMap['D2-D5'] += s;
-          else if (p.pct_sb <= 30) liqMap['D6-D30'] += s;
-          else if (p.pct_sb > 30)  liqMap['D31+'] += s;
-          else                     liqMap['N/I'] += s;
-        });
-        invData.liqMap = liqMap;
-
-        invData.loaded = true;
-      } catch(e) {
-        console.error('❌ invLoad:', e);
-        document.getElementById('inv-posicoes-tbody').innerHTML =
-          `<tr><td colspan="7" style="color:red;padding:20px;">Erro: ${e.result?.error?.message||e.message}</td></tr>`;
-      }
-    }
-
-    function invClasseFromDesc(desc, marc) {
-      const d = (desc||'').toLowerCase();
-      const m = (marc||'').toLowerCase();
-      if (d.includes('prev') || d.includes('icatu') || d.includes('zurich')) return 'Previdência';
-      if (d.includes('cri') || d.includes('cra'))                             return 'CRI/CRA';
-      if (d.includes('fiagro') || d.includes('fidc'))                        return 'Genérico';
-      if (d.includes('lft') || d.includes('ntnb') || d.includes('ntnbp') || d.includes('tesouro')) return 'Títulos Públicos';
-      if (d.includes('fif') || d.includes('ficfi') || d.includes('fundo') || d.includes(' fi ') || d.match(/\bfi\b/)) return 'Fundos';
-      if (d.includes('cdb') || d.includes('lca') || d.includes('lci') || d.includes('lci'))        return 'Renda Fixa';
-      if (m.includes('curva'))   return 'Renda Fixa';
-      if (m.includes('mercado')) return 'Fundos';
-      return 'Outros';
-    }
-
-    function invSetMarcacao(mark, btn) {
-      invMarcacao = mark;
-      document.querySelectorAll('.inv-mark-btn').forEach(b => {
-        const active = b.dataset.mark === mark;
-        b.style.background = active ? 'var(--azul-principal)' : 'transparent';
-        b.style.color       = active ? '#fff' : 'var(--text-light)';
-      });
-      invRender();
-    }
-
-    function invSetPeriod(period, btn) {
-      invPeriod = period;
-      document.querySelectorAll('.inv-period-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      invRender();
-    }
-
-    function invGetSerie() {
-      if (!invData.serie || !invData.serie.length) return [];
-      const all = invData.serie;
-      const last = all[all.length-1].data;
-      const lastDt = new Date(last+'T12:00:00');
-      let startISO;
-      if (invPeriod === 'ytd') {
-        startISO = `${lastDt.getFullYear()}-01-01`;
-      } else if (invPeriod === '6m') {
-        const d = new Date(lastDt); d.setMonth(d.getMonth()-6); startISO = d.toISOString().split('T')[0];
-      } else if (invPeriod === '12m') {
-        const d = new Date(lastDt); d.setFullYear(d.getFullYear()-1); startISO = d.toISOString().split('T')[0];
-      } else return all;
-      return all.filter(r=>r.data >= startISO);
-    }
-
-    function invRender() {
-      if (!invData.loaded) return;
-      const serie = invGetSerie();
-      if (!serie.length) {
-        console.warn('invRender: série vazia. invData.serie:', invData.serie?.length);
-        // Ainda renderiza posições mesmo sem série temporal
-        if (invData.posicoes) invRenderPosicoes();
-        return;
-      }
-      const isMerc = invMarcacao === 'mercado';
-      const cartKey = isMerc ? 'mercado' : 'curva';
-      const ultimo  = serie[serie.length-1];
-      const primeiro = serie[0];
-
-      // Ref data
-      if (invData.dataRef)
-        document.getElementById('inv-data-ref').textContent =
-          'Posição em ' + new Date(invData.dataRef+'T12:00:00').toLocaleDateString('pt-BR');
-
-      // Patrimônio
-      document.getElementById('inv-patrimonio').textContent = fmt(invData.patrimonio || invData.totalSaldo);
-      document.getElementById('inv-patrimonio-sub').textContent = `${invData.posicoes.length} ativos`;
-
-      // Label do card de rentabilidade
-      document.getElementById('inv-rent-label').textContent = isMerc ? 'Rentab. a Mercado' : 'Rentab. na Curva';
-      document.getElementById('inv-chart-title').textContent = `Performance acumulada — ${isMerc?'A Mercado':'Na Curva'}`;
-      document.getElementById('inv-leg-carteira-txt').textContent = isMerc ? 'Mercado' : 'Curva';
-
-      // KPI rentabilidade: Mês, Ano, 12m, Período
-      const hoje = new Date();
-      const mesAtual = hoje.getMonth()+1;
-      const anoAtual = hoje.getFullYear();
-      const serieAno  = invData.serie.filter(r=>r.data.startsWith(anoAtual));
-      const serie12m  = (() => { const d=new Date(hoje); d.setFullYear(d.getFullYear()-1); const iso=d.toISOString().split('T')[0]; return invData.serie.filter(r=>r.data>=iso); })();
-
-      const rentPct = (s, key) => {
-        if (!s || !s.length) return '—';
-        const a = parseFloat(s[0][key]);
-        const b = parseFloat(s[s.length-1][key]);
-        if (isNaN(a) || isNaN(b)) return '—';
-        const v = b - a;
-        return (v>=0?'+':'') + v.toFixed(2) + '%';
-      };
-
-      // Mês atual da curva_smart
-      const rentMes = (() => {
-        const yr = invData.rentMensalCalc; if (!yr) return '—';
-        const yData = yr[anoAtual]; if (!yData) return '—';
-        const v = yData[mesAtual]; if (v === undefined) return '—';
-        return (v>=0?'+':'') + v.toFixed(2) + '%';
-      })();
-
-      document.getElementById('inv-rent-mes').textContent     = rentMes;
-      document.getElementById('inv-rent-mes').style.color     = rentMes.startsWith('+') ? 'var(--verde)' : '#ef4444';
-      document.getElementById('inv-rent-ano').textContent     = rentPct(serieAno, cartKey);
-      document.getElementById('inv-rent-ano').style.color     = serieAno.length && serieAno[serieAno.length-1][cartKey] >= serieAno[0][cartKey] ? 'var(--verde)' : '#ef4444';
-      document.getElementById('inv-rent-12m').textContent     = rentPct(serie12m, cartKey);
-      document.getElementById('inv-rent-12m').style.color     = serie12m.length && serie12m[serie12m.length-1][cartKey] >= serie12m[0][cartKey] ? 'var(--verde)' : '#ef4444';
-      document.getElementById('inv-rent-periodo').textContent = rentPct(invData.serie, cartKey);
-      document.getElementById('inv-rent-periodo').style.color = 'var(--verde)';
-
-      // CDI
-      document.getElementById('inv-cdi-mes').textContent  = (() => { const yr=invData.cdiMensal; if(!yr) return '—'; const y=yr[anoAtual]; if(!y) return '—'; const v=y[mesAtual]; return (v!=null && !isNaN(v)) ? v.toFixed(2)+'%' : '—'; })();
-      document.getElementById('inv-cdi-ano').textContent  = rentPct(serieAno, 'cdi');
-      document.getElementById('inv-cdi-12m').textContent  = rentPct(serie12m, 'cdi');
-      const rentCartPeriodo = invData.serie.length ? invData.serie[invData.serie.length-1][cartKey] - invData.serie[0][cartKey] : 0;
-      const rentCDIPeriodo  = invData.serie.length ? invData.serie[invData.serie.length-1].cdi    - invData.serie[0].cdi    : 0;
-      document.getElementById('inv-pct-cdi').textContent  = (rentCDIPeriodo > 0 && !isNaN(rentCartPeriodo) && !isNaN(rentCDIPeriodo)) ? (rentCartPeriodo/rentCDIPeriodo*100).toFixed(1)+'%' : '—';
-
-      // Fluxo de resgate
-      const liqEl = document.getElementById('inv-liquidez-body');
-      const totalLiq = invData.liqMap ? Object.values(invData.liqMap).reduce((s,v)=>s+v,0) : 0;
-      liqEl.innerHTML = (invData.liqMap ? Object.entries(invData.liqMap) : []).filter(([,v])=>v>0).map(([k,v])=>{
-        const pct = totalLiq > 0 ? (v/totalLiq*100).toFixed(1) : 0;
-        return `<div style="display:flex;justify-content:space-between;align-items:center;">
-          <span style="color:var(--text-light);">${k}</span>
-          <span style="font-weight:600;color:var(--azul-principal);">${pct}%</span>
-        </div>`;
-      }).join('');
-
-      // Gráfico performance
-      const step = Math.max(1, Math.floor(serie.length/50));
-      const filtered = serie.filter((_,i)=>i%step===0||i===serie.length-1);
-      if (_invChartPerf) { _invChartPerf.destroy(); _invChartPerf = null; }
-      const ctxP = document.getElementById('inv-chart-perf');
-      if (!ctxP) { console.warn('Canvas inv-chart-perf not found'); return; }
-      if (ctxP) _invChartPerf = new Chart(ctxP, {
-        type:'line',
-        data:{ labels: filtered.map(r=>{ const d=new Date(r.data+'T12:00:00'); return `${d.getDate()}/${d.getMonth()+1}`; }),
-          datasets:[
-            { label:isMerc?'Mercado':'Curva', data: filtered.map(r=>parseFloat(r[cartKey].toFixed(4))),
-              borderColor:'#0F3D57', borderWidth:2.5, pointRadius:0, tension:0.3, fill:false },
-            { label:'CDI', data: filtered.map(r=>parseFloat(r.cdi.toFixed(4))),
-              borderColor:'#B4B2A9', borderWidth:1.5, pointRadius:0, tension:0.3, fill:false, borderDash:[3,3] }
-          ]},
-        options:{ responsive:true, maintainAspectRatio:false,
-          plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)}%` }}},
-          scales:{ x:{ grid:{display:false}, ticks:{font:{size:10},maxTicksLimit:8,color:'#999'}},
-            y:{ grid:{color:'rgba(0,0,0,0.04)'}, ticks:{font:{size:10},color:'#999',callback:v=>v.toFixed(1)+'%'} } } }
-      });
-
-      // Gráfico por classe
-      _invRenderDoughnut('inv-chart-classe','inv-classe-legend', invData.classeMap, _invChartClasse, c=>_invChartClasse=c);
-      // Gráfico por custodiante
-      _invRenderDoughnut('inv-chart-cust','inv-cust-legend', invData.custMap, _invChartCust, c=>_invChartCust=c);
-
-      // Tabela retorno mensal
-      const tbody = document.getElementById('inv-mensal-tbody');
-      const anos = Object.keys(invData.rentMensalCalc||{}).sort();
-      tbody.innerHTML = anos.map(ano => {
-        const meses = invData.rentMensalCalc[ano]||{};
-        const anoTotal = Object.values(meses).reduce((s,v)=>s*(1+v/100),1)-1;
-        return `<tr>
-          <td style="font-weight:600;">${ano}</td>
-          ${MESES_ABR.map((_,i)=>{
-            const v = meses[i+1];
-            const cor = v===undefined?'color:#ccc':v>=0?'color:var(--verde)':'color:#ef4444';
-            return `<td style="text-align:right;${cor};">${v!==undefined?v.toFixed(2):'—'}</td>`;
-          }).join('')}
-          <td style="text-align:right;font-weight:600;${anoTotal>=0?'color:var(--verde)':'color:#ef4444'};">${(anoTotal*100).toFixed(2)}</td>
-        </tr>`;
-      }).join('');
-
-      // Tabela posição consolidada
-      const posBody = document.getElementById('inv-posicoes-tbody');
-      if (invData.posData)
-        document.getElementById('inv-pos-data').textContent =
-          new Date(invData.posData+'T12:00:00').toLocaleDateString('pt-BR');
-
-      // Agrupa por classe
-      const classeGrupos = {};
-      invData.posicoes.forEach(p => {
-        const cls = invClasseFromDesc(p.desc, p.marc);
-        if (!classeGrupos[cls]) classeGrupos[cls] = [];
-        classeGrupos[cls].push(p);
-      });
-
-      const totalPos = invData.totalSaldo;
-      posBody.innerHTML = Object.entries(classeGrupos).map(([cls, ativos]) => {
-        const clsTotal = ativos.reduce((s,a)=>s+a.saldo,0);
-        const clsPct   = totalPos>0?(clsTotal/totalPos*100).toFixed(2):0;
-        const header   = `<tr style="background:var(--cinza-claro);">
-          <td colspan="7" style="font-weight:700;font-size:12px;color:var(--azul-principal);padding:8px 12px;">${cls} — ${fmt(clsTotal)} (${clsPct}%)</td>
-        </tr>`;
-        const rows = ativos.map(p => {
-          const pct = totalPos>0?(p.saldo/totalPos*100).toFixed(2):0;
-          const desc = p.desc.length>40?p.desc.substring(0,38)+'…':p.desc;
-          return `<tr>
-            <td style="font-size:11px;padding-left:20px;" title="${p.desc}">${desc}</td>
-            <td style="text-align:right;font-size:12px;">${fmt(p.saldo)}</td>
-            <td style="text-align:right;font-size:12px;">${pct}%</td>
-            <td style="text-align:right;font-size:12px;color:var(--text-light);">—</td>
-            <td style="text-align:right;font-size:12px;">${fmt(p.saldo)}</td>
-            <td style="font-size:11px;color:var(--text-light);">—</td>
-            <td style="font-size:11px;color:var(--text-light);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${p.if_}">${p.if_||'—'}</td>
-          </tr>`;
-        }).join('');
-        return header + rows;
-      }).join('');
-    }
-
-    function invRenderPosicoes() {
-      // Renderiza apenas posições sem gráfico temporal
-      _invRenderDoughnut('inv-chart-classe','inv-classe-legend', invData.classeMap||{}, _invChartClasse, c=>_invChartClasse=c);
-      _invRenderDoughnut('inv-chart-cust','inv-cust-legend', invData.custMap||{}, _invChartCust, c=>_invChartCust=c);
-    }
-
-    function _invRenderDoughnut(canvasId, legendId, dataMap, chartRef, setRef) {
-      if (chartRef) { chartRef.destroy(); setRef(null); }
-      const entries = Object.entries(dataMap).sort((a,b)=>b[1]-a[1]);
-      const total   = entries.reduce((s,[,v])=>s+v,0);
-      const ctx = document.getElementById(canvasId);
-      if (!ctx) return;
-      const chart = new Chart(ctx, {
-        type:'doughnut',
-        data:{ labels:entries.map(e=>e[0]),
-          datasets:[{ data:entries.map(e=>parseFloat(e[1].toFixed(2))),
-            backgroundColor:entries.map((_,i)=>INV_COLORS[i%INV_COLORS.length]),
-            borderWidth:0, hoverOffset:4 }]},
-        options:{ responsive:true, maintainAspectRatio:false, cutout:'65%',
-          plugins:{ legend:{display:false}, tooltip:{ callbacks:{
-            label: ctx => ` ${ctx.label}: ${fmt(ctx.parsed)}` }}}}
-      });
-      setRef(chart);
-      const legendEl = document.getElementById(legendId);
-      if (legendEl) legendEl.innerHTML = entries.map(([k,v],i)=>{
-        const pct = total>0?(v/total*100).toFixed(1):0;
-        return `<div style="display:flex;justify-content:space-between;align-items:center;">
-          <span style="display:flex;align-items:center;gap:5px;">
-            <span style="width:8px;height:8px;border-radius:2px;background:${INV_COLORS[i%INV_COLORS.length]};flex-shrink:0;"></span>
-            <span style="color:var(--text-dark);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px;" title="${k}">${k}</span>
-          </span>
-          <span style="color:var(--text-light);margin-left:6px;">${pct}%</span>
-        </div>`;
-      }).join('');
-    }
-
-    async function invGerarPDF() {
-      alert('📄 PDF em desenvolvimento — em breve!');
-    }
-
-    // ========== FIM INVESTIMENTOS ==========
-
-    // ========== ADMIN ==========
-    let _adminClients = [];
-    let _adminOriginalClient = null;
-
-    async function adminShowPanel() {
-      document.getElementById('admin-panel').style.display = 'flex';
-      document.getElementById('app-container').style.display = 'none';
-
-      // Busca todos os clientes
-      const { data: clients } = await db.from('clients').select('*').order('name');
-      _adminClients = clients || [];
-
-      document.getElementById('admin-count').textContent = _adminClients.length + ' cliente(s) cadastrado(s)';
-
-      const grid = document.getElementById('admin-clients-grid');
-      if (!_adminClients.length) {
-        grid.innerHTML = '<p style="color:rgba(255,255,255,0.5);grid-column:1/-1;text-align:center;padding:40px;">Nenhum cliente cadastrado.</p>';
-        return;
-      }
-
-      grid.innerHTML = _adminClients.map((c, i) => {
-        const initials = c.name.split(' ').map(p=>p[0]).slice(0,2).join('').toUpperCase();
-        const colors = ['#629ec1','#10b981','#8b5cf6','#f59e0b','#ef4444','#06b6d4'];
-        const bg = colors[i % colors.length];
-        return `<div class="admin-client-card" onclick="adminEntrarComoCliente(${i})">
-          <div class="admin-client-avatar" style="background:${bg};">${initials}</div>
-          <div>
-            <div class="admin-client-name">${c.name}</div>
-            <div class="admin-client-email">${c.email}</div>
-          </div>
-          <svg style="margin-left:auto;opacity:0.3;flex-shrink:0;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-        </div>`;
-      }).join('');
-    }
-
-    async function adminEntrarComoCliente(idx) {
-      const client = _adminClients[idx];
-      document.getElementById('admin-panel').style.display = 'none';
-      document.getElementById('admin-back-btn').style.display = 'block';
-      adminCarregarCliente(client);
-    }
-
-    function adminCarregarCliente(client) {
-      resumoSheetId    = client.spreadsheet_id;
-      imoveisSheetId   = client.imoveis_sheet_id || '1FL7TlnRqTAkBUDM5ICMFvo5-6ezV92zPFAWevyEJT90';
-      imoveisFolderId  = client.imoveis_folder_id || '1fhcguz-nrayJ0kAS-y1j9LQggs5wbD7i';
-      window.finSheetOverride = client.financeiro_sheet_id || client.spreadsheet_id;
-
-      // Reseta dados em memória do cliente anterior
-      imoveisData    = [];
-      finLancamentos = [];
-      finGerRows     = [];
-      finColMap      = {};
-      docsData       = [];
-      veiculosData   = [];
-      invData        = { loaded: false };
-      window.invSheetId = client.investimentos_sheet_id || null;
-
-      document.getElementById('app-container').style.display = 'flex';
-      document.getElementById('sidebar-name').textContent = client.name;
-      document.getElementById('sidebar-avatar').textContent = client.name.substring(0,2).toUpperCase();
-
-      // Destaca quando admin está vendo outro cliente
-      const backBtn = document.getElementById('admin-back-btn');
-      if (backBtn.style.display === 'block') {
-        backBtn.textContent = '← Voltar ao Admin  |  Visualizando: ' + client.name;
-      }
-
-      navigateTo('dashboard');
-      loadDashboard();
-    }
-
-    async function adminVoltar() {
-      document.getElementById('admin-back-btn').style.display = 'none';
-      document.getElementById('app-container').style.display = 'none';
-
-      // Reseta dados
-      imoveisData=[]; finLancamentos=[]; finGerRows=[]; finColMap={}; docsData=[]; veiculosData=[];
-
-      await adminShowPanel();
-    }
-
-    // ========== FIM ADMIN ==========
 
     // EVENT LISTENERS
     window.addEventListener('load', async () => {
