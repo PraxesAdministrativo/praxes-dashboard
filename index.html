@@ -1552,6 +1552,22 @@
             <div class="tab-content active" id="tab-geral">
               <div class="detalhes-content">
                 <div>
+                  <!-- FILTRO DE PERÍODO (compartilhado pelos dois gráficos) -->
+                  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px;padding:12px 16px;background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;">
+                    <div style="display:flex;gap:4px;">
+                      <button class="btn-periodo active" data-periodo="1A" onclick="setPeriodo('1A')" style="padding:5px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;background:#0f3d57;color:#fff;font-family:inherit;">1A</button>
+                      <button class="btn-periodo" data-periodo="2A" onclick="setPeriodo('2A')" style="padding:5px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;background:#fff;color:#555;font-family:inherit;">2A</button>
+                      <button class="btn-periodo" data-periodo="5A" onclick="setPeriodo('5A')" style="padding:5px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;background:#fff;color:#555;font-family:inherit;">5A</button>
+                      <button class="btn-periodo" data-periodo="MAX" onclick="setPeriodo('MAX')" style="padding:5px 10px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;background:#fff;color:#555;font-family:inherit;">Máx</button>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                      <span style="font-size:12px;color:#666;">De</span>
+                      <input type="date" id="filtro-data-ini" onchange="setPeriodoCustom()" style="padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;font-family:inherit;color:#333;">
+                      <span style="font-size:12px;color:#666;">até</span>
+                      <input type="date" id="filtro-data-fim" onchange="setPeriodoCustom()" style="padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;font-family:inherit;color:#333;">
+                    </div>
+                  </div>
+
                   <div class="detalhes-section">
                     <h3 class="detalhes-section-title">📊 Evolução de Valorização</h3>
                     <div class="chart-container">
@@ -4209,9 +4225,19 @@
         </div>
       `;
       
-      // Carrega histórico e rentabilidade
-      await loadHistoricoValores(nome);
-      await loadGraficoRentabilidade(nome);
+      // Inicializa filtro de período como MAX e carrega gráficos
+      const iniEl = document.getElementById('filtro-data-ini');
+      const fimEl = document.getElementById('filtro-data-fim');
+      if (iniEl) iniEl.value = '';
+      if (fimEl) fimEl.value = '';
+      // Reset botões — MAX ativo
+      document.querySelectorAll('.btn-periodo').forEach(b => {
+        const ativo = b.getAttribute('data-periodo') === 'MAX';
+        b.style.background = ativo ? '#0f3d57' : '#fff';
+        b.style.color = ativo ? '#fff' : '#555';
+      });
+      await loadHistoricoValores(nome, '', '');
+      await loadGraficoRentabilidade(nome, '', '');
       
       // Muda para página de detalhes
       document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -4219,21 +4245,82 @@
       document.getElementById('top-title').textContent = nome;
     }
     
-    async function loadHistoricoValores(nomeImovel) {
+    // ========== FILTRO DE PERÍODO DOS GRÁFICOS ==========
+    function getPeriodoFiltro() {
+      return {
+        ini: document.getElementById('filtro-data-ini')?.value || '',
+        fim: document.getElementById('filtro-data-fim')?.value || ''
+      };
+    }
+
+    function setPeriodo(periodo) {
+      // Atualiza botões
+      document.querySelectorAll('.btn-periodo').forEach(b => {
+        const ativo = b.getAttribute('data-periodo') === periodo;
+        b.style.background = ativo ? '#0f3d57' : '#fff';
+        b.style.color = ativo ? '#fff' : '#555';
+      });
+
+      const hoje = new Date();
+      let ini = '', fim = '';
+      fim = hoje.toISOString().split('T')[0];
+
+      if (periodo === '1A') {
+        const d = new Date(hoje); d.setFullYear(d.getFullYear() - 1);
+        ini = d.toISOString().split('T')[0];
+      } else if (periodo === '2A') {
+        const d = new Date(hoje); d.setFullYear(d.getFullYear() - 2);
+        ini = d.toISOString().split('T')[0];
+      } else if (periodo === '5A') {
+        const d = new Date(hoje); d.setFullYear(d.getFullYear() - 5);
+        ini = d.toISOString().split('T')[0];
+      } else if (periodo === 'MAX') {
+        ini = ''; fim = '';
+      }
+
+      document.getElementById('filtro-data-ini').value = ini;
+      document.getElementById('filtro-data-fim').value = fim;
+      aplicarFiltroPeriodo();
+    }
+
+    function setPeriodoCustom() {
+      // Desmarca botões rápidos quando o usuário digita datas manuais
+      document.querySelectorAll('.btn-periodo').forEach(b => {
+        b.style.background = '#fff'; b.style.color = '#555';
+      });
+      aplicarFiltroPeriodo();
+    }
+
+    function aplicarFiltroPeriodo() {
+      const { ini, fim } = getPeriodoFiltro();
+      const nome = currentImovelNome;
+      if (!nome) return;
+      loadHistoricoValores(nome, ini, fim);
+      loadGraficoRentabilidade(nome, ini, fim);
+    }
+    // ========== FIM FILTRO DE PERÍODO ==========
+
+        async function loadHistoricoValores(nomeImovel, dataIni, dataFim) {
       try {
-        // Usa cache em vez de fazer chamada à API
         const rows = dataCache.historico || [];
-        
-        // Filtra histórico deste imóvel
-        const historico = rows.filter(r => r[0] === nomeImovel).map(r => ({
+        let historico = rows.filter(r => r[0] === nomeImovel).map(r => ({
           data: r[1],
           valor: parseFloat(String(r[2] || '0').replace(/[^\d.-]/g, '')) || 0,
           fonte: r[3] || '',
           obs: r[4] || ''
         })).sort((a, b) => new Date(a.data) - new Date(b.data));
-        
+
         if (historico.length === 0) {
           document.getElementById('detalhes-historico').innerHTML = '<p style="text-align:center; padding: 40px; color: #999;">Nenhum histórico registrado.</p>';
+          return;
+        }
+
+        // Aplica filtro de período
+        if (dataIni) historico = historico.filter(h => new Date(h.data) >= new Date(dataIni));
+        if (dataFim) historico = historico.filter(h => new Date(h.data) <= new Date(dataFim));
+
+        if (historico.length === 0) {
+          document.getElementById('detalhes-historico').innerHTML = '<p style="text-align:center; padding: 40px; color: #999;">Nenhum registro no período selecionado.</p>';
           return;
         }
         
@@ -4334,16 +4421,20 @@
     // Dados calculados para o gráfico de rentabilidade (reutilizados no toggle)
     let _rentDados = null;
 
-    async function loadGraficoRentabilidade(nomeImovel) {
+    async function loadGraficoRentabilidade(nomeImovel, dataIni, dataFim) {
       try {
         const wrap  = document.getElementById('chart-rentabilidade-wrap');
         const empty = document.getElementById('chart-rentabilidade-empty');
 
         const rows = dataCache.historico || [];
-        const historico = rows.filter(r => r[0] === nomeImovel).map(r => ({
+        let historico = rows.filter(r => r[0] === nomeImovel).map(r => ({
           data: new Date(r[1]),
           valor: parseFloat(String(r[2] || '0').replace(/[^\d.-]/g, '')) || 0
         })).sort((a, b) => a.data - b.data);
+
+        // Aplica filtro de período
+        if (dataIni) historico = historico.filter(h => h.data >= new Date(dataIni));
+        if (dataFim) historico = historico.filter(h => h.data <= new Date(dataFim));
 
         const ocupacoes = await loadOcupacao(nomeImovel);
         const despRec   = await loadDespesasRecorrentes(nomeImovel);
