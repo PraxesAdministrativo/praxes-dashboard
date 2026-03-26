@@ -3685,30 +3685,35 @@
 
     function imovelUpdateSubgrupo(grupo) {
       const sel = document.getElementById('imovel-subgrupo');
+      if (!sel) return;
+      const atual = sel.value;
       sel.innerHTML = '<option value="">Selecione...</option>';
-      (IMOVEL_SUBGRUPOS[grupo]||[]).forEach(s => {
-        sel.innerHTML += `<option value="${s}">${s}</option>`;
+      (IMOVEL_SUBGRUPOS[grupo] || []).forEach(function(s) {
+        const opt = document.createElement('option');
+        opt.value = s; opt.textContent = s;
+        if (s === atual) opt.selected = true;
+        sel.appendChild(opt);
       });
     }
 
     function imovelMaskCEP(el) {
-      let v = el.value.replace(/\D/g,'').substring(0,8);
+      let v = el.value.replace(/[^0-9]/g,'').substring(0,8);
       if (v.length > 5) v = v.substring(0,5)+'-'+v.substring(5);
       el.value = v;
     }
 
     async function imovelBuscarCEP(cep) {
-      const c = cep.replace(/\D/g,'');
+      const c = cep.replace(/[^0-9]/g,'');
       if (c.length !== 8) return;
       document.getElementById('cep-spinner').style.display = 'flex';
       try {
-        const r = await fetch(`https://viacep.com.br/ws/${c}/json/`);
+        const r = await fetch('https://viacep.com.br/ws/'+c+'/json/');
         const d = await r.json();
         if (!d.erro) {
-          document.getElementById('imovel-logradouro').value = d.logradouro||'';
-          document.getElementById('imovel-bairro').value     = d.bairro||'';
-          document.getElementById('imovel-cidade').value     = d.localidade||'';
-          document.getElementById('imovel-uf').value         = d.uf||'';
+          document.getElementById('imovel-logradouro').value = d.logradouro || '';
+          document.getElementById('imovel-bairro').value     = d.bairro || '';
+          document.getElementById('imovel-cidade').value     = d.localidade || '';
+          document.getElementById('imovel-uf').value         = d.uf || '';
         }
       } catch(e) { console.warn('CEP não encontrado'); }
       document.getElementById('cep-spinner').style.display = 'none';
@@ -3716,31 +3721,50 @@
 
     function imovelAddRegistro() {
       const list = document.getElementById('imovel-codigos-list');
+      if (!list) return;
       const div = document.createElement('div');
       div.className = 'imovel-registro-row form-row';
-      div.style.alignItems = 'flex-end';
-      div.innerHTML = `
-        <div class="form-group" style="flex:1;">
-          <input type="text" class="form-input imovel-cod-contrib" placeholder="Código de Contribuição">
-        </div>
-        <div class="form-group" style="flex:1;">
-          <input type="text" class="form-input imovel-num-registro" placeholder="Nº Registro no Cartório">
-        </div>
-        <div class="form-group" style="flex:1;">
-          <input type="text" class="form-input imovel-cartorio" placeholder="Cartório">
-        </div>
-        <div style="padding-bottom:8px;flex-shrink:0;">
-          <button type="button" class="btn-cancel" onclick="this.closest('.imovel-registro-row').remove()" style="padding:6px 10px;font-size:12px;">✕</button>
-        </div>`;
+      div.style.cssText = 'align-items:flex-end;';
+      const g1 = document.createElement('div'); g1.className='form-group'; g1.style.flex='1';
+      const i1 = document.createElement('input'); i1.type='text'; i1.className='form-input imovel-cod-contrib'; i1.placeholder='Código de Contribuição';
+      g1.appendChild(i1);
+      const g2 = document.createElement('div'); g2.className='form-group'; g2.style.flex='1';
+      const i2 = document.createElement('input'); i2.type='text'; i2.className='form-input imovel-num-registro'; i2.placeholder='Nº Registro no Cartório';
+      g2.appendChild(i2);
+      const g3 = document.createElement('div'); g3.className='form-group'; g3.style.flex='1';
+      const i3 = document.createElement('input'); i3.type='text'; i3.className='form-input imovel-cartorio'; i3.placeholder='Cartório';
+      g3.appendChild(i3);
+      const g4 = document.createElement('div'); g4.style.cssText='padding-bottom:8px;flex-shrink:0;';
+      const btn = document.createElement('button'); btn.type='button'; btn.className='btn-cancel';
+      btn.style.cssText='padding:6px 10px;font-size:12px;'; btn.textContent='✕';
+      btn.onclick = function(){ this.closest('.imovel-registro-row').remove(); };
+      g4.appendChild(btn);
+      div.appendChild(g1); div.appendChild(g2); div.appendChild(g3); div.appendChild(g4);
       list.appendChild(div);
     }
 
-    function imovelPopularFamiliares() {
+    async function imovelPopularFamiliares() {
       const sel = document.getElementById('imovel-familiar');
       if (!sel) return;
       sel.innerHTML = '<option value="">Nenhum / Titular</option>';
-      (perfilFamData||[]).forEach(r => {
-        if (r[1]) sel.innerHTML += `<option value="${r[1]}">${r[1]} (${r[0]||''})</option>`;
+      // Se perfilFamData já carregado usa direto, senão busca da planilha
+      let famData = perfilFamData || [];
+      if (!famData.length && resumoSheetId) {
+        try {
+          const resp = await gapi.client.sheets.spreadsheets.values.get({
+            spreadsheetId: resumoSheetId, range: 'Familia!A2:H100', valueRenderOption: 'UNFORMATTED_VALUE'
+          });
+          famData = resp.result.values || [];
+          perfilFamData = famData;
+        } catch(e) {}
+      }
+      famData.forEach(function(r) {
+        if (r[1]) {
+          const opt = document.createElement('option');
+          opt.value = r[1];
+          opt.textContent = r[1] + (r[0] ? ' (' + r[0] + ')' : '');
+          sel.appendChild(opt);
+        }
       });
     }
 
