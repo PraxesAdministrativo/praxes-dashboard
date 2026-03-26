@@ -4645,8 +4645,13 @@
         wrap.style.display = 'block'; empty.style.display = 'none';
 
         // Injeta valor atual real ANTES de definir valorNaData
+        // Busca do cache COMPLETO (sem filtro de período) para garantir último valor
         const hoje2 = new Date();
-        const valorAtualReal = getValorAtualImovel(nomeImovel, 0);
+        const histCompleto = (dataCache.historico || [])
+          .filter(r => r[0] === nomeImovel)
+          .map(r => ({ data: new Date(r[1]), valor: parseFloat(String(r[2]||'0').replace(/[^\d.-]/g,''))||0 }))
+          .sort((a,b) => a.data - b.data);
+        const valorAtualReal = histCompleto.length > 0 ? histCompleto[histCompleto.length-1].valor : 0;
         const ultimoHist = historico[historico.length - 1];
         if (valorAtualReal > 0 && valorAtualReal !== ultimoHist.valor) {
           historico.push({ data: hoje2, valor: valorAtualReal });
