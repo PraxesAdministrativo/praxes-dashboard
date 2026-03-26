@@ -3751,8 +3751,9 @@
           });
           famData = resp.result.values || [];
           perfilFamData = famData;
-        } catch(e) {}
+        } catch(e) { console.warn('Familia sheet error:', e); }
       }
+      console.log('famData:', famData);
       famData.forEach(function(r) {
         if (r[1]) {
           const opt = document.createElement('option');
@@ -3769,34 +3770,59 @@
     function editImovel(index) {
       const row = imoveisData[index];
       if (!row) return;
-      
-
 
       const form = document.getElementById('form-add-imovel');
-      form.elements['nome'].value = row[0] || '';
-      form.elements['tipo'].value = row[1] || '';
-      form.elements['grupo'].value = row[2] || '';
+
+      // Helper para setar campo sem quebrar se não existir
+      const set = (name, val) => { if (form.elements[name]) form.elements[name].value = val || ''; };
+
+      set('nome', row[0]);
+      set('tipo', row[1]);
+      set('grupo', row[2]);
       imovelUpdateSubgrupo(row[2] || '');
-      form.elements['subgrupo'].value = row[3] || '';
-      form.elements['endereco'].value = row[4] || '';
-      form.elements['valor_compra'].value = row[5] || '';
-      form.elements['data_compra'].value = row[6] || '';
-      form.elements['valor_atual'].value = row[7] || '';
-      form.elements['iptu_anual'].value = row[9] || '';
-      form.elements['condominio_mensal'].value = row[10] || '';
-      form.elements['area_total'].value = row[11] || '';
-      form.elements['area_util'].value = row[12] || '';
-      form.elements['quartos'].value = row[13] || '';
-      form.elements['suites'].value = row[14] || '';
-      form.elements['vagas'].value = row[15] || '';
-      form.elements['observacoes'].value = row[16] || '';
-      form.elements['titularidade'].value = row[18] || 'Pessoa Física';
-      
+      setTimeout(() => set('subgrupo', row[3]), 10); // aguarda subgrupos popularem
+      set('titularidade', row[18] || 'Pessoa Física');
+      set('percentual', row[20] || '100');
+      set('familiar', row[19] || '');
+
+      // Endereço — tenta separar se tiver vírgulas, senão coloca tudo no logradouro
+      const end = row[4] || '';
+      set('logradouro', end);
+
+      set('valor_compra', row[5]);
+      set('data_compra', row[6]);
+      set('valor_atual', row[7]);
+      set('iptu_anual', row[9]);
+      set('condominio_mensal', row[10]);
+      set('area_total', row[11]);
+      set('area_util', row[12]);
+      set('quartos', row[13]);
+      set('suites', row[14]);
+      set('vagas', row[15]);
+      set('observacoes', row[16]);
+
+      // Registros cartoriais
+      const list = document.getElementById('imovel-codigos-list');
+      if (list) {
+        const firstRow = list.querySelector('.imovel-registro-row');
+        if (firstRow) {
+          const cod  = firstRow.querySelector('.imovel-cod-contrib');
+          const reg  = firstRow.querySelector('.imovel-num-registro');
+          const cart = firstRow.querySelector('.imovel-cartorio');
+          if (cod)  cod.value  = (row[21]||'').split(' | ')[0] || '';
+          if (reg)  reg.value  = (row[22]||'').split(' | ')[0] || '';
+          if (cart) cart.value = (row[23]||'').split(' | ')[0] || '';
+        }
+      }
+
       document.querySelector('#modal-add-imovel .modal-title').textContent = 'Editar Imóvel';
       document.getElementById('btn-save-imovel').setAttribute('data-index', index);
       document.getElementById('btn-save-imovel').setAttribute('data-mode', 'edit');
-      
-      openModal('modal-add-imovel');
+
+      imovelPopularFamiliares().then(() => {
+        set('familiar', row[19] || '');
+        openModal('modal-add-imovel');
+      });
     }
 
     // DELETE IMOVEL
