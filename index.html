@@ -4167,9 +4167,15 @@
       const valorAtual = getValorAtualImovel(nome, row[7]);
       
       // Busca aluguel e inquilino da aba Ocupacao
+      // Usa intervalo de datas (não status) para achar ocupação vigente hoje
       const ocupacao = await loadOcupacao(nome);
-      const ocupacaoAtual = ocupacao.find(o => o.status === 'Ocupado');
-      const aluguel = ocupacaoAtual ? ocupacaoAtual.valorAluguel : 0;
+      const hoje = new Date();
+      const ocupacaoAtual = ocupacao.find(o => {
+        const ini = new Date(o.dataInicio);
+        const fim = o.dataFim ? new Date(o.dataFim) : new Date('2099-12-31');
+        return hoje >= ini && hoje <= fim;
+      }) || ocupacao.find(o => o.status === 'Ocupado'); // fallback por status
+      const aluguel  = ocupacaoAtual ? ocupacaoAtual.valorAluguel : 0;
       const inquilino = ocupacaoAtual ? ocupacaoAtual.inquilino : '';
       
       const iptu = parseFloat(String(row[9] || '0').replace(/[^\d.-]/g, '')) || 0;
@@ -4657,7 +4663,16 @@
         }
 
         const inicio  = new Date(historico[0].data.getFullYear(), historico[0].data.getMonth(), 1);
-        const fimData = new Date(historico[historico.length-1].data.getFullYear(), historico[historico.length-1].data.getMonth(), 1);
+        // Sempre vai até hoje — não para no último registro do histórico
+        const hoje2   = new Date();
+        const fimData = new Date(hoje2.getFullYear(), hoje2.getMonth(), 1);
+
+        // Garante que o valor atual real está no historico (adiciona ponto virtual se necessário)
+        const valorAtualReal = getValorAtualImovel(nomeImovel, 0);
+        const ultimoHist = historico[historico.length - 1];
+        if (valorAtualReal > 0 && valorAtualReal !== ultimoHist.valor) {
+          historico.push({ data: hoje2, valor: valorAtualReal });
+        }
 
         const labels = [], valoresPL = [];
         const retornoTotal = [], retornoAluguel = [];
