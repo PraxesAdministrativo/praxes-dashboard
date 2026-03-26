@@ -5287,13 +5287,17 @@
       if (!currentImovelNome) return;
       const nome = currentImovelNome;
 
-      const ocupacoes   = await loadOcupacao(nome);
-      const despRec     = await loadDespesasRecorrentes(nome);
-      const despExt     = await loadDespesasExtraordinarias(nome);
-      const investim    = await loadInvestimentos(nome);
-      const receitas    = await loadReceitas(nome);
+      // Força reload do cache de investimentos e receitas para garantir dados frescos
+      await reloadCacheTab('investimentos');
+      await reloadCacheTab('receitas');
 
-      // Determina range de meses (últimos 24 meses ou desde primeiro registro)
+      const ocupacoes = await loadOcupacao(nome);
+      const despRec   = await loadDespesasRecorrentes(nome);
+      const despExt   = await loadDespesasExtraordinarias(nome);
+      const investim  = await loadInvestimentos(nome);
+      const receitas  = await loadReceitas(nome);
+
+      const hoje = new Date();
       const todasDatas = [
         ...ocupacoes.map(o => new Date(o.dataInicio)),
         ...despExt.map(d => new Date(d.data)),
@@ -5301,14 +5305,12 @@
         ...receitas.map(d => new Date(d.data))
       ].filter(d => !isNaN(d));
 
-      const hoje = new Date();
       const minData = todasDatas.length
         ? new Date(Math.min(...todasDatas))
         : new Date(hoje.getFullYear() - 1, hoje.getMonth(), 1);
       const inicioMes = new Date(minData.getFullYear(), minData.getMonth(), 1);
       const fimMes    = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
 
-      // Helpers
       function anoMes(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
       function aluguelMes(ym) {
         const [y,m] = ym.split('-').map(Number);
@@ -5321,41 +5323,28 @@
         return 0;
       }
 
-      // Gera meses
       const labels = [], receitasBars = [], despRecBars = [], despExtBars = [], investimBars = [];
       const despMensal = despRec.reduce((s,d) => s+(d.valorMensal||0), 0);
       let cur = new Date(inicioMes);
       while (cur <= fimMes) {
         const ym = anoMes(cur);
-        const lbl = cur.toLocaleDateString('pt-BR', {month:'short', year:'2-digit'});
-        labels.push(lbl);
+        labels.push(cur.toLocaleDateString('pt-BR', {month:'short', year:'2-digit'}));
 
-        // Receitas: aluguel automático + receitas manuais no mês
-        const recManuais = receitas
-          .filter(r => anoMes(new Date(r.data)) === ym)
-          .reduce((s,r) => s+r.valor, 0);
-        receitasBars.push(aluguelMes(ym) + recManuais);
-
-        // Despesas recorrentes (mensais fixas)
-        despRecBars.push(despMensal);
-
-        // Despesas extraordinárias no mês
-        despExtBars.push(despExt.filter(d => anoMes(new Date(d.data)) === ym).reduce((s,d) => s+d.valor, 0));
-
-        // Investimentos no mês
-        investimBars.push(investim.filter(d => anoMes(new Date(d.data)) === ym).reduce((s,d) => s+d.valor, 0));
+        const recManuais = receitas.filter(r => anoMes(new Date(r.data)) === ym).reduce((s,r) => s+r.valor, 0);
+        receitasBars.push(aluguelMes(ym) + recManuais);                                          // positivo (cima)
+        despRecBars.push(-(despMensal));                                                          // negativo (baixo)
+        despExtBars.push(-(despExt.filter(d => anoMes(new Date(d.data)) === ym).reduce((s,d) => s+d.valor, 0)));  // negativo
+        investimBars.push(-(investim.filter(d => anoMes(new Date(d.data)) === ym).reduce((s,d) => s+d.valor, 0))); // negativo
 
         cur = new Date(cur.getFullYear(), cur.getMonth()+1, 1);
       }
 
-      // Totais para resumo
-      const totRec   = receitasBars.reduce((s,v)=>s+v,0);
-      const totDRec  = despRecBars.reduce((s,v)=>s+v,0);
-      const totDExt  = despExtBars.reduce((s,v)=>s+v,0);
-      const totInv   = investimBars.reduce((s,v)=>s+v,0);
-      const saldo    = totRec - totDRec - totDExt - totInv;
+      const totRec  = receitasBars.reduce((s,v)=>s+v,0);
+      const totDRec = despRecBars.reduce((s,v)=>s+Math.abs(v),0);
+      const totDExt = despExtBars.reduce((s,v)=>s+Math.abs(v),0);
+      const totInv  = investimBars.reduce((s,v)=>s+Math.abs(v),0);
+      const saldo   = totRec - totDRec - totDExt - totInv;
 
-      // Resumo cards
       document.getElementById('fluxo-resumo').innerHTML = [
         { label:'Total Receitas',    val: totRec,  cor:'#16a34a' },
         { label:'Desp. Recorrentes', val:-totDRec, cor:'#2e6b8e' },
@@ -5368,10 +5357,9 @@
         </div>`).join('') +
         `<div style="background:#0f3d57;border-radius:10px;padding:14px 16px;">
           <div style="font-size:11px;color:rgba(255,255,255,.7);font-weight:600;text-transform:uppercase;letter-spacing:.5px;">Saldo Líquido</div>
-          <div style="font-size:16px;font-weight:700;color:${saldo>=0?'#86efac':'#fca5a5'};margin-top:4px;">${saldo>=0?'+':''}${fmt(saldo)}</div>
+          <div style="font-size:16px;font-weight:700;color:${saldo>=0?'#86efac':'#fca5a5'};margin-top:4px;">${saldo>=0?'+':''}${fmt(Math.abs(saldo))}</div>
         </div>`;
 
-      // Gráfico
       const ctx = document.getElementById('chart-fluxo-caixa');
       if (fluxoCaixaChart) fluxoCaixaChart.destroy();
       fluxoCaixaChart = new Chart(ctx, {
@@ -5379,25 +5367,62 @@
         data: {
           labels,
           datasets: [
-            { label:'Receitas',           data: receitasBars, backgroundColor:'rgba(22,163,74,0.8)',  stack:'rec' },
-            { label:'Desp. Recorrentes',  data: despRecBars,  backgroundColor:'rgba(46,107,142,0.8)', stack:'sai' },
-            { label:'Desp. Extraordin.',  data: despExtBars,  backgroundColor:'rgba(245,158,11,0.8)', stack:'sai' },
-            { label:'Investimentos',      data: investimBars, backgroundColor:'rgba(139,92,246,0.8)', stack:'sai' }
+            {
+              label: 'Receitas',
+              data: receitasBars,
+              backgroundColor: 'rgba(22,163,74,0.85)',
+              stack: 'entradas'
+            },
+            {
+              label: 'Desp. Recorrentes',
+              data: despRecBars,
+              backgroundColor: 'rgba(46,107,142,0.85)',
+              stack: 'saidas'
+            },
+            {
+              label: 'Desp. Extraordinárias',
+              data: despExtBars,
+              backgroundColor: 'rgba(245,158,11,0.85)',
+              stack: 'saidas'
+            },
+            {
+              label: 'Investimentos',
+              data: investimBars,
+              backgroundColor: 'rgba(139,92,246,0.85)',
+              stack: 'saidas'
+            }
           ]
         },
         options: {
-          responsive: true, maintainAspectRatio: false,
+          responsive: true,
+          maintainAspectRatio: false,
           interaction: { mode:'index', intersect:false },
           plugins: {
-            legend: { display:false },
+            legend: { display: false },
             tooltip: {
-              backgroundColor:'#0f3d57', titleColor:'#fff', bodyColor:'#fff', padding:12,
-              callbacks: { label: c => ` ${c.dataset.label}: ${fmt(c.parsed.y)}` }
+              backgroundColor: '#0f3d57', titleColor:'#fff', bodyColor:'#fff', padding:12,
+              callbacks: {
+                label: c => ` ${c.dataset.label}: ${fmt(Math.abs(c.parsed.y))}`
+              }
             }
           },
           scales: {
-            x: { stacked:true, ticks:{ color:'#666', maxTicksLimit:12 }, grid:{ display:false } },
-            y: { stacked:false, ticks:{ callback: v => 'R$'+(v>=1000?(v/1000).toFixed(0)+'k':v), color:'#666' }, grid:{ color:'#e5e5e5' } }
+            x: {
+              stacked: true,
+              ticks: { color:'#666', maxTicksLimit:12 },
+              grid: { display:false }
+            },
+            y: {
+              stacked: true,
+              ticks: {
+                color: '#666',
+                callback: v => {
+                  const abs = Math.abs(v);
+                  return (v < 0 ? '-' : '') + 'R$' + (abs >= 1000 ? (abs/1000).toFixed(0)+'k' : abs);
+                }
+              },
+              grid: { color:'#e5e5e5' }
+            }
           }
         }
       });
