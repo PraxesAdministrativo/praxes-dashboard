@@ -2382,6 +2382,56 @@
               </select>
             </div>
           </div>
+
+          <p style="font-size:11px;font-weight:600;color:var(--azul-principal);text-transform:uppercase;letter-spacing:.8px;margin:16px 0 8px;">Contrato</p>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Duração (meses)</label>
+              <input type="number" class="form-input" name="duracao_meses" placeholder="30" min="1">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Carência (mês de rescisão)</label>
+              <input type="number" class="form-input" name="carencia_mes" placeholder="12" min="1">
+            </div>
+          </div>
+
+          <p style="font-size:11px;font-weight:600;color:var(--azul-principal);text-transform:uppercase;letter-spacing:.8px;margin:16px 0 8px;">Reajuste</p>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Índice de Reajuste</label>
+              <select class="form-select" name="indice_reajuste">
+                <option value="">Nenhum</option>
+                <option value="IPCA">IPCA</option>
+                <option value="IGP-M">IGP-M</option>
+                <option value="Outro">Outro</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Mês de Reavaliação</label>
+              <select class="form-select" name="mes_reavaliacao">
+                <option value="">Selecione...</option>
+                <option value="1">Janeiro</option><option value="2">Fevereiro</option>
+                <option value="3">Março</option><option value="4">Abril</option>
+                <option value="5">Maio</option><option value="6">Junho</option>
+                <option value="7">Julho</option><option value="8">Agosto</option>
+                <option value="9">Setembro</option><option value="10">Outubro</option>
+                <option value="11">Novembro</option><option value="12">Dezembro</option>
+              </select>
+            </div>
+          </div>
+
+          <p style="font-size:11px;font-weight:600;color:var(--azul-principal);text-transform:uppercase;letter-spacing:.8px;margin:16px 0 8px;">Imobiliária</p>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Nome da Imobiliária</label>
+              <input type="text" class="form-input" name="nome_imobiliaria" placeholder="Nome (opcional)">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Taxa de Administração (%)</label>
+              <input type="number" class="form-input" name="taxa_imobiliaria" placeholder="8" step="0.1" min="0" max="100">
+            </div>
+          </div>
+
           <div class="form-group">
             <label class="form-label">Observações</label>
             <input type="text" class="form-input" name="observacoes" placeholder="Detalhes do contrato">
@@ -4260,14 +4310,20 @@
     }
     
     async function loadOcupacao(nomeImovel) {
-      // Usa cache em vez de fazer chamada à API
       const rows = dataCache.ocupacao || [];
       return rows.filter(r => r[0] === nomeImovel).map(r => ({
         dataInicio: r[1],
         dataFim: r[2],
         inquilino: r[3],
         valorAluguel: parseFloat(String(r[4] || '0').replace(/[^\d.-]/g, '')) || 0,
-        status: r[5]
+        status: r[5],
+        observacoes: r[6] || '',
+        duracaoMeses: r[7] || '',
+        carenciaMes: r[8] || '',
+        indiceReajuste: r[9] || '',
+        mesReavaliacao: r[10] || '',
+        nomeImobiliaria: r[11] || '',
+        taxaImobiliaria: parseFloat(String(r[12] || '0').replace(/[^\d.-]/g, '')) || 0
       }));
     }
     
@@ -4380,17 +4436,35 @@
         tbody.innerHTML = ocupacao.map((o, i) => {
           const inicio = new Date(o.dataInicio).toLocaleDateString('pt-BR');
           const fim = o.dataFim ? new Date(o.dataFim).toLocaleDateString('pt-BR') : 'Atual';
-          return `
+
+          // Linha de detalhes extras
+          const detalhes = [];
+          if (o.duracaoMeses) detalhes.push(`📅 ${o.duracaoMeses} meses`);
+          if (o.carenciaMes) detalhes.push(`🔓 Rescisão a partir do ${o.carenciaMes}º mês`);
+          if (o.indiceReajuste) detalhes.push(`📈 ${o.indiceReajuste}${o.mesReavaliacao ? ' — reajuste em ' + ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][parseInt(o.mesReavaliacao)-1] : ''}`);
+          if (o.taxaImobiliaria > 0) detalhes.push(`🏢 ${o.nomeImobiliaria || 'Imobiliária'}: ${o.taxaImobiliaria}%`);
+
+          // Aluguel líquido se tiver taxa
+          const aluguelLiquido = o.taxaImobiliaria > 0
+            ? o.valorAluguel * (1 - o.taxaImobiliaria / 100)
+            : null;
+
+          return \`
             <tr>
-              <td>${inicio} - ${fim}</td>
-              <td>${o.inquilino}</td>
-              <td>${fmt(o.valorAluguel)}</td>
-              <td><span style="padding: 4px 8px; background: ${o.status === 'Ocupado' ? '#dcfce7' : '#f3f4f6'}; border-radius: 4px; font-size: 12px;">${o.status}</span></td>
+              <td>\${inicio} — \${fim}</td>
+              <td>\${o.inquilino}</td>
+              <td>
+                \${fmt(o.valorAluguel)}
+                \${aluguelLiquido !== null ? \`<br><span style="font-size:11px;color:#6b7280;">Líquido: \${fmt(aluguelLiquido)}</span>\` : ''}
+              </td>
+              <td><span style="padding: 4px 8px; background: \${o.status === 'Ocupado' ? '#dcfce7' : '#f3f4f6'}; border-radius: 4px; font-size: 12px;">\${o.status}</span>
+                \${detalhes.length ? \`<br><span style="font-size:11px;color:#6b7280;">\${detalhes.join(' · ')}</span>\` : ''}
+              </td>
               <td class="gestao-actions">
-                <button class="btn-icon" onclick="deleteOcupacao(${i})" title="Excluir">🗑️</button>
+                <button class="btn-icon" onclick="deleteOcupacao(\${i})" title="Excluir">🗑️</button>
               </td>
             </tr>
-          `;
+          \`;
         }).join('');
       }
     }
@@ -4550,19 +4624,25 @@
       const data = new FormData(form);
       
       const row = [
-        currentImovelNome,
-        data.get('data_inicio'),
-        data.get('data_fim') || '',
-        data.get('inquilino'),
-        data.get('valor_aluguel'),
-        data.get('status'),
-        data.get('observacoes') || ''
+        currentImovelNome,                         // A: Imóvel
+        data.get('data_inicio'),                   // B: Data Início
+        data.get('data_fim') || '',                // C: Data Fim
+        data.get('inquilino'),                     // D: Inquilino
+        data.get('valor_aluguel'),                 // E: Valor Aluguel
+        data.get('status'),                        // F: Status
+        data.get('observacoes') || '',             // G: Observações
+        data.get('duracao_meses') || '',           // H: Duração (meses)
+        data.get('carencia_mes') || '',            // I: Carência (mês rescisão)
+        data.get('indice_reajuste') || '',         // J: Índice Reajuste
+        data.get('mes_reavaliacao') || '',         // K: Mês Reavaliação
+        data.get('nome_imobiliaria') || '',        // L: Nome Imobiliária
+        data.get('taxa_imobiliaria') || ''         // M: Taxa Imobiliária %
       ];
       
       try {
         await gapi.client.sheets.spreadsheets.values.append({
           spreadsheetId: imoveisSheetId,
-          range: 'Ocupacao!A:G',
+          range: 'Ocupacao!A:M',
           valueInputOption: 'USER_ENTERED',
           resource: { values: [row] }
         });
@@ -4570,7 +4650,7 @@
         alert('✅ Período de ocupação adicionado!');
         closeModal('modal-ocupacao');
         form.reset();
-        await reloadCacheTab('ocupacao');  // Recarrega cache
+        await reloadCacheTab('ocupacao');
         loadTabOcupacao();
         viewImovelDetalhes(currentImovelIndex);
       } catch (e) {
