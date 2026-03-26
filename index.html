@@ -4427,6 +4427,8 @@
         b.style.background = ativo ? '#0f3d57' : '#fff';
         b.style.color = ativo ? '#fff' : '#555';
       });
+      // Força reload do histórico para garantir valores atualizados
+      await reloadCacheTab('historico');
       await loadHistoricoValores(nome, '', '');
       await loadGraficoRentabilidade(nome, '', '');
       
