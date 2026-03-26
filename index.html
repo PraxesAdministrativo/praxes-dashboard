@@ -7882,7 +7882,12 @@ Esta ação não pode ser desfeita.`)) return;
       
       document.getElementById('authorize-button').addEventListener('click', doLogin);
       document.getElementById('signout-button').addEventListener('click', doLogout);
-      document.getElementById('btn-add-imovel').addEventListener('click', () => openModal('modal-add-imovel'));
+      document.getElementById('btn-add-imovel').addEventListener('click', () => {
+        document.querySelector('#modal-add-imovel .modal-title').textContent = 'Adicionar Imóvel';
+        document.getElementById('btn-save-imovel').removeAttribute('data-index');
+        document.getElementById('btn-save-imovel').setAttribute('data-mode', 'add');
+        imovelPopularFamiliares().then(() => openModal('modal-add-imovel'));
+      });
       
       document.querySelectorAll('.nav-item').forEach(item => {
         item.addEventListener('click', () => {
