@@ -1560,18 +1560,29 @@
                   </div>
 
                   <div class="detalhes-section" style="margin-top: 24px;">
-                    <h3 class="detalhes-section-title" style="display:flex;align-items:center;justify-content:space-between;">
-                      <span>📈 Rentabilidade (Yield)</span>
-                      <div style="display:flex;gap:6px;">
-                        <span style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:400;color:#666;"><span style="display:inline-block;width:12px;height:3px;background:#2e6b8e;border-radius:2px;"></span>Yield Bruto</span>
-                        <span style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:400;color:#666;"><span style="display:inline-block;width:12px;height:3px;background:#16a34a;border-radius:2px;"></span>Yield Líquido</span>
-                        <span style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:400;color:#666;"><span style="display:inline-block;width:12px;height:10px;background:rgba(180,180,180,0.4);border-radius:2px;"></span>Valor</span>
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+                      <h3 class="detalhes-section-title" style="margin-bottom:0;">📈 Rentabilidade</h3>
+                      <div style="display:flex;gap:4px;background:#f0f4f8;border-radius:8px;padding:3px;">
+                        <button id="btn-rent-acum" onclick="rentToggle('acumulado')"
+                          style="padding:5px 12px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;background:#0f3d57;color:#fff;font-family:inherit;">
+                          Retorno Acumulado
+                        </button>
+                        <button id="btn-rent-yield" onclick="rentToggle('yield')"
+                          style="padding:5px 12px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;background:transparent;color:#666;font-family:inherit;">
+                          Yield Anualizado
+                        </button>
                       </div>
-                    </h3>
+                    </div>
+                    <!-- legenda dinâmica -->
+                    <div id="rent-legenda" style="display:flex;gap:12px;margin-bottom:10px;flex-wrap:wrap;">
+                      <span id="rent-leg-1" style="display:flex;align-items:center;gap:5px;font-size:12px;color:#555;"><span style="display:inline-block;width:14px;height:3px;background:#2e6b8e;border-radius:2px;"></span>Retorno Total</span>
+                      <span id="rent-leg-2" style="display:flex;align-items:center;gap:5px;font-size:12px;color:#555;"><span style="display:inline-block;width:14px;height:3px;background:#16a34a;border-radius:2px;"></span>Retorno Aluguel</span>
+                      <span style="display:flex;align-items:center;gap:5px;font-size:12px;color:#555;"><span style="display:inline-block;width:14px;height:10px;background:rgba(180,180,180,0.4);border-radius:2px;border:1px solid rgba(180,180,180,0.6);"></span>Valor do Imóvel</span>
+                    </div>
                     <div id="chart-rentabilidade-empty" style="display:none;text-align:center;padding:40px;color:#999;font-size:13px;">
                       Sem dados suficientes para calcular rentabilidade.<br>Cadastre o histórico de valores e um período de ocupação.
                     </div>
-                    <div class="chart-container" id="chart-rentabilidade-wrap" style="height:220px;">
+                    <div class="chart-container" id="chart-rentabilidade-wrap" style="height:240px;">
                       <canvas id="chart-rentabilidade"></canvas>
                     </div>
                   </div>
@@ -4298,47 +4309,41 @@
       }
     }
     
+    // Dados calculados para o gráfico de rentabilidade (reutilizados no toggle)
+    let _rentDados = null;
+
     async function loadGraficoRentabilidade(nomeImovel) {
       try {
         const wrap  = document.getElementById('chart-rentabilidade-wrap');
         const empty = document.getElementById('chart-rentabilidade-empty');
 
-        // Histórico de valores ordenado
         const rows = dataCache.historico || [];
         const historico = rows.filter(r => r[0] === nomeImovel).map(r => ({
           data: new Date(r[1]),
           valor: parseFloat(String(r[2] || '0').replace(/[^\d.-]/g, '')) || 0
         })).sort((a, b) => a.data - b.data);
 
-        // Ocupações com aluguel
         const ocupacoes = await loadOcupacao(nomeImovel);
-
-        // Despesas recorrentes mensais
-        const despRec = await loadDespesasRecorrentes(nomeImovel);
+        const despRec   = await loadDespesasRecorrentes(nomeImovel);
         const despMensal = despRec.reduce((s, d) => s + (d.valorMensal || 0), 0);
 
-        if (historico.length < 2 || ocupacoes.length === 0) {
-          wrap.style.display = 'none';
-          empty.style.display = 'block';
-          return;
+        if (historico.length < 2) {
+          wrap.style.display = 'none'; empty.style.display = 'block'; return;
         }
-        wrap.style.display = 'block';
-        empty.style.display = 'none';
+        wrap.style.display = 'block'; empty.style.display = 'none';
 
-        // Função para interpolar valor do imóvel em uma data
         function valorNaData(data) {
           if (data <= historico[0].data) return historico[0].valor;
-          if (data >= historico[historico.length - 1].data) return historico[historico.length - 1].valor;
+          if (data >= historico[historico.length-1].data) return historico[historico.length-1].valor;
           for (let i = 1; i < historico.length; i++) {
             if (data <= historico[i].data) {
               const t = (data - historico[i-1].data) / (historico[i].data - historico[i-1].data);
               return historico[i-1].valor + t * (historico[i].valor - historico[i-1].valor);
             }
           }
-          return historico[historico.length - 1].valor;
+          return historico[historico.length-1].valor;
         }
 
-        // Aluguel vigente em uma data
         function aluguelNaData(data) {
           for (const o of ocupacoes) {
             const ini = new Date(o.dataInicio);
@@ -4348,111 +4353,156 @@
           return 0;
         }
 
-        // Gerar labels mês a mês entre primeira e última data do histórico
-        const inicio = new Date(historico[0].data.getFullYear(), historico[0].data.getMonth(), 1);
-        const fim    = new Date(historico[historico.length - 1].data.getFullYear(), historico[historico.length - 1].data.getMonth(), 1);
-        const labels = [], valoresPL = [], yieldBruto = [], yieldLiquido = [];
+        const inicio   = new Date(historico[0].data.getFullYear(), historico[0].data.getMonth(), 1);
+        const fimData  = new Date(historico[historico.length-1].data.getFullYear(), historico[historico.length-1].data.getMonth(), 1);
+        const valorBase = historico[0].valor;
+
+        const labels = [], valoresPL = [];
+        const retornoTotal = [], retornoAluguel = [];
+        const yieldBruto  = [], yieldLiquido   = [];
+
+        let aluguelAcum = 0;
         let cur = new Date(inicio);
-        while (cur <= fim) {
-          const val = valorNaData(cur);
+        while (cur <= fimData) {
+          const val  = valorNaData(cur);
           const alug = aluguelNaData(cur);
+          aluguelAcum += alug;
+
+          // Retorno acumulado %
+          const retTotal  = valorBase > 0 ? (((val - valorBase) + aluguelAcum) / valorBase * 100) : 0;
+          const retAlug   = valorBase > 0 ? (aluguelAcum / valorBase * 100) : 0;
+
+          // Yield anualizado pontual
           const yb = val > 0 ? ((alug * 12) / val * 100) : 0;
           const yl = val > 0 ? (((alug - despMensal) * 12) / val * 100) : 0;
+
           labels.push(cur.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }));
           valoresPL.push(val);
+          retornoTotal.push(parseFloat(retTotal.toFixed(2)));
+          retornoAluguel.push(parseFloat(retAlug.toFixed(2)));
           yieldBruto.push(parseFloat(yb.toFixed(2)));
           yieldLiquido.push(parseFloat(yl.toFixed(2)));
+
           cur = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
         }
 
-        const ctx = document.getElementById('chart-rentabilidade');
-        if (rentabilidadeChart) rentabilidadeChart.destroy();
+        _rentDados = { labels, valoresPL, retornoTotal, retornoAluguel, yieldBruto, yieldLiquido };
+        rentToggle('acumulado');
 
-        rentabilidadeChart = new Chart(ctx, {
-          data: {
-            labels,
-            datasets: [
-              {
-                type: 'bar',
-                label: 'Valor do Imóvel',
-                data: valoresPL,
-                backgroundColor: 'rgba(180,180,180,0.35)',
-                borderColor: 'rgba(180,180,180,0.6)',
-                borderWidth: 1,
-                yAxisID: 'yPL',
-                order: 3
-              },
-              {
-                type: 'line',
-                label: 'Yield Bruto (a.a.)',
-                data: yieldBruto,
-                borderColor: '#2e6b8e',
-                backgroundColor: 'transparent',
-                borderWidth: 2.5,
-                pointRadius: 3,
-                pointHoverRadius: 5,
-                tension: 0.4,
-                yAxisID: 'yYield',
-                order: 1
-              },
-              {
-                type: 'line',
-                label: 'Yield Líquido (a.a.)',
-                data: yieldLiquido,
-                borderColor: '#16a34a',
-                backgroundColor: 'transparent',
-                borderWidth: 2.5,
-                pointRadius: 3,
-                pointHoverRadius: 5,
-                tension: 0.4,
-                yAxisID: 'yYield',
-                order: 2
-              }
-            ]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            interaction: { mode: 'index', intersect: false },
-            plugins: {
-              legend: { display: false },
-              tooltip: {
-                backgroundColor: '#0f3d57',
-                titleColor: '#fff',
-                bodyColor: '#fff',
-                padding: 12,
-                callbacks: {
-                  label: function(ctx) {
-                    if (ctx.dataset.yAxisID === 'yPL')
-                      return ' Valor: R$ ' + ctx.parsed.y.toLocaleString('pt-BR', {minimumFractionDigits:0});
-                    return ' ' + ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(2) + '% a.a.';
-                  }
-                }
-              }
-            },
-            scales: {
-              yYield: {
-                type: 'linear',
-                position: 'left',
-                ticks: { callback: v => v.toFixed(1) + '%', color: '#666' },
-                grid: { color: '#e5e5e5' }
-              },
-              yPL: {
-                type: 'linear',
-                position: 'right',
-                ticks: { callback: v => 'R$' + (v/1000).toFixed(0) + 'k', color: '#aaa' },
-                grid: { display: false }
-              },
-              x: {
-                ticks: { color: '#666', maxTicksLimit: 12 },
-                grid: { display: false }
-              }
-            }
-          }
-        });
       } catch(e) {
         console.error('❌ Rentabilidade chart:', e);
       }
+    }
+
+    function rentToggle(modo) {
+      if (!_rentDados) return;
+      const { labels, valoresPL, retornoTotal, retornoAluguel, yieldBruto, yieldLiquido } = _rentDados;
+
+      // Atualiza botões
+      document.getElementById('btn-rent-acum').style.background  = modo === 'acumulado' ? '#0f3d57' : 'transparent';
+      document.getElementById('btn-rent-acum').style.color        = modo === 'acumulado' ? '#fff' : '#666';
+      document.getElementById('btn-rent-yield').style.background  = modo === 'yield' ? '#0f3d57' : 'transparent';
+      document.getElementById('btn-rent-yield').style.color       = modo === 'yield' ? '#fff' : '#666';
+
+      // Atualiza legenda
+      document.getElementById('rent-leg-1').querySelector('span').style.background = '#2e6b8e';
+      document.getElementById('rent-leg-2').querySelector('span').style.background = '#16a34a';
+      document.getElementById('rent-leg-1').childNodes[1].textContent = modo === 'acumulado' ? 'Retorno Total' : 'Yield Bruto (a.a.)';
+      document.getElementById('rent-leg-2').childNodes[1].textContent = modo === 'acumulado' ? 'Retorno Aluguel' : 'Yield Líquido (a.a.)';
+
+      const linha1 = modo === 'acumulado' ? retornoTotal  : yieldBruto;
+      const linha2 = modo === 'acumulado' ? retornoAluguel : yieldLiquido;
+      const sufixo = modo === 'acumulado' ? '%' : '% a.a.';
+      const label1 = modo === 'acumulado' ? 'Retorno Total' : 'Yield Bruto';
+      const label2 = modo === 'acumulado' ? 'Retorno Aluguel' : 'Yield Líquido';
+
+      const ctx = document.getElementById('chart-rentabilidade');
+      if (rentabilidadeChart) rentabilidadeChart.destroy();
+
+      rentabilidadeChart = new Chart(ctx, {
+        data: {
+          labels,
+          datasets: [
+            {
+              type: 'bar',
+              label: 'Valor do Imóvel',
+              data: valoresPL,
+              backgroundColor: 'rgba(180,180,180,0.35)',
+              borderColor: 'rgba(180,180,180,0.6)',
+              borderWidth: 1,
+              yAxisID: 'yPL',
+              order: 3
+            },
+            {
+              type: 'line',
+              label: label1,
+              data: linha1,
+              borderColor: '#2e6b8e',
+              backgroundColor: 'rgba(46,107,142,0.08)',
+              fill: modo === 'acumulado',
+              borderWidth: 2.5,
+              pointRadius: 2,
+              pointHoverRadius: 5,
+              tension: 0.4,
+              yAxisID: 'yYield',
+              order: 1
+            },
+            {
+              type: 'line',
+              label: label2,
+              data: linha2,
+              borderColor: '#16a34a',
+              backgroundColor: 'rgba(22,163,74,0.08)',
+              fill: modo === 'acumulado',
+              borderWidth: 2.5,
+              pointRadius: 2,
+              pointHoverRadius: 5,
+              tension: 0.4,
+              yAxisID: 'yYield',
+              order: 2
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#0f3d57',
+              titleColor: '#fff',
+              bodyColor: '#fff',
+              padding: 12,
+              callbacks: {
+                label: function(c) {
+                  if (c.dataset.yAxisID === 'yPL')
+                    return ' Valor: R$ ' + c.parsed.y.toLocaleString('pt-BR', {minimumFractionDigits:0});
+                  return ' ' + c.dataset.label + ': ' + c.parsed.y.toFixed(2) + sufixo;
+                }
+              }
+            }
+          },
+          scales: {
+            yYield: {
+              type: 'linear',
+              position: 'left',
+              ticks: { callback: v => v.toFixed(1) + '%', color: '#666' },
+              grid: { color: '#e5e5e5' }
+            },
+            yPL: {
+              type: 'linear',
+              position: 'right',
+              ticks: { callback: v => 'R$' + (v >= 1000000 ? (v/1000000).toFixed(1)+'M' : (v/1000).toFixed(0)+'k'), color: '#aaa' },
+              grid: { display: false }
+            },
+            x: {
+              ticks: { color: '#666', maxTicksLimit: 12 },
+              grid: { display: false }
+            }
+          }
+        }
+      });
     }
 
     function editImovelFromDetalhes() {
