@@ -4184,43 +4184,55 @@
       // Carrega dados avançados
       const despesasRec = await loadDespesasRecorrentes(nome);
       const despesasExt = await loadDespesasExtraordinarias(nome);
-      
+      const investimentos = await loadInvestimentos(nome);
+
       // CÁLCULOS AVANÇADOS
       const anos = calcularAnosDesdeCompra(dataCompra);
-      const cagr = calcularCAGR(valorCompra, valorAtual, anos);
-      
+
       // Despesas
-      const despesasMensais = despesasRec.reduce((sum, d) => sum + d.valorMensal, 0);
-      const despesasAnuais = despesasMensais * 12;
-      const despesasExtraTotal = despesasExt.reduce((sum, d) => sum + d.valor, 0);
-      
-      // Yields
-      const yieldBruto = valorAtual > 0 && aluguel > 0 ? ((aluguel * 12) / valorAtual * 100).toFixed(2) : 0;
+      const despesasMensais  = despesasRec.reduce((sum, d) => sum + d.valorMensal, 0);
+      const despesasAnuais   = despesasMensais * 12;
+      const despesasExtTotal = despesasExt.reduce((sum, d) => sum + d.valor, 0);
+      const investimTotal    = investimentos.reduce((sum, d) => sum + d.valor, 0);
+
+      // ─── CUSTO TOTAL DE AQUISIÇÃO ───────────────────────────────────────
+      // Valor pago + tudo que foi gasto para adquirir/melhorar o imóvel
+      const custoTotal = valorCompra + despesasExtTotal + investimTotal;
+
+      // ─── VALORIZAÇÃO REAL ───────────────────────────────────────────────
+      // Quanto o imóvel valorizou sobre o custo total (não só o preço de compra)
+      const valorizacaoReal = custoTotal > 0 ? ((valorAtual - custoTotal) / custoTotal * 100).toFixed(1) : 0;
+      // Para exibir no header ainda mostramos vs valor de compra (mais intuitivo)
+      const variacaoVsCompra = valorCompra > 0 ? ((valorAtual - valorCompra) / valorCompra * 100).toFixed(1) : 0;
+
+      // ─── CAGR sobre custo total ─────────────────────────────────────────
+      const cagr = calcularCAGR(custoTotal, valorAtual, anos);
+
+      // ─── YIELDS ─────────────────────────────────────────────────────────
+      const yieldBruto   = valorAtual > 0 && aluguel > 0 ? ((aluguel * 12) / valorAtual * 100).toFixed(2) : 0;
       const yieldLiquido = valorAtual > 0 && aluguel > 0 ? (((aluguel * 12) - despesasAnuais) / valorAtual * 100).toFixed(2) : 0;
-      
-      // Cash Flow
-      const cashFlowMensal = aluguel - despesasMensais;
-      const mesesDecorridos = Math.max(anos * 12, 1);
+
+      // ─── CASH FLOW ──────────────────────────────────────────────────────
+      const cashFlowMensal   = aluguel - despesasMensais;
+      const mesesDecorridos  = Math.max(anos * 12, 1);
       const cashFlowAcumulado = cashFlowMensal * mesesDecorridos;
-      
-      // Total Investido e Total Return
-      const totalInvestido = valorCompra + despesasExtraTotal;
+
+      // ─── TOTAL RETURN ───────────────────────────────────────────────────
+      // (Valor Atual - Custo Total + Receitas de Aluguel Acumuladas) / Custo Total
       const aluguelAcumulado = aluguel > 0 ? aluguel * mesesDecorridos : 0;
-      const totalReturn = totalInvestido > 0 ? (((valorAtual - totalInvestido + aluguelAcumulado) / totalInvestido) * 100).toFixed(1) : 0;
-      
-      // Payback
-      const payback = cashFlowMensal > 0 ? (totalInvestido / cashFlowMensal).toFixed(0) : 0;
-      
-      // Taxa de Ocupação
+      const totalReturn = custoTotal > 0
+        ? (((valorAtual - custoTotal + aluguelAcumulado) / custoTotal) * 100).toFixed(1)
+        : 0;
+
+      // ─── PAYBACK ────────────────────────────────────────────────────────
+      const payback = cashFlowMensal > 0 ? (custoTotal / cashFlowMensal).toFixed(0) : 0;
+
+      // ─── OUTROS ─────────────────────────────────────────────────────────
       const taxaOcupacao = calcularTaxaOcupacao(ocupacao);
-      
-      // Custo por m²
-      const custoM2 = areaTotal > 0 ? (valorAtual / areaTotal).toFixed(0) : 0;
-      
-      // Variação
-      const variacao = valorCompra > 0 ? ((valorAtual - valorCompra) / valorCompra * 100).toFixed(1) : 0;
-      const variacaoClass = variacao >= 0 ? 'positive' : 'negative';
-      const variacaoSymbol = variacao >= 0 ? '+' : '';
+      const custoM2 = areaTotal > 0 ? (custoTotal / parseFloat(areaTotal)).toFixed(0) : 0;
+
+      const variacaoClass  = variacaoVsCompra >= 0 ? 'positive' : 'negative';
+      const variacaoSymbol = variacaoVsCompra >= 0 ? '+' : '';
       
       // Header
       document.getElementById('detalhes-nome').textContent = nome;
@@ -4233,12 +4245,16 @@
           <span class="detalhes-value">${fmt(valorCompra)}</span>
         </div>
         <div class="detalhes-item">
+          <span class="detalhes-label">Custo Total</span>
+          <span class="detalhes-value" title="Compra + Despesas Extraordinárias + Investimentos">${fmt(custoTotal)}</span>
+        </div>
+        <div class="detalhes-item">
           <span class="detalhes-label">Valor Atual</span>
           <span class="detalhes-value">${fmt(valorAtual)}</span>
         </div>
         <div class="detalhes-item">
-          <span class="detalhes-label">Valorização</span>
-          <span class="detalhes-value stat-change ${variacaoClass}">${variacaoSymbol}${variacao}%</span>
+          <span class="detalhes-label">Valoriz. Real</span>
+          <span class="detalhes-value stat-change ${valorizacaoReal >= 0 ? 'positive' : 'negative'}" title="Sobre o Custo Total">${valorizacaoReal >= 0 ? '+' : ''}${valorizacaoReal}%</span>
         </div>
         <div class="detalhes-item">
           <span class="detalhes-label">CAGR</span>
@@ -4270,8 +4286,8 @@
               <span class="info-value">${yieldLiquido}% a.a.</span>
             </div>
             <div class="info-row">
-              <span class="info-label">CAGR (Valorização)</span>
-              <span class="info-value">${cagr}% a.a.</span>
+              <span class="info-label">CAGR (s/ Custo Total)</span>
+              <span class="info-value stat-change ${cagr >= 0 ? 'positive' : 'negative'}">${cagr >= 0 ? '+' : ''}${cagr}% a.a.</span>
             </div>
             <div class="info-row">
               <span class="info-label">Total Return</span>
@@ -4294,8 +4310,24 @@
               <span class="info-value">${taxaOcupacao}%</span>
             </div>
             <div class="info-row">
-              <span class="info-label">Total Investido</span>
-              <span class="info-value">${fmt(totalInvestido)}</span>
+              <span class="info-label">Valor de Compra</span>
+              <span class="info-value">${fmt(valorCompra)}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">+ Desp. Extraordinárias</span>
+              <span class="info-value" style="color:#f59e0b;">- ${fmt(despesasExtTotal)}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">+ Investimentos</span>
+              <span class="info-value" style="color:#8b5cf6;">- ${fmt(investimTotal)}</span>
+            </div>
+            <div class="info-row" style="border-top:1px solid #ddd;padding-top:8px;margin-top:4px;">
+              <span class="info-label" style="font-weight:700;">= Custo Total</span>
+              <span class="info-value" style="font-weight:700;">${fmt(custoTotal)}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Valoriz. s/ Custo Total</span>
+              <span class="info-value stat-change ${valorizacaoReal >= 0 ? 'positive' : 'negative'}">${valorizacaoReal >= 0 ? '+' : ''}${valorizacaoReal}%</span>
             </div>
             <div class="info-row">
               <span class="info-label">Custo por m²</span>
@@ -4589,9 +4621,17 @@
         if (dataIni) historico = historico.filter(h => h.data >= new Date(dataIni));
         if (dataFim) historico = historico.filter(h => h.data <= new Date(dataFim));
 
-        const ocupacoes = await loadOcupacao(nomeImovel);
-        const despRec   = await loadDespesasRecorrentes(nomeImovel);
+        const ocupacoes  = await loadOcupacao(nomeImovel);
+        const despRec    = await loadDespesasRecorrentes(nomeImovel);
+        const despExt    = await loadDespesasExtraordinarias(nomeImovel);
+        const investim   = await loadInvestimentos(nomeImovel);
         const despMensal = despRec.reduce((s, d) => s + (d.valorMensal || 0), 0);
+
+        // Custo total como base do retorno
+        const valorCompraGraf = historico.length > 0 ? historico[0].valor : 0;
+        const despExtTotalGraf = despExt.reduce((s,d) => s+d.valor, 0);
+        const investimTotalGraf = investim.reduce((s,d) => s+d.valor, 0);
+        const custoTotalGraf = valorCompraGraf + despExtTotalGraf + investimTotalGraf;
 
         if (historico.length < 2) {
           wrap.style.display = 'none'; empty.style.display = 'block'; return;
@@ -4599,7 +4639,6 @@
         wrap.style.display = 'block'; empty.style.display = 'none';
 
         function valorNaData(data) {
-          // Step: usa o último valor conhecido, sem interpolar entre reavaliações
           let ultimo = historico[0].valor;
           for (let i = 0; i < historico.length; i++) {
             if (historico[i].data <= data) ultimo = historico[i].valor;
@@ -4617,9 +4656,8 @@
           return 0;
         }
 
-        const inicio   = new Date(historico[0].data.getFullYear(), historico[0].data.getMonth(), 1);
-        const fimData  = new Date(historico[historico.length-1].data.getFullYear(), historico[historico.length-1].data.getMonth(), 1);
-        const valorBase = historico[0].valor;
+        const inicio  = new Date(historico[0].data.getFullYear(), historico[0].data.getMonth(), 1);
+        const fimData = new Date(historico[historico.length-1].data.getFullYear(), historico[historico.length-1].data.getMonth(), 1);
 
         const labels = [], valoresPL = [];
         const retornoTotal = [], retornoAluguel = [];
@@ -4632,9 +4670,9 @@
           const alug = aluguelNaData(cur);
           aluguelAcum += alug;
 
-          // Retorno acumulado %
-          const retTotal  = valorBase > 0 ? (((val - valorBase) + aluguelAcum) / valorBase * 100) : 0;
-          const retAlug   = valorBase > 0 ? (aluguelAcum / valorBase * 100) : 0;
+          // Retorno acumulado % — base é o custo total (compra + investimentos + desp. extra)
+          const retTotal = custoTotalGraf > 0 ? (((val - custoTotalGraf) + aluguelAcum) / custoTotalGraf * 100) : 0;
+          const retAlug  = custoTotalGraf > 0 ? (aluguelAcum / custoTotalGraf * 100) : 0;
 
           // Yield anualizado pontual
           const yb = val > 0 ? ((alug * 12) / val * 100) : 0;
