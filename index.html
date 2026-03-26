@@ -1544,6 +1544,9 @@
             <div class="tabs-header">
               <button class="tab-btn active" onclick="switchTab('geral')">📊 Visão Geral</button>
               <button class="tab-btn" onclick="switchTab('despesas')">💰 Despesas</button>
+              <button class="tab-btn" onclick="switchTab('investimentos-imovel')">🏗️ Investimentos</button>
+              <button class="tab-btn" onclick="switchTab('receitas-imovel')">💵 Receitas</button>
+              <button class="tab-btn" onclick="switchTab('fluxo-caixa')">📈 Fluxo de Caixa</button>
               <button class="tab-btn" onclick="switchTab('ocupacao')">👥 Ocupação</button>
               <button class="tab-btn" onclick="switchTab('documentos')">📁 Documentos</button>
             </div>
@@ -1661,6 +1664,55 @@
                     <tr><td colspan="5" class="empty-state">Carregando...</td></tr>
                   </tbody>
                 </table>
+              </div>
+            </div>
+
+            <!-- ABA: INVESTIMENTOS -->
+            <div class="tab-content" id="tab-investimentos-imovel">
+              <div class="gestao-section">
+                <div class="gestao-header">
+                  <h3 class="gestao-title">🏗️ Investimentos no Imóvel</h3>
+                  <button class="btn-add-small" onclick="openModalInvestimentoImovel()">+ Adicionar</button>
+                </div>
+                <table class="gestao-table" id="table-investimentos-imovel">
+                  <thead><tr><th>Data</th><th>Tipo</th><th>Valor</th><th>Descrição</th><th>Ações</th></tr></thead>
+                  <tbody id="tbody-investimentos-imovel">
+                    <tr><td colspan="5" class="empty-state">Carregando...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- ABA: RECEITAS -->
+            <div class="tab-content" id="tab-receitas-imovel">
+              <div class="gestao-section">
+                <div class="gestao-header">
+                  <h3 class="gestao-title">💵 Receitas</h3>
+                  <button class="btn-add-small" onclick="openModalReceitaImovel()">+ Adicionar</button>
+                </div>
+                <table class="gestao-table" id="table-receitas-imovel">
+                  <thead><tr><th>Data</th><th>Tipo</th><th>Valor</th><th>Fonte</th><th>Ações</th></tr></thead>
+                  <tbody id="tbody-receitas-imovel">
+                    <tr><td colspan="5" class="empty-state">Carregando...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- ABA: FLUXO DE CAIXA -->
+            <div class="tab-content" id="tab-fluxo-caixa">
+              <div class="gestao-section">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+                  <h3 class="gestao-title" style="margin:0;">📈 Fluxo de Caixa Mensal</h3>
+                  <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:#555;">
+                    <span><span style="display:inline-block;width:12px;height:12px;background:#16a34a;border-radius:3px;margin-right:4px;"></span>Receitas</span>
+                    <span><span style="display:inline-block;width:12px;height:12px;background:#2e6b8e;border-radius:3px;margin-right:4px;"></span>Desp. Recorrentes</span>
+                    <span><span style="display:inline-block;width:12px;height:12px;background:#f59e0b;border-radius:3px;margin-right:4px;"></span>Desp. Extraordinárias</span>
+                    <span><span style="display:inline-block;width:12px;height:12px;background:#8b5cf6;border-radius:3px;margin-right:4px;"></span>Investimentos</span>
+                  </div>
+                </div>
+                <div style="height:320px;"><canvas id="chart-fluxo-caixa"></canvas></div>
+                <div id="fluxo-resumo" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:20px;"></div>
               </div>
             </div>
 
@@ -2388,6 +2440,97 @@
       <div class="modal-footer">
         <button class="btn-cancel" onclick="closeModal('modal-despesa-ext')">Cancelar</button>
         <button class="btn-save" onclick="saveDespesaExt()">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL INVESTIMENTO IMÓVEL -->
+  <div class="modal" id="modal-investimento-imovel">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">Adicionar Investimento</h3>
+        <button class="modal-close" onclick="closeModal('modal-investimento-imovel')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-investimento-imovel">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Data *</label>
+              <input type="date" class="form-input" name="data" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Valor *</label>
+              <input type="number" class="form-input" name="valor" required placeholder="50000" step="0.01">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Tipo *</label>
+            <select class="form-select" name="tipo" required>
+              <option value="">Selecione...</option>
+              <option value="Reforma">Reforma</option>
+              <option value="Ampliação">Ampliação</option>
+              <option value="Acabamento">Acabamento</option>
+              <option value="Instalação">Instalação</option>
+              <option value="Paisagismo">Paisagismo</option>
+              <option value="Outros">Outros</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Descrição</label>
+            <input type="text" class="form-input" name="descricao" placeholder="Detalhes do investimento">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="closeModal('modal-investimento-imovel')">Cancelar</button>
+        <button class="btn-save" onclick="saveInvestimentoImovel()">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL RECEITA IMÓVEL -->
+  <div class="modal" id="modal-receita-imovel">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">Adicionar Receita</h3>
+        <button class="modal-close" onclick="closeModal('modal-receita-imovel')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-receita-imovel">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Data *</label>
+              <input type="date" class="form-input" name="data" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Valor *</label>
+              <input type="number" class="form-input" name="valor" required placeholder="5000" step="0.01">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Tipo *</label>
+              <select class="form-select" name="tipo_receita" required>
+                <option value="">Selecione...</option>
+                <option value="Aluguel">Aluguel</option>
+                <option value="Indenização">Indenização</option>
+                <option value="Outros">Outros</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Fonte</label>
+              <input type="text" class="form-input" name="fonte" placeholder="Ex: Inquilino João">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Observações</label>
+            <input type="text" class="form-input" name="observacoes" placeholder="Detalhes adicionais">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="closeModal('modal-receita-imovel')">Cancelar</button>
+        <button class="btn-save" onclick="saveReceitaImovel()">Salvar</button>
       </div>
     </div>
   </div>
@@ -3243,7 +3386,9 @@
       historico: [],
       despesasRec: [],
       despesasExt: [],
-      ocupacao: []
+      ocupacao: [],
+      investimentos: [],
+      receitas: []
     };
     
     // Recarrega apenas uma aba específica do cache
@@ -3253,7 +3398,9 @@
           'historico': 'Historico_Valores!A2:E100',
           'despesasRec': 'Despesas_Recorrentes!A2:E100',
           'despesasExt': 'Despesas_Extraordinarias!A2:F100',
-          'ocupacao': 'Ocupacao!A2:G100'
+          'ocupacao': 'Ocupacao!A2:M100',
+          'investimentos': 'Investimentos!A2:E100',
+          'receitas': 'Receitas!A2:F100'
         };
         
         if (!ranges[tabName]) return;
@@ -3276,15 +3423,17 @@
         const response = await gapi.client.sheets.spreadsheets.values.batchGet({
           spreadsheetId: imoveisSheetId,
           ranges: [
-            'Lista!A2:S100',
+            'Lista!A2:X100',
             'Historico_Valores!A2:E100',
             'Despesas_Recorrentes!A2:E100',
             'Despesas_Extraordinarias!A2:F100',
-            'Ocupacao!A2:G100'
+            'Ocupacao!A2:M100',
+            'Investimentos!A2:E100',
+            'Receitas!A2:F100'
           ]
         });
         
-        const [lista, historico, despRec, despExt, ocupacao] = response.result.valueRanges;
+        const [lista, historico, despRec, despExt, ocupacao, investimentos, receitas] = response.result.valueRanges;
         
         // Armazena no cache
         imoveisData = lista.values || [];
@@ -3292,13 +3441,17 @@
         dataCache.despesasRec = despRec.values || [];
         dataCache.despesasExt = despExt.values || [];
         dataCache.ocupacao = ocupacao.values || [];
+        dataCache.investimentos = investimentos.values || [];
+        dataCache.receitas = receitas.values || [];
         
         console.log('✅ Dados carregados (otimizado):', {
           imoveis: imoveisData.length,
           historico: dataCache.historico.length,
           despesasRec: dataCache.despesasRec.length,
           despesasExt: dataCache.despesasExt.length,
-          ocupacao: dataCache.ocupacao.length
+          ocupacao: dataCache.ocupacao.length,
+          investimentos: dataCache.investimentos.length,
+          receitas: dataCache.receitas.length
         });
         
         renderImoveis();
@@ -4716,6 +4869,12 @@
         loadTabDespesas();
       } else if (tabName === 'ocupacao') {
         loadTabOcupacao();
+      } else if (tabName === 'investimentos-imovel') {
+        loadTabInvestimentosImovel();
+      } else if (tabName === 'receitas-imovel') {
+        loadTabReceitasImovel();
+      } else if (tabName === 'fluxo-caixa') {
+        loadTabFluxoCaixa();
       }
     }
     
@@ -5006,7 +5165,244 @@
         alert('Erro ao excluir: ' + e.message);
       }
     }
-    
+
+    // ========== CRUD INVESTIMENTOS IMÓVEL ==========
+    function openModalInvestimentoImovel() { openModal('modal-investimento-imovel'); }
+
+    async function loadInvestimentos(nomeImovel) {
+      const rows = dataCache.investimentos || [];
+      return rows.filter(r => r[0] === nomeImovel).map(r => ({
+        data: r[1], tipo: r[2],
+        valor: parseFloat(String(r[3]||'0').replace(/[^\d.-]/g,''))||0,
+        descricao: r[4]||''
+      }));
+    }
+
+    async function loadTabInvestimentosImovel() {
+      if (!currentImovelNome) return;
+      const dados = await loadInvestimentos(currentImovelNome);
+      const tbody = document.getElementById('tbody-investimentos-imovel');
+      if (!dados.length) {
+        tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Nenhum investimento cadastrado</td></tr>'; return;
+      }
+      tbody.innerHTML = dados.map((d,i) => `
+        <tr>
+          <td>${new Date(d.data).toLocaleDateString('pt-BR')}</td>
+          <td>${d.tipo}</td>
+          <td>${fmt(d.valor)}</td>
+          <td>${d.descricao}</td>
+          <td class="gestao-actions"><button class="btn-icon" style="color:#ef4444" onclick="deleteInvestimentoImovel(${i})">🗑️</button></td>
+        </tr>`).join('');
+    }
+
+    async function saveInvestimentoImovel() {
+      const form = document.getElementById('form-investimento-imovel');
+      const data = new FormData(form);
+      const row = [currentImovelNome, data.get('data'), data.get('tipo'), data.get('valor'), data.get('descricao')||''];
+      try {
+        await gapi.client.sheets.spreadsheets.values.append({
+          spreadsheetId: imoveisSheetId, range: 'Investimentos!A:E',
+          valueInputOption: 'USER_ENTERED', resource: { values: [row] }
+        });
+        alert('✅ Investimento adicionado!');
+        closeModal('modal-investimento-imovel'); form.reset();
+        await reloadCacheTab('investimentos');
+        loadTabInvestimentosImovel();
+      } catch(e) { alert('Erro: '+e.message); }
+    }
+
+    async function deleteInvestimentoImovel(i) {
+      if (!confirm('Excluir este investimento?')) return;
+      try {
+        const shId = await getSheetId('Investimentos');
+        await gapi.client.sheets.spreadsheets.batchUpdate({
+          spreadsheetId: imoveisSheetId,
+          resource: { requests: [{ deleteDimension: { range: { sheetId: shId, dimension:'ROWS', startIndex:i+1, endIndex:i+2 }}}]}
+        });
+        await reloadCacheTab('investimentos'); loadTabInvestimentosImovel();
+      } catch(e) { alert('Erro: '+e.message); }
+    }
+
+    // ========== CRUD RECEITAS IMÓVEL ==========
+    function openModalReceitaImovel() { openModal('modal-receita-imovel'); }
+
+    async function loadReceitas(nomeImovel) {
+      const rows = dataCache.receitas || [];
+      return rows.filter(r => r[0] === nomeImovel).map(r => ({
+        data: r[1], tipo: r[2],
+        valor: parseFloat(String(r[3]||'0').replace(/[^\d.-]/g,''))||0,
+        fonte: r[4]||'', observacoes: r[5]||''
+      }));
+    }
+
+    async function loadTabReceitasImovel() {
+      if (!currentImovelNome) return;
+      const dados = await loadReceitas(currentImovelNome);
+      const tbody = document.getElementById('tbody-receitas-imovel');
+      if (!dados.length) {
+        tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Nenhuma receita cadastrada</td></tr>'; return;
+      }
+      tbody.innerHTML = dados.map((d,i) => `
+        <tr>
+          <td>${new Date(d.data).toLocaleDateString('pt-BR')}</td>
+          <td>${d.tipo}</td>
+          <td style="color:#16a34a;font-weight:600;">${fmt(d.valor)}</td>
+          <td>${d.fonte}</td>
+          <td class="gestao-actions"><button class="btn-icon" style="color:#ef4444" onclick="deleteReceitaImovel(${i})">🗑️</button></td>
+        </tr>`).join('');
+    }
+
+    async function saveReceitaImovel() {
+      const form = document.getElementById('form-receita-imovel');
+      const data = new FormData(form);
+      const row = [currentImovelNome, data.get('data'), data.get('tipo_receita'), data.get('valor'), data.get('fonte')||'', data.get('observacoes')||''];
+      try {
+        await gapi.client.sheets.spreadsheets.values.append({
+          spreadsheetId: imoveisSheetId, range: 'Receitas!A:F',
+          valueInputOption: 'USER_ENTERED', resource: { values: [row] }
+        });
+        alert('✅ Receita adicionada!');
+        closeModal('modal-receita-imovel'); form.reset();
+        await reloadCacheTab('receitas');
+        loadTabReceitasImovel();
+      } catch(e) { alert('Erro: '+e.message); }
+    }
+
+    async function deleteReceitaImovel(i) {
+      if (!confirm('Excluir esta receita?')) return;
+      try {
+        const shId = await getSheetId('Receitas');
+        await gapi.client.sheets.spreadsheets.batchUpdate({
+          spreadsheetId: imoveisSheetId,
+          resource: { requests: [{ deleteDimension: { range: { sheetId: shId, dimension:'ROWS', startIndex:i+1, endIndex:i+2 }}}]}
+        });
+        await reloadCacheTab('receitas'); loadTabReceitasImovel();
+      } catch(e) { alert('Erro: '+e.message); }
+    }
+
+    // ========== GRÁFICO FLUXO DE CAIXA ==========
+    let fluxoCaixaChart = null;
+
+    async function loadTabFluxoCaixa() {
+      if (!currentImovelNome) return;
+      const nome = currentImovelNome;
+
+      const ocupacoes   = await loadOcupacao(nome);
+      const despRec     = await loadDespesasRecorrentes(nome);
+      const despExt     = await loadDespesasExtraordinarias(nome);
+      const investim    = await loadInvestimentos(nome);
+      const receitas    = await loadReceitas(nome);
+
+      // Determina range de meses (últimos 24 meses ou desde primeiro registro)
+      const todasDatas = [
+        ...ocupacoes.map(o => new Date(o.dataInicio)),
+        ...despExt.map(d => new Date(d.data)),
+        ...investim.map(d => new Date(d.data)),
+        ...receitas.map(d => new Date(d.data))
+      ].filter(d => !isNaN(d));
+
+      const hoje = new Date();
+      const minData = todasDatas.length
+        ? new Date(Math.min(...todasDatas))
+        : new Date(hoje.getFullYear() - 1, hoje.getMonth(), 1);
+      const inicioMes = new Date(minData.getFullYear(), minData.getMonth(), 1);
+      const fimMes    = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+
+      // Helpers
+      function anoMes(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
+      function aluguelMes(ym) {
+        const [y,m] = ym.split('-').map(Number);
+        const mid = new Date(y, m-1, 15);
+        for (const o of ocupacoes) {
+          const ini = new Date(o.dataInicio);
+          const fim = o.dataFim ? new Date(o.dataFim) : hoje;
+          if (mid >= ini && mid <= fim) return o.valorAluguel || 0;
+        }
+        return 0;
+      }
+
+      // Gera meses
+      const labels = [], receitasBars = [], despRecBars = [], despExtBars = [], investimBars = [];
+      const despMensal = despRec.reduce((s,d) => s+(d.valorMensal||0), 0);
+      let cur = new Date(inicioMes);
+      while (cur <= fimMes) {
+        const ym = anoMes(cur);
+        const lbl = cur.toLocaleDateString('pt-BR', {month:'short', year:'2-digit'});
+        labels.push(lbl);
+
+        // Receitas: aluguel automático + receitas manuais no mês
+        const recManuais = receitas
+          .filter(r => anoMes(new Date(r.data)) === ym)
+          .reduce((s,r) => s+r.valor, 0);
+        receitasBars.push(aluguelMes(ym) + recManuais);
+
+        // Despesas recorrentes (mensais fixas)
+        despRecBars.push(despMensal);
+
+        // Despesas extraordinárias no mês
+        despExtBars.push(despExt.filter(d => anoMes(new Date(d.data)) === ym).reduce((s,d) => s+d.valor, 0));
+
+        // Investimentos no mês
+        investimBars.push(investim.filter(d => anoMes(new Date(d.data)) === ym).reduce((s,d) => s+d.valor, 0));
+
+        cur = new Date(cur.getFullYear(), cur.getMonth()+1, 1);
+      }
+
+      // Totais para resumo
+      const totRec   = receitasBars.reduce((s,v)=>s+v,0);
+      const totDRec  = despRecBars.reduce((s,v)=>s+v,0);
+      const totDExt  = despExtBars.reduce((s,v)=>s+v,0);
+      const totInv   = investimBars.reduce((s,v)=>s+v,0);
+      const saldo    = totRec - totDRec - totDExt - totInv;
+
+      // Resumo cards
+      document.getElementById('fluxo-resumo').innerHTML = [
+        { label:'Total Receitas',    val: totRec,  cor:'#16a34a' },
+        { label:'Desp. Recorrentes', val:-totDRec, cor:'#2e6b8e' },
+        { label:'Desp. Extraordin.', val:-totDExt, cor:'#f59e0b' },
+        { label:'Investimentos',     val:-totInv,  cor:'#8b5cf6' }
+      ].map(c => `
+        <div style="background:#f8fafc;border-radius:10px;padding:14px 16px;border-left:4px solid ${c.cor};">
+          <div style="font-size:11px;color:#666;font-weight:600;text-transform:uppercase;letter-spacing:.5px;">${c.label}</div>
+          <div style="font-size:16px;font-weight:700;color:${c.val>=0?'#16a34a':'#ef4444'};margin-top:4px;">${c.val>=0?'+':''}${fmt(Math.abs(c.val))}</div>
+        </div>`).join('') +
+        `<div style="background:#0f3d57;border-radius:10px;padding:14px 16px;">
+          <div style="font-size:11px;color:rgba(255,255,255,.7);font-weight:600;text-transform:uppercase;letter-spacing:.5px;">Saldo Líquido</div>
+          <div style="font-size:16px;font-weight:700;color:${saldo>=0?'#86efac':'#fca5a5'};margin-top:4px;">${saldo>=0?'+':''}${fmt(saldo)}</div>
+        </div>`;
+
+      // Gráfico
+      const ctx = document.getElementById('chart-fluxo-caixa');
+      if (fluxoCaixaChart) fluxoCaixaChart.destroy();
+      fluxoCaixaChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            { label:'Receitas',           data: receitasBars, backgroundColor:'rgba(22,163,74,0.8)',  stack:'rec' },
+            { label:'Desp. Recorrentes',  data: despRecBars,  backgroundColor:'rgba(46,107,142,0.8)', stack:'sai' },
+            { label:'Desp. Extraordin.',  data: despExtBars,  backgroundColor:'rgba(245,158,11,0.8)', stack:'sai' },
+            { label:'Investimentos',      data: investimBars, backgroundColor:'rgba(139,92,246,0.8)', stack:'sai' }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          interaction: { mode:'index', intersect:false },
+          plugins: {
+            legend: { display:false },
+            tooltip: {
+              backgroundColor:'#0f3d57', titleColor:'#fff', bodyColor:'#fff', padding:12,
+              callbacks: { label: c => ` ${c.dataset.label}: ${fmt(c.parsed.y)}` }
+            }
+          },
+          scales: {
+            x: { stacked:true, ticks:{ color:'#666', maxTicksLimit:12 }, grid:{ display:false } },
+            y: { stacked:false, ticks:{ callback: v => 'R$'+(v>=1000?(v/1000).toFixed(0)+'k':v), color:'#666' }, grid:{ color:'#e5e5e5' } }
+          }
+        }
+      });
+    }
+
     // ========== CRUD OCUPAÇÃO ==========
     async function saveOcupacao() {
       const form = document.getElementById('form-ocupacao');
