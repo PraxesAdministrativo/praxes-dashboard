@@ -3742,16 +3742,16 @@
       const sel = document.getElementById('imovel-familiar');
       if (!sel) return;
       sel.innerHTML = '<option value="">Nenhum / Titular</option>';
-      // Se perfilFamData já carregado usa direto, senão busca da planilha
-      let famData = perfilFamData || [];
-      if (!famData.length && resumoSheetId) {
+      // Sempre busca da planilha para garantir dados atualizados
+      let famData = [];
+      if (resumoSheetId) {
         try {
           const resp = await gapi.client.sheets.spreadsheets.values.get({
             spreadsheetId: resumoSheetId, range: 'familia!A2:H100', valueRenderOption: 'UNFORMATTED_VALUE'
           });
           famData = resp.result.values || [];
           perfilFamData = famData;
-        } catch(e) { console.warn('familia sheet error:', e); }
+        } catch(e) { console.warn('familia sheet error:', e); famData = perfilFamData || []; }
       }
       console.log('famData:', famData);
       famData.forEach(function(r) {
