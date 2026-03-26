@@ -3747,11 +3747,11 @@
       if (!famData.length && resumoSheetId) {
         try {
           const resp = await gapi.client.sheets.spreadsheets.values.get({
-            spreadsheetId: resumoSheetId, range: 'Familia!A2:H100', valueRenderOption: 'UNFORMATTED_VALUE'
+            spreadsheetId: resumoSheetId, range: 'familia!A2:H100', valueRenderOption: 'UNFORMATTED_VALUE'
           });
           famData = resp.result.values || [];
           perfilFamData = famData;
-        } catch(e) { console.warn('Familia sheet error:', e); }
+        } catch(e) { console.warn('familia sheet error:', e); }
       }
       console.log('famData:', famData);
       famData.forEach(function(r) {
@@ -7219,7 +7219,7 @@ Esta ação não pode ser desfeita.`)) return;
       try {
         const resp = await gapi.client.sheets.spreadsheets.values.batchGet({
           spreadsheetId: resumoSheetId,
-          ranges: ['Familia!A2:H100'],
+          ranges: ['familia!A2:H100'],
           valueRenderOption:'UNFORMATTED_VALUE'
         });
         perfilFamData = resp.result.valueRanges[0].values || [];
@@ -7231,7 +7231,7 @@ Esta ação não pode ser desfeita.`)) return;
           renderPerfil();
           document.getElementById('perfil-grid').insertAdjacentHTML('afterbegin',
             `<div style="grid-column:1/-1;background:#fff8e1;border:1px solid #f59e0b;border-radius:8px;padding:14px 18px;margin-bottom:20px;font-size:13px;color:#92400e;">
-              ⚠️ Aba <strong>Familia</strong> não encontrada na planilha. Importe o modelo e reabra esta página.
+              ⚠️ Aba <strong>familia</strong> não encontrada na planilha. Importe o modelo e reabra esta página.
             </div>`);
         } else {
           document.getElementById('perfil-grid').innerHTML = `<p style="color:red;padding:20px;">Erro ao carregar: ${msg}</p>`;
@@ -7297,12 +7297,12 @@ Esta ação não pode ser desfeita.`)) return;
       try {
         if (editIdx !== '') {
           await gapi.client.sheets.spreadsheets.values.update({
-            spreadsheetId:resumoSheetId, range:`Familia!A${parseInt(editIdx)+2}:G${parseInt(editIdx)+2}`,
+            spreadsheetId:resumoSheetId, range:`familia!A${parseInt(editIdx)+2}:G${parseInt(editIdx)+2}`,
             valueInputOption:'USER_ENTERED', resource:{values:[row]}
           });
         } else {
           await gapi.client.sheets.spreadsheets.values.append({
-            spreadsheetId:resumoSheetId, range:'Familia!A:G',
+            spreadsheetId:resumoSheetId, range:'familia!A:G',
             valueInputOption:'USER_ENTERED', resource:{values:[row]}
           });
         }
@@ -7313,8 +7313,8 @@ Esta ação não pode ser desfeita.`)) return;
     async function perfilExcluirFamiliar(i) {
       if (!confirm(`Excluir "${perfilFamData[i][1]}"?`)) return;
       const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId:resumoSheetId});
-      const sh = meta.result.sheets.find(s=>s.properties.title==='Familia');
-      if (!sh) { alert('Aba "Familia" não encontrada na planilha principal'); return; }
+      const sh = meta.result.sheets.find(s=>s.properties.title==='familia');
+      if (!sh) { alert('Aba "familia" não encontrada na planilha principal'); return; }
       await gapi.client.sheets.spreadsheets.batchUpdate({spreadsheetId:resumoSheetId,resource:{requests:[{deleteDimension:{range:{sheetId:sh.properties.sheetId,dimension:'ROWS',startIndex:i+1,endIndex:i+2}}}]}});
       await perfilInit();
     }
