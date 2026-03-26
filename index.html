@@ -2361,11 +2361,11 @@
           <div class="form-row">
             <div class="form-group">
               <label class="form-label">Data Início *</label>
-              <input type="date" class="form-input" name="data_inicio" required>
+              <input type="date" class="form-input" name="data_inicio" required onchange="ocuAtualizarDuracao()">
             </div>
             <div class="form-group">
               <label class="form-label">Data Fim</label>
-              <input type="date" class="form-input" name="data_fim">
+              <input type="date" class="form-input" name="data_fim" onchange="ocuAtualizarDuracao()">
             </div>
           </div>
           <div class="form-row">
@@ -2386,14 +2386,15 @@
           <p style="font-size:11px;font-weight:600;color:var(--azul-principal);text-transform:uppercase;letter-spacing:.8px;margin:16px 0 8px;">Contrato</p>
           <div class="form-row">
             <div class="form-group">
-              <label class="form-label">Duração (meses)</label>
-              <input type="number" class="form-input" name="duracao_meses" placeholder="30" min="1">
+              <label class="form-label">Duração do contrato</label>
+              <input type="text" class="form-input" name="duracao_meses" id="ocu-duracao" placeholder="Calculado automaticamente" readonly style="background:#f5f5f5;color:#888;cursor:default;">
             </div>
             <div class="form-group">
-              <label class="form-label">Carência (mês de rescisão)</label>
-              <input type="number" class="form-input" name="carencia_mes" placeholder="12" min="1">
+              <label class="form-label">Carência (meses a partir do início)</label>
+              <input type="number" class="form-input" name="carencia_mes" id="ocu-carencia" placeholder="Ex: 12" min="1" oninput="ocuAtualizarCarencia()">
             </div>
           </div>
+          <div id="ocu-carencia-info" style="display:none;margin-top:6px;padding:10px 14px;border-radius:8px;font-size:13px;"></div>
 
           <p style="font-size:11px;font-weight:600;color:var(--azul-principal);text-transform:uppercase;letter-spacing:.8px;margin:16px 0 8px;">Reajuste</p>
           <div class="form-row">
@@ -4481,7 +4482,56 @@
     }
     
     function openModalOcupacao() {
+      document.getElementById('form-ocupacao').reset();
+      document.getElementById('ocu-duracao').value = '';
+      document.getElementById('ocu-carencia-info').style.display = 'none';
       openModal('modal-ocupacao');
+    }
+
+    function ocuAtualizarDuracao() {
+      const inicio = document.querySelector('#form-ocupacao [name="data_inicio"]').value;
+      const fim    = document.querySelector('#form-ocupacao [name="data_fim"]').value;
+      const campo  = document.getElementById('ocu-duracao');
+      if (inicio && fim) {
+        const d1 = new Date(inicio), d2 = new Date(fim);
+        if (d2 > d1) {
+          const meses = Math.round((d2 - d1) / (1000 * 60 * 60 * 24 * 30.44));
+          campo.value = meses + ' meses';
+        } else {
+          campo.value = '—';
+        }
+      } else {
+        campo.value = '';
+      }
+      ocuAtualizarCarencia();
+    }
+
+    function ocuAtualizarCarencia() {
+      const inicio   = document.querySelector('#form-ocupacao [name="data_inicio"]').value;
+      const carencia = parseInt(document.getElementById('ocu-carencia').value) || 0;
+      const info     = document.getElementById('ocu-carencia-info');
+      if (!inicio || !carencia) { info.style.display = 'none'; return; }
+
+      const dataCarencia = new Date(inicio);
+      dataCarencia.setMonth(dataCarencia.getMonth() + carencia);
+      const hoje   = new Date();
+      const diffMs = dataCarencia - hoje;
+      const mesesRestantes = Math.ceil(diffMs / (1000 * 60 * 60 * 24 * 30.44));
+      const dataFmt = dataCarencia.toLocaleDateString('pt-BR');
+
+      if (diffMs > 0) {
+        info.style.display = 'block';
+        info.style.background = '#fff8e1';
+        info.style.border = '1px solid #f59e0b';
+        info.style.color = '#92400e';
+        info.innerHTML = `⏳ Carência até <strong>${dataFmt}</strong> — faltam <strong>${mesesRestantes} ${mesesRestantes === 1 ? 'mês' : 'meses'}</strong> para sair da carência`;
+      } else {
+        info.style.display = 'block';
+        info.style.background = '#f0fdf4';
+        info.style.border = '1px solid #86efac';
+        info.style.color = '#166534';
+        info.innerHTML = `✅ Carência encerrada em <strong>${dataFmt}</strong>`;
+      }
     }
     
     function viewImovelDocsFromTab() {
