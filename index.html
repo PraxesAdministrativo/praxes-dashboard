@@ -4644,6 +4644,14 @@
         }
         wrap.style.display = 'block'; empty.style.display = 'none';
 
+        // Injeta valor atual real ANTES de definir valorNaData
+        const hoje2 = new Date();
+        const valorAtualReal = getValorAtualImovel(nomeImovel, 0);
+        const ultimoHist = historico[historico.length - 1];
+        if (valorAtualReal > 0 && valorAtualReal !== ultimoHist.valor) {
+          historico.push({ data: hoje2, valor: valorAtualReal });
+        }
+
         function valorNaData(data) {
           let ultimo = historico[0].valor;
           for (let i = 0; i < historico.length; i++) {
@@ -4663,16 +4671,7 @@
         }
 
         const inicio  = new Date(historico[0].data.getFullYear(), historico[0].data.getMonth(), 1);
-        // Sempre vai até hoje — não para no último registro do histórico
-        const hoje2   = new Date();
         const fimData = new Date(hoje2.getFullYear(), hoje2.getMonth(), 1);
-
-        // Garante que o valor atual real está no historico (adiciona ponto virtual se necessário)
-        const valorAtualReal = getValorAtualImovel(nomeImovel, 0);
-        const ultimoHist = historico[historico.length - 1];
-        if (valorAtualReal > 0 && valorAtualReal !== ultimoHist.valor) {
-          historico.push({ data: hoje2, valor: valorAtualReal });
-        }
 
         const labels = [], valoresPL = [];
         const retornoTotal = [], retornoAluguel = [];
