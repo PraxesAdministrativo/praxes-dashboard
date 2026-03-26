@@ -1543,6 +1543,7 @@
           <div class="tabs-container">
             <div class="tabs-header">
               <button class="tab-btn active" onclick="switchTab('geral')">📊 Visão Geral</button>
+              <button class="tab-btn" onclick="switchTab('caracteristicas')">🏠 Características</button>
               <button class="tab-btn" onclick="switchTab('despesas')">💰 Despesas</button>
               <button class="tab-btn" onclick="switchTab('investimentos-imovel')">🏗️ Investimentos</button>
               <button class="tab-btn" onclick="switchTab('receitas-imovel')">💵 Receitas</button>
@@ -1617,6 +1618,19 @@
                     <h3 class="detalhes-section-title">📅 Histórico de Valores</h3>
                     <div class="historico-list" id="detalhes-historico"></div>
                   </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ABA: CARACTERÍSTICAS -->
+            <div class="tab-content" id="tab-caracteristicas">
+              <div class="gestao-section">
+                <div class="gestao-header">
+                  <h3 class="gestao-title">🏠 Características do Imóvel</h3>
+                  <button class="btn-add-small" onclick="openModalCaracteristicas()">✏️ Editar</button>
+                </div>
+                <div id="carac-content" style="padding:8px 0;">
+                  <p style="color:#999;text-align:center;padding:40px;font-size:13px;">Nenhuma característica cadastrada. Clique em Editar para adicionar.</p>
                 </div>
               </div>
             </div>
@@ -2296,18 +2310,6 @@
               <label class="form-label">Área Útil (m²)</label>
               <input type="number" class="form-input" name="area_util" placeholder="72" step="0.01">
             </div>
-            <div class="form-group">
-              <label class="form-label">Quartos</label>
-              <input type="number" class="form-input" name="quartos" placeholder="3">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Suítes</label>
-              <input type="number" class="form-input" name="suites" placeholder="1">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Vagas</label>
-              <input type="number" class="form-input" name="vagas" placeholder="2">
-            </div>
           </div>
 
           <!-- OBSERVAÇÕES -->
@@ -2440,6 +2442,203 @@
       <div class="modal-footer">
         <button class="btn-cancel" onclick="closeModal('modal-despesa-ext')">Cancelar</button>
         <button class="btn-save" onclick="saveDespesaExt()">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL CARACTERÍSTICAS -->
+  <div class="modal" id="modal-caracteristicas">
+    <div class="modal-content" style="max-width:680px;">
+      <div class="modal-header">
+        <h3 class="modal-title">🏠 Características do Imóvel</h3>
+        <button class="modal-close" onclick="closeModal('modal-caracteristicas')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-caracteristicas">
+
+          <p style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--azul-principal);margin:0 0 10px;">Dimensões</p>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Área Privativa (m²)</label>
+              <input type="number" class="form-input" name="area_privativa" step="0.01" placeholder="78">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Área de Serviço (m²)</label>
+              <input type="number" class="form-input" name="area_servico" step="0.01" placeholder="6">
+            </div>
+          </div>
+
+          <p style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--azul-principal);margin:16px 0 10px;">Composição</p>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Quartos</label>
+              <input type="number" class="form-input" name="quartos" placeholder="3" min="0">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Suítes</label>
+              <input type="number" class="form-input" name="suites" placeholder="1" min="0">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Banheiros</label>
+              <input type="number" class="form-input" name="banheiros" placeholder="2" min="0">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Lavabos</label>
+              <input type="number" class="form-input" name="lavabos" placeholder="1" min="0">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Quarto de Empregada</label>
+              <select class="form-select" name="quarto_empregada">
+                <option value="">-</option>
+                <option value="Sim">Sim</option>
+                <option value="Não">Não</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Banheiro de Empregada</label>
+              <select class="form-select" name="banheiro_empregada">
+                <option value="">-</option>
+                <option value="Sim">Sim</option>
+                <option value="Não">Não</option>
+              </select>
+            </div>
+          </div>
+
+          <p style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--azul-principal);margin:16px 0 10px;">Vagas & Extras</p>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Vagas de Garagem</label>
+              <input type="number" class="form-input" name="vagas" placeholder="2" min="0">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Hobby Box</label>
+              <select class="form-select" name="hobby_box">
+                <option value="">-</option>
+                <option value="Sim">Sim</option>
+                <option value="Não">Não</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Depósito</label>
+              <select class="form-select" name="deposito">
+                <option value="">-</option>
+                <option value="Sim">Sim</option>
+                <option value="Não">Não</option>
+              </select>
+            </div>
+          </div>
+
+          <p style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--azul-principal);margin:16px 0 10px;">Lazer & Diferenciais</p>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Sacada</label>
+              <select class="form-select" name="sacada">
+                <option value="">-</option>
+                <option value="Simples">Simples</option>
+                <option value="Com Churrasqueira">Com Churrasqueira</option>
+                <option value="Varanda Gourmet">Varanda Gourmet</option>
+                <option value="Não">Não</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Jardim Privativo</label>
+              <select class="form-select" name="jardim">
+                <option value="">-</option>
+                <option value="Sim">Sim</option>
+                <option value="Não">Não</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Vista</label>
+              <select class="form-select" name="vista">
+                <option value="">-</option>
+                <option value="Mar">Mar</option>
+                <option value="Montanha">Montanha</option>
+                <option value="Cidade">Cidade</option>
+                <option value="Área Verde">Área Verde</option>
+                <option value="Lago/Rio">Lago/Rio</option>
+                <option value="Outra">Outra</option>
+              </select>
+            </div>
+          </div>
+
+          <p style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--azul-principal);margin:16px 0 10px;">Edificação</p>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Andar</label>
+              <input type="number" class="form-input" name="andar" placeholder="8" min="0">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Total de Andares</label>
+              <input type="number" class="form-input" name="total_andares" placeholder="20" min="0">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Ano de Construção</label>
+              <input type="number" class="form-input" name="ano_construcao" placeholder="2015" min="1900" max="2100">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Construtora</label>
+              <input type="text" class="form-input" name="construtora" placeholder="Ex: RNI, MRV, Cyrela...">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Incorporadora</label>
+              <input type="text" class="form-input" name="incorporadora" placeholder="Ex: Brookfield...">
+            </div>
+          </div>
+
+          <p style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--azul-principal);margin:16px 0 10px;">Posição & Conservação</p>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Orientação Solar</label>
+              <select class="form-select" name="orientacao_solar">
+                <option value="">-</option>
+                <option value="Norte">Norte</option>
+                <option value="Sul">Sul</option>
+                <option value="Leste">Leste</option>
+                <option value="Oeste">Oeste</option>
+                <option value="Nordeste">Nordeste</option>
+                <option value="Noroeste">Noroeste</option>
+                <option value="Sudeste">Sudeste</option>
+                <option value="Sudoeste">Sudoeste</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Posição</label>
+              <select class="form-select" name="posicao">
+                <option value="">-</option>
+                <option value="Frente">Frente</option>
+                <option value="Fundo">Fundo</option>
+                <option value="Lateral">Lateral</option>
+                <option value="Esquina">Esquina</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Estado de Conservação</label>
+              <select class="form-select" name="conservacao">
+                <option value="">-</option>
+                <option value="Ótimo">Ótimo</option>
+                <option value="Bom">Bom</option>
+                <option value="Regular">Regular</option>
+                <option value="Ruim">Ruim</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Última Reforma</label>
+              <input type="number" class="form-input" name="ultima_reforma" placeholder="2022" min="1900" max="2100">
+            </div>
+          </div>
+
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="closeModal('modal-caracteristicas')">Cancelar</button>
+        <button class="btn-save" onclick="saveCaracteristicas()">Salvar</button>
       </div>
     </div>
   </div>
@@ -3388,7 +3587,8 @@
       despesasExt: [],
       ocupacao: [],
       investimentos: [],
-      receitas: []
+      receitas: [],
+      caracteristicas: []
     };
     
     // Recarrega apenas uma aba específica do cache
@@ -3400,7 +3600,8 @@
           'despesasExt': 'Despesas_Extraordinarias!A2:F100',
           'ocupacao': 'Ocupacao!A2:M100',
           'investimentos': 'Investimentos!A2:E100',
-          'receitas': 'Receitas!A2:F100'
+          'receitas': 'Receitas!A2:F100',
+          'caracteristicas': 'Caracteristicas!A2:Z10'
         };
         
         if (!ranges[tabName]) return;
@@ -3429,11 +3630,12 @@
             'Despesas_Extraordinarias!A2:F100',
             'Ocupacao!A2:M100',
             'Investimentos!A2:E100',
-            'Receitas!A2:F100'
+            'Receitas!A2:F100',
+            'Caracteristicas!A2:Z10'
           ]
         });
         
-        const [lista, historico, despRec, despExt, ocupacao, investimentos, receitas] = response.result.valueRanges;
+        const [lista, historico, despRec, despExt, ocupacao, investimentos, receitas, caracteristicas] = response.result.valueRanges;
         
         // Armazena no cache
         imoveisData = lista.values || [];
@@ -3443,6 +3645,7 @@
         dataCache.ocupacao = ocupacao.values || [];
         dataCache.investimentos = investimentos.values || [];
         dataCache.receitas = receitas.values || [];
+        dataCache.caracteristicas = caracteristicas.values || [];
         
         console.log('✅ Dados carregados (otimizado):', {
           imoveis: imoveisData.length,
@@ -4934,6 +5137,8 @@
         loadTabReceitasImovel();
       } else if (tabName === 'fluxo-caixa') {
         loadTabFluxoCaixa();
+      } else if (tabName === 'caracteristicas') {
+        loadTabCaracteristicas();
       }
     }
     
@@ -5485,6 +5690,112 @@
           }
         }
       });
+    }
+
+    // ========== CARACTERÍSTICAS DO IMÓVEL ==========
+    const CARAC_FIELDS = [
+      'area_privativa','area_servico',
+      'quartos','suites','banheiros','lavabos','quarto_empregada','banheiro_empregada',
+      'vagas','hobby_box','deposito',
+      'sacada','jardim','vista',
+      'andar','total_andares','ano_construcao','construtora','incorporadora',
+      'orientacao_solar','posicao','conservacao','ultima_reforma'
+    ];
+    const CARAC_LABELS = {
+      area_privativa:'Área Privativa (m²)', area_servico:'Área de Serviço (m²)',
+      quartos:'Quartos', suites:'Suítes', banheiros:'Banheiros', lavabos:'Lavabos',
+      quarto_empregada:'Quarto de Empregada', banheiro_empregada:'Banheiro de Empregada',
+      vagas:'Vagas de Garagem', hobby_box:'Hobby Box', deposito:'Depósito',
+      sacada:'Sacada', jardim:'Jardim Privativo', vista:'Vista',
+      andar:'Andar', total_andares:'Total de Andares', ano_construcao:'Ano de Construção',
+      construtora:'Construtora', incorporadora:'Incorporadora',
+      orientacao_solar:'Orientação Solar', posicao:'Posição',
+      conservacao:'Estado de Conservação', ultima_reforma:'Última Reforma'
+    };
+    const CARAC_SECTIONS = {
+      'Dimensões':           ['area_privativa','area_servico'],
+      'Composição':          ['quartos','suites','banheiros','lavabos','quarto_empregada','banheiro_empregada'],
+      'Vagas & Extras':      ['vagas','hobby_box','deposito'],
+      'Lazer & Diferenciais':['sacada','jardim','vista'],
+      'Edificação':          ['andar','total_andares','ano_construcao','construtora','incorporadora'],
+      'Posição & Conservação':['orientacao_solar','posicao','conservacao','ultima_reforma']
+    };
+
+    function getCaracteristicas(nomeImovel) {
+      const rows = dataCache.caracteristicas || [];
+      const row = rows.find(r => r[0] === nomeImovel);
+      if (!row) return {};
+      const obj = {};
+      CARAC_FIELDS.forEach((f, i) => { if (row[i+1]) obj[f] = row[i+1]; });
+      return obj;
+    }
+
+    function openModalCaracteristicas() {
+      const carac = getCaracteristicas(currentImovelNome);
+      const form = document.getElementById('form-caracteristicas');
+      CARAC_FIELDS.forEach(f => {
+        const el = form.elements[f];
+        if (el) el.value = carac[f] || '';
+      });
+      openModal('modal-caracteristicas');
+    }
+
+    async function saveCaracteristicas() {
+      const form = document.getElementById('form-caracteristicas');
+      const row = [currentImovelNome, ...CARAC_FIELDS.map(f => form.elements[f]?.value || '')];
+      try {
+        // Verifica se já existe linha para este imóvel
+        const rows = dataCache.caracteristicas || [];
+        const idx = rows.findIndex(r => r[0] === currentImovelNome);
+        if (idx >= 0) {
+          await gapi.client.sheets.spreadsheets.values.update({
+            spreadsheetId: imoveisSheetId,
+            range: `Caracteristicas!A${idx+2}:Z${idx+2}`,
+            valueInputOption: 'USER_ENTERED',
+            resource: { values: [row] }
+          });
+        } else {
+          await gapi.client.sheets.spreadsheets.values.append({
+            spreadsheetId: imoveisSheetId,
+            range: 'Caracteristicas!A:Z',
+            valueInputOption: 'USER_ENTERED',
+            resource: { values: [row] }
+          });
+        }
+        alert('✅ Características salvas!');
+        closeModal('modal-caracteristicas');
+        await reloadCacheTab('caracteristicas');
+        loadTabCaracteristicas();
+      } catch(e) { alert('Erro: '+e.message); }
+    }
+
+    function loadTabCaracteristicas() {
+      const carac = getCaracteristicas(currentImovelNome);
+      const el = document.getElementById('carac-content');
+      if (!el) return;
+
+      const temDados = Object.keys(carac).length > 0;
+      if (!temDados) {
+        el.innerHTML = '<p style="color:#999;text-align:center;padding:40px;font-size:13px;">Nenhuma característica cadastrada. Clique em Editar para adicionar.</p>';
+        return;
+      }
+
+      let html = '';
+      for (const [secao, campos] of Object.entries(CARAC_SECTIONS)) {
+        const itens = campos.filter(f => carac[f]);
+        if (!itens.length) continue;
+        html += `<div style="margin-bottom:20px;">
+          <div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--azul-principal);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #e5e7eb;">${secao}</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;">`;
+        itens.forEach(f => {
+          html += `<div style="background:#f8fafc;border-radius:8px;padding:10px 14px;">
+            <div style="font-size:11px;color:#888;margin-bottom:3px;">${CARAC_LABELS[f]}</div>
+            <div style="font-size:14px;font-weight:600;color:#0f3d57;">${carac[f]}</div>
+          </div>`;
+        });
+        html += `</div></div>`;
+      }
+      el.innerHTML = html;
     }
 
     // ========== CRUD OCUPAÇÃO ==========
