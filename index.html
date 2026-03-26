@@ -4333,15 +4333,13 @@
         wrap.style.display = 'block'; empty.style.display = 'none';
 
         function valorNaData(data) {
-          if (data <= historico[0].data) return historico[0].valor;
-          if (data >= historico[historico.length-1].data) return historico[historico.length-1].valor;
-          for (let i = 1; i < historico.length; i++) {
-            if (data <= historico[i].data) {
-              const t = (data - historico[i-1].data) / (historico[i].data - historico[i-1].data);
-              return historico[i-1].valor + t * (historico[i].valor - historico[i-1].valor);
-            }
+          // Step: usa o último valor conhecido, sem interpolar entre reavaliações
+          let ultimo = historico[0].valor;
+          for (let i = 0; i < historico.length; i++) {
+            if (historico[i].data <= data) ultimo = historico[i].valor;
+            else break;
           }
-          return historico[historico.length-1].valor;
+          return ultimo;
         }
 
         function aluguelNaData(data) {
