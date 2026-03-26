@@ -4449,22 +4449,24 @@
             ? o.valorAluguel * (1 - o.taxaImobiliaria / 100)
             : null;
 
-          return \`
+          const liqHtml = aluguelLiquido !== null
+            ? `<br><span style="font-size:11px;color:#6b7280;">Líquido: ${fmt(aluguelLiquido)}</span>`
+            : '';
+          const detHtml = detalhes.length
+            ? `<br><span style="font-size:11px;color:#6b7280;">${detalhes.join(' · ')}</span>`
+            : '';
+
+          return `
             <tr>
-              <td>\${inicio} — \${fim}</td>
-              <td>\${o.inquilino}</td>
-              <td>
-                \${fmt(o.valorAluguel)}
-                \${aluguelLiquido !== null ? \`<br><span style="font-size:11px;color:#6b7280;">Líquido: \${fmt(aluguelLiquido)}</span>\` : ''}
-              </td>
-              <td><span style="padding: 4px 8px; background: \${o.status === 'Ocupado' ? '#dcfce7' : '#f3f4f6'}; border-radius: 4px; font-size: 12px;">\${o.status}</span>
-                \${detalhes.length ? \`<br><span style="font-size:11px;color:#6b7280;">\${detalhes.join(' · ')}</span>\` : ''}
-              </td>
+              <td>${inicio} — ${fim}</td>
+              <td>${o.inquilino}</td>
+              <td>${fmt(o.valorAluguel)}${liqHtml}</td>
+              <td><span style="padding: 4px 8px; background: ${o.status === 'Ocupado' ? '#dcfce7' : '#f3f4f6'}; border-radius: 4px; font-size: 12px;">${o.status}</span>${detHtml}</td>
               <td class="gestao-actions">
-                <button class="btn-icon" onclick="deleteOcupacao(\${i})" title="Excluir">🗑️</button>
+                <button class="btn-icon" onclick="deleteOcupacao(${i})" title="Excluir">🗑️</button>
               </td>
             </tr>
-          \`;
+          `;
         }).join('');
       }
     }
