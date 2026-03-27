@@ -3621,6 +3621,7 @@
     // FUNÇÃO OTIMIZADA - Carrega TODAS as abas de uma vez
     async function loadAllDataOptimized() {
       try {
+        // Abas obrigatórias
         const response = await gapi.client.sheets.spreadsheets.values.batchGet({
           spreadsheetId: imoveisSheetId,
           ranges: [
@@ -3628,37 +3629,44 @@
             'Historico_Valores!A2:E100',
             'Despesas_Recorrentes!A2:E100',
             'Despesas_Extraordinarias!A2:F100',
-            'Ocupacao!A2:M100',
-            'Investimentos!A2:E100',
-            'Receitas!A2:F100',
-            'Caracteristicas!A2:Z10'
+            'Ocupacao!A2:M100'
           ]
         });
-        
-        const [lista, historico, despRec, despExt, ocupacao, investimentos, receitas, caracteristicas] = response.result.valueRanges;
-        
-        // Armazena no cache
+        const [lista, historico, despRec, despExt, ocupacao] = response.result.valueRanges;
         imoveisData = lista.values || [];
         dataCache.historico = historico.values || [];
         dataCache.despesasRec = despRec.values || [];
         dataCache.despesasExt = despExt.values || [];
         dataCache.ocupacao = ocupacao.values || [];
-        dataCache.investimentos = investimentos.values || [];
-        dataCache.receitas = receitas.values || [];
-        dataCache.caracteristicas = caracteristicas.values || [];
-        
-        console.log('✅ Dados carregados (otimizado):', {
+
+        // Abas opcionais — carregadas individualmente para não quebrar se não existirem
+        const opcionais = [
+          { key: 'investimentos', range: 'Investimentos!A2:E100' },
+          { key: 'receitas',      range: 'Receitas!A2:F100' },
+          { key: 'caracteristicas', range: 'Caracteristicas!A2:Z10' }
+        ];
+        for (const op of opcionais) {
+          try {
+            const r = await gapi.client.sheets.spreadsheets.values.get({
+              spreadsheetId: imoveisSheetId, range: op.range
+            });
+            dataCache[op.key] = r.result.values || [];
+          } catch(e) {
+            console.warn(`Aba ${op.key} não encontrada, ignorando.`);
+            dataCache[op.key] = [];
+          }
+        }
+
+        console.log('✅ Dados carregados:', {
           imoveis: imoveisData.length,
           historico: dataCache.historico.length,
-          despesasRec: dataCache.despesasRec.length,
-          despesasExt: dataCache.despesasExt.length,
-          ocupacao: dataCache.ocupacao.length,
           investimentos: dataCache.investimentos.length,
-          receitas: dataCache.receitas.length
+          receitas: dataCache.receitas.length,
+          caracteristicas: dataCache.caracteristicas.length
         });
-        
+
         renderImoveis();
-        
+
       } catch (e) {
         console.error('❌ Erro ao carregar dados:', e);
         document.getElementById('imoveis-grid').innerHTML = '<p style="text-align:center; padding: 60px; color: red;">Erro ao carregar imóveis: ' + e.message + '</p>';
