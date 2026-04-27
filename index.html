@@ -3249,7 +3249,56 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script>
     console.log('🔥 Praxes v3.0 - Sidebar + Imóveis');
-    
+
+    // ========== SEGURANÇA: SANITIZAÇÃO XSS ==========
+    // Escapa qualquer string antes de inserir no HTML via innerHTML.
+    // Use esc(valor) em todo template que venha de planilhas ou do Supabase.
+    function esc(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#x27;');
+    }
+
+    // ========== SEGURANÇA: RATE LIMITING LOGIN ==========
+    // Bloqueia tentativas excessivas de login no próprio frontend.
+    const _loginAttempts = { count: 0, blockedUntil: 0 };
+
+    // ========== SEGURANÇA: UPLOAD - TIPOS PERMITIDOS ==========
+    const ALLOWED_UPLOAD_TYPES = {
+      'application/pdf': true,
+      'image/jpeg': true,
+      'image/png': true,
+      'image/webp': true,
+      'image/gif': true,
+      'application/msword': true,
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': true,
+      'application/vnd.ms-excel': true,
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': true,
+    };
+    const ALLOWED_EXTENSIONS = /\.(pdf|jpg|jpeg|png|webp|gif|doc|docx|xls|xlsx)$/i;
+    const MAX_FILE_SIZE_MB = 25;
+
+    function validarArquivoUpload(file) {
+      if (!ALLOWED_UPLOAD_TYPES[file.type]) {
+        alert(`Tipo de arquivo não permitido: ${file.type || 'desconhecido'}\nPermitidos: PDF, imagens (JPG, PNG, WEBP, GIF), Word e Excel.`);
+        return false;
+      }
+      if (!ALLOWED_EXTENSIONS.test(file.name)) {
+        alert(`Extensão de arquivo não permitida: ${file.name}\nPermitidas: .pdf .jpg .jpeg .png .webp .gif .doc .docx .xls .xlsx`);
+        return false;
+      }
+      if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+        alert(`Arquivo muito grande: ${(file.size/1024/1024).toFixed(1)} MB.\nTamanho máximo permitido: ${MAX_FILE_SIZE_MB} MB.`);
+        return false;
+      }
+      return true;
+    }
+    // ========== FIM SEGURANÇA ==========
+
     const cfg = {
       supabaseUrl: 'https://urckolcywijllkdyjcgc.supabase.co',
       supabaseKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVyY2tvbGN5d2lqbGxrZHlqY2djIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyNzU1NDAsImV4cCI6MjA4Njg1MTU0MH0.79Zmto6Dns_2KQWlx6msHaQ98bneTAT74qd2vv5aSLU',
@@ -3310,6 +3359,20 @@
 
     // LOGIN
     async function doLogin() {
+      // Rate limiting: máximo 5 tentativas, bloqueio de 2 minutos
+      const now = Date.now();
+      if (_loginAttempts.blockedUntil > now) {
+        const segundos = Math.ceil((_loginAttempts.blockedUntil - now) / 1000);
+        alert(`Muitas tentativas de login. Aguarde ${segundos} segundos antes de tentar novamente.`);
+        return;
+      }
+      _loginAttempts.count++;
+      if (_loginAttempts.count > 5) {
+        _loginAttempts.blockedUntil = now + 2 * 60 * 1000; // 2 minutos
+        _loginAttempts.count = 0;
+        alert('Muitas tentativas de login. Acesso bloqueado por 2 minutos.');
+        return;
+      }
       try {
         const { error } = await db.auth.signInWithOAuth({
           provider: 'google',
@@ -3342,6 +3405,7 @@
       // INITIAL_SESSION = sessão restaurada do localStorage (F5)
       // SIGNED_IN = login novo
       if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session) {
+        _loginAttempts.count = 0; // Login bem sucedido — reseta contador
         const email = session.user.email.toLowerCase();
         currentUser = email;
                 
@@ -4717,7 +4781,7 @@
             <div class="historico-item">
               <div class="historico-date">${new Date(h.data).toLocaleDateString('pt-BR')}</div>
               <div class="historico-value">${fmt(h.valor)}</div>
-              <div class="historico-fonte">${h.fonte}${h.obs ? ' • ' + h.obs : ''}</div>
+              <div class="historico-fonte">${esc(h.fonte)}${h.obs ? ' • ' + esc(h.obs) : ''}</div>
             </div>
           `;
         });
@@ -5144,9 +5208,9 @@
       } else {
         tbodyRec.innerHTML = despesasRec.map((d, i) => `
           <tr>
-            <td>${d.tipo}</td>
+            <td>${esc(d.tipo)}</td>
             <td>${fmt(d.valorMensal)}</td>
-            <td>${d.vencimentoDia || '-'}</td>
+            <td>${esc(d.vencimentoDia) || '-'}</td>
             <td class="gestao-actions">
               <button class="btn-icon" onclick="deleteDespesaRec(${i})" title="Excluir">🗑️</button>
             </td>
@@ -5164,9 +5228,9 @@
         tbodyExt.innerHTML = despesasExt.map((d, i) => `
           <tr>
             <td>${new Date(d.data).toLocaleDateString('pt-BR')}</td>
-            <td>${d.tipo}</td>
+            <td>${esc(d.tipo)}</td>
             <td>${fmt(d.valor)}</td>
-            <td>${d.categoria}</td>
+            <td>${esc(d.categoria)}</td>
             <td class="gestao-actions">
               <button class="btn-icon" onclick="deleteDespesaExt(${i})" title="Excluir">🗑️</button>
             </td>
@@ -5442,9 +5506,9 @@
       tbody.innerHTML = dados.map((d,i) => `
         <tr>
           <td>${new Date(d.data).toLocaleDateString('pt-BR')}</td>
-          <td>${d.tipo}</td>
+          <td>${esc(d.tipo)}</td>
           <td>${fmt(d.valor)}</td>
-          <td>${d.descricao}</td>
+          <td>${esc(d.descricao)}</td>
           <td class="gestao-actions"><button class="btn-icon" style="color:#ef4444" onclick="deleteInvestimentoImovel(${i})">🗑️</button></td>
         </tr>`).join('');
     }
@@ -5499,9 +5563,9 @@
       tbody.innerHTML = dados.map((d,i) => `
         <tr>
           <td>${new Date(d.data).toLocaleDateString('pt-BR')}</td>
-          <td>${d.tipo}</td>
+          <td>${esc(d.tipo)}</td>
           <td style="color:#16a34a;font-weight:600;">${fmt(d.valor)}</td>
-          <td>${d.fonte}</td>
+          <td>${esc(d.fonte)}</td>
           <td class="gestao-actions"><button class="btn-icon" style="color:#ef4444" onclick="deleteReceitaImovel(${i})">🗑️</button></td>
         </tr>`).join('');
     }
@@ -6184,6 +6248,8 @@
     }
     
     async function uploadDocumentoReavaliacao(file, folderId, data) {
+      // SEGURANÇA: valida tipo, extensão e tamanho
+      if (!validarArquivoUpload(file)) return;
       try {
         const nomeArquivo = `Avaliacao_${data}_${file.name}`;
         
@@ -6342,7 +6408,8 @@
     
     async function uploadDocumento(file) {
       if (!currentDriveFolderId) return;
-      
+      // SEGURANÇA: valida tipo, extensão e tamanho antes de qualquer upload
+      if (!validarArquivoUpload(file)) return;
       try {
         const metadata = {
           name: file.name,
@@ -8143,7 +8210,7 @@ Esta ação não pode ser desfeita.`)) return;
         if (!rows.length) { tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Nenhuma manutenção registrada</td></tr>'; return; }
         tbody.innerHTML = rows.map((r,i) => {
           const data = fmtDate(r[1]);
-          return `<tr><td>${data}</td><td>${r[2]||''}</td><td>${r[3]||'—'} km</td><td>${r[4]?fmt(r[4]):'—'}</td>
+          return `<tr><td>${esc(data)}</td><td>${esc(r[2]||'')}</td><td>${esc(r[3]||'—')} km</td><td>${r[4]?fmt(r[4]):'—'}</td>
             <td><button class="btn-icon" onclick="veiExcluirManutencao(${i+2})">🗑️</button></td></tr>`;
         }).join('');
       } catch(e) { console.error(e); }
@@ -8319,12 +8386,12 @@ Esta ação não pode ser desfeita.`)) return;
                 const valdColor = diff === null ? '' : diff < 0 ? 'color:#ef4444;font-weight:700;' : diff < 90 ? 'color:#f59e0b;font-weight:700;' : '';
                 const alert = diff !== null && diff < 90 ? ` <span style="font-size:10px;">${diff<0?'VENCIDO':`${diff}d`}</span>` : '';
                 return `<tr>
-                  <td><strong>${r[1]||''}</strong></td>
-                  <td style="font-size:12px;">${r[2]||'—'}</td>
-                  <td style="${valdColor}">${valdStr}${alert}</td>
-                  <td style="font-size:12px;">${r[4]||'—'}</td>
+                  <td><strong>${esc(r[1]||'')}</strong></td>
+                  <td style="font-size:12px;">${esc(r[2]||'—')}</td>
+                  <td style="${valdColor}">${esc(valdStr)}${alert}</td>
+                  <td style="font-size:12px;">${esc(r[4]||'—')}</td>
                   <td class="gestao-actions">
-                    ${r[5] ? `<button class="btn-icon" onclick="docsAbrirArquivo('${r[5]}')" title="Ver arquivo">📄</button>` : ''}
+                    ${r[5] ? `<button class="btn-icon" onclick="docsAbrirArquivo('${esc(r[5])}')" title="Ver arquivo">📄</button>` : ''}
                     <button class="btn-icon" onclick="docsEditar(${r._i})">✏️</button>
                     <button class="btn-icon" style="color:#ef4444" onclick="docsExcluir(${r._i})">🗑️</button>
                   </td>
@@ -8432,6 +8499,8 @@ Esta ação não pode ser desfeita.`)) return;
       if (fileInput.files.length > 0) {
         try {
           const file = fileInput.files[0];
+          // SEGURANÇA: valida tipo, extensão e tamanho antes do upload
+          if (!validarArquivoUpload(file)) return;
           const metadata = {name:`${row[1]}_${row[2]||'doc'}_${file.name}`, parents:[DOCS_FOLDER_ID]};
           const formData = new FormData();
           formData.append('metadata', new Blob([JSON.stringify(metadata)],{type:'application/json'}));
@@ -8517,10 +8586,10 @@ Esta ação não pode ser desfeita.`)) return;
         return `
           <div class="stat-card" style="position:relative;">
             <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">
-              <div style="width:48px;height:48px;border-radius:50%;background:var(--azul-terciario);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;color:#fff;flex-shrink:0;">${avatarLetters}</div>
+              <div style="width:48px;height:48px;border-radius:50%;background:var(--azul-terciario);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;color:#fff;flex-shrink:0;">${esc(avatarLetters)}</div>
               <div>
-                <div style="font-size:16px;font-weight:700;color:var(--azul-principal);">${nome||'—'}</div>
-                <div style="font-size:12px;color:var(--text-light);">${parentesco||''} ${idade?`• ${idade} anos`:''}</div>
+                <div style="font-size:16px;font-weight:700;color:var(--azul-principal);">${esc(nome||'—')}</div>
+                <div style="font-size:12px;color:var(--text-light);">${esc(parentesco||'')} ${idade?`• ${idade} anos`:''}</div>
               </div>
               <div style="margin-left:auto;display:flex;gap:4px;">
                 <button class="btn-icon" onclick="perfilEditarFamiliar(${i})">✏️</button>
@@ -8528,7 +8597,7 @@ Esta ação não pode ser desfeita.`)) return;
               </div>
             </div>
             ${[['CPF',cpf],['Email',email],['Tel',telefone],['Obs',obs]].filter(([,v])=>v).map(([l,v])=>`
-              <div class="info-row"><span class="info-label">${l}</span><span class="info-value" style="font-size:13px;">${v}</span></div>`).join('')}
+              <div class="info-row"><span class="info-label">${esc(l)}</span><span class="info-value" style="font-size:13px;">${esc(v)}</span></div>`).join('')}
           </div>`;
       }).join('');
 
@@ -9081,19 +9150,23 @@ Esta ação não pode ser desfeita.`)) return;
         const initials = c.name.split(' ').map(p=>p[0]).slice(0,2).join('').toUpperCase();
         const colors = ['#629ec1','#10b981','#8b5cf6','#f59e0b','#ef4444','#06b6d4'];
         const bg = colors[i % colors.length];
-        return `<div class="admin-client-card" onclick="adminEntrarComoCliente(${i})">
-          <div class="admin-client-avatar" style="background:${bg};">${initials}</div>
+        // SEGURANÇA: usa c.id (UUID do Supabase) em vez do índice numérico
+        // Isso evita IDOR — ninguém consegue adivinhar o próximo cliente incrementando um número
+        return `<div class="admin-client-card" onclick="adminEntrarComoCliente('${esc(c.id)}')">
+          <div class="admin-client-avatar" style="background:${bg};">${esc(initials)}</div>
           <div>
-            <div class="admin-client-name">${c.name}</div>
-            <div class="admin-client-email">${c.email}</div>
+            <div class="admin-client-name">${esc(c.name)}</div>
+            <div class="admin-client-email">${esc(c.email)}</div>
           </div>
           <svg style="margin-left:auto;opacity:0.3;flex-shrink:0;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
         </div>`;
       }).join('');
     }
 
-    async function adminEntrarComoCliente(idx) {
-      const client = _adminClients[idx];
+    async function adminEntrarComoCliente(clientId) {
+      // SEGURANÇA: busca por UUID, não por índice numérico
+      const client = _adminClients.find(c => c.id === clientId);
+      if (!client) { alert('Cliente não encontrado.'); return; }
       document.getElementById('admin-panel').style.display = 'none';
       document.getElementById('admin-back-btn').style.display = 'block';
       adminCarregarCliente(client);
