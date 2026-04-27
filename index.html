@@ -9150,9 +9150,10 @@ Esta ação não pode ser desfeita.`)) return;
         const initials = c.name.split(' ').map(p=>p[0]).slice(0,2).join('').toUpperCase();
         const colors = ['#629ec1','#10b981','#8b5cf6','#f59e0b','#ef4444','#06b6d4'];
         const bg = colors[i % colors.length];
-        // SEGURANÇA: usa c.id (UUID do Supabase) em vez do índice numérico
-        // Isso evita IDOR — ninguém consegue adivinhar o próximo cliente incrementando um número
-        return `<div class="admin-client-card" onclick="adminEntrarComoCliente('${esc(c.id)}')">
+        // SEGURANÇA: usa email em base64 em vez do índice numérico
+        // Email não é sequencial nem adivinhável como 0,1,2...
+        const clientKey = btoa(c.email);
+        return `<div class="admin-client-card" onclick="adminEntrarComoCliente('${esc(clientKey)}')">
           <div class="admin-client-avatar" style="background:${bg};">${esc(initials)}</div>
           <div>
             <div class="admin-client-name">${esc(c.name)}</div>
@@ -9163,9 +9164,10 @@ Esta ação não pode ser desfeita.`)) return;
       }).join('');
     }
 
-    async function adminEntrarComoCliente(clientId) {
-      // SEGURANÇA: busca por UUID, não por índice numérico
-      const client = _adminClients.find(c => c.id === clientId);
+    async function adminEntrarComoCliente(clientKey) {
+      // SEGURANÇA: decodifica o email e busca no array — não usa índice numérico sequencial
+      const email = atob(clientKey);
+      const client = _adminClients.find(c => c.email === email);
       if (!client) { alert('Cliente não encontrado.'); return; }
       document.getElementById('admin-panel').style.display = 'none';
       document.getElementById('admin-back-btn').style.display = 'block';
