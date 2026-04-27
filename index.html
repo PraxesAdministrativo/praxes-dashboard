@@ -3493,7 +3493,8 @@
 
       try {
         // ---- IMÓVEIS ----
-        if (!imoveisData.length) await loadAllDataOptimized();
+        // Sempre recarrega do servidor — nunca usa cache do cliente anterior
+        await loadAllDataOptimized();
         let totalImoveis = 0, totalCompra = 0;
         imoveisData.forEach(row => {
           totalImoveis += getValorAtualImovel(row[0], row[7]);
@@ -3563,14 +3564,13 @@
         document.getElementById('investimentos-change').className = 'stat-change';
 
         // ---- ALERTAS ----
-        if (!docsData.length) {
-          try {
+        // Sempre recarrega documentos do servidor para alertas de vencimento
+        try {
             const r = await gapi.client.sheets.spreadsheets.values.get({
               spreadsheetId:resumoSheetId, range:'Documentos_Pessoais!A2:G200', valueRenderOption:'UNFORMATTED_VALUE'
             });
             docsData = r.result.values||[];
-          } catch(e){}
-        }
+          } catch(e){ docsData = []; }
 
         const alertas = [];
         docsData.forEach(row => {
@@ -9172,15 +9172,7 @@ Esta ação não pode ser desfeita.`)) return;
     }
 
     function adminCarregarCliente(client) {
-      resumoSheetId    = client.spreadsheet_id;
-      imoveisSheetId   = client.imoveis_sheet_id || null;
-      imoveisFolderId  = client.imoveis_folder_id || null;
-      window.finSheetOverride = client.financeiro_sheet_id || client.spreadsheet_id;
-      window.invSheetId      = client.investimentos_sheet_id || null;
-
-      // Reseta TODOS os dados em memória do cliente anterior
-      // IMPORTANTE: dataCache deve ser zerado aqui ou dados de um cliente
-      // aparecem para outro (vazamento entre sessões de admin)
+      // 1. Primeiro zera TUDO — dados e IDs do cliente anterior
       imoveisData    = [];
       finLancamentos = [];
       finGerRows     = [];
@@ -9196,6 +9188,13 @@ Esta ação não pode ser desfeita.`)) return;
         receitas: [],
         caracteristicas: []
       };
+
+      // 2. Só então define os IDs do novo cliente
+      resumoSheetId           = client.spreadsheet_id;
+      imoveisSheetId          = client.imoveis_sheet_id || null;
+      imoveisFolderId         = client.imoveis_folder_id || null;
+      window.finSheetOverride = client.financeiro_sheet_id || client.spreadsheet_id;
+      window.invSheetId       = client.investimentos_sheet_id || null;
 
       document.getElementById('app-container').style.display = 'flex';
       document.getElementById('sidebar-name').textContent = client.name;
