@@ -6718,6 +6718,14 @@
       finMesAtual = parseInt(document.getElementById('fin-select-mes').value);
       finAnoAtual = parseInt(document.getElementById('fin-select-ano').value);
 
+      // Proteção: cliente sem planilha financeira configurada
+      finSheetId = window.finSheetOverride || resumoSheetId;
+      if (!finSheetId) {
+        document.getElementById('fin-kpis').innerHTML = '<p style="color:#999;padding:20px;text-align:center;">Planilha financeira não configurada para este cliente.</p>';
+        document.getElementById('fin-dre-container').innerHTML = '';
+        return;
+      }
+
       document.getElementById('fin-kpis').innerHTML = '<div class="fin-loading"><div class="spinner"></div><p>Carregando dados...</p></div>';
       document.getElementById('fin-dre-container').innerHTML = '<div class="fin-loading"><div class="spinner"></div><p>Carregando DRE...</p></div>';
 
@@ -6787,7 +6795,12 @@
 
       } catch(e) {
         console.error('❌ Controle Financeiro:', e);
-        document.getElementById('fin-kpis').innerHTML = `<p style="color:red;padding:20px;">Erro: ${e.message}</p>`;
+        const msg = e?.result?.error?.message || e?.message;
+        if (msg && (msg.includes('not found') || msg.includes('404') || msg.includes('Unable to parse'))) {
+          document.getElementById('fin-kpis').innerHTML = '<p style="color:#999;padding:20px;text-align:center;">Planilha financeira não encontrada ou sem acesso.</p>';
+        } else {
+          document.getElementById('fin-kpis').innerHTML = '<p style="color:#999;padding:20px;text-align:center;">Não foi possível carregar os dados financeiros. Tente novamente.</p>';
+        }
       }
     }
 
