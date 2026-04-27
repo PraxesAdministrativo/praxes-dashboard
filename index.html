@@ -1420,10 +1420,12 @@
           <span class="nav-icon" style="font-size:0;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="7" y1="15" x2="10" y2="15"/></svg></span>
           <span>Controle Financeiro</span>
         </div>
+        <!-- V2: nav-item de Veículos oculto — reativar quando a seção estiver pronta
         <div class="nav-item" data-page="veiculos">
           <span class="nav-icon" style="font-size:0;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M5 17H3v-5l2-5h14l2 5v5h-2"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="16.5" cy="17.5" r="2.5"/><path d="M5 12h14"/></svg></span>
           <span>Veículos</span>
         </div>
+        -->
         <div class="nav-item" data-page="documentos">
           <span class="nav-icon" style="font-size:0;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/></svg></span>
           <span>Documentos</span>
@@ -2050,6 +2052,7 @@
         </div>
 
         <!-- VEÍCULOS PAGE -->
+        <!-- V2: páginas de Veículos ocultas — reativar quando a seção estiver pronta
         <div class="page" id="page-veiculos">
           <div class="page-header">
             <h2 style="font-size:24px;color:var(--text-dark);">Veículos & Embarcações</h2>
@@ -2060,7 +2063,7 @@
           </div>
         </div>
 
-        <!-- DETALHES VEÍCULO PAGE -->
+        <!-- DETALHES VEÍCULO PAGE
         <div class="page" id="page-veiculo-detalhes">
           <div class="detalhes-header">
             <div class="detalhes-back" onclick="navigateTo('veiculos')">← Voltar para Veículos</div>
@@ -2118,6 +2121,7 @@
             </div>
           </div>
         </div>
+        --> <!-- fim V2 veículos -->
 
         <!-- DOCUMENTOS PAGE -->
         <div class="page" id="page-documentos">
@@ -2975,6 +2979,8 @@
   </div>
 
 
+  <!-- V2: modais de Veículos ocultos — reativar quando a seção estiver pronta
+
   <!-- MODAL ADD VEÍCULO -->
   <div class="modal" id="modal-add-veiculo">
     <div class="modal-content" style="max-width:640px;">
@@ -3109,6 +3115,7 @@
       </div>
     </div>
   </div>
+  --> <!-- fim V2 modais veículos -->
 
   <!-- MODAL DOCUMENTO PESSOAL -->
   <div class="modal" id="modal-doc-pessoal">
@@ -3333,7 +3340,6 @@
         investimentos: 'Investimentos',
         imoveis: 'Imóveis',
         financeiro: 'Controle Financeiro',
-        veiculos: 'Veículos & Embarcações',
         documentos: 'Documentos',
         perfil: 'Perfil & Família'
       };
@@ -3344,7 +3350,6 @@
       }
       if (pageName === 'financeiro')    { finInit(); }
       if (pageName === 'investimentos') { invInit(); }
-      if (pageName === 'veiculos')   { veiculosInit(); }
       if (pageName === 'documentos') { docsInit(); }
       if (pageName === 'perfil')     { perfilInit(); }
     }
@@ -3411,7 +3416,7 @@
                 
         const { data: client, error } = await db
           .from('clients')
-          .select('spreadsheet_id, name, imoveis_sheet_id, imoveis_folder_id, financeiro_sheet_id, is_admin, investimentos_sheet_id, veiculos_sheet_id, veiculos_folder_id')
+          .select('spreadsheet_id, name, imoveis_sheet_id, imoveis_folder_id, financeiro_sheet_id, is_admin, investimentos_sheet_id')
           .eq('email', email)
           .single();
         
@@ -3430,8 +3435,7 @@
         // Se tiver um sheet específico, usa ele; caso contrário, usa o spreadsheet_id (mesmo do resumo)
         window.finSheetOverride = client.financeiro_sheet_id || client.spreadsheet_id;
         window.invSheetId      = client.investimentos_sheet_id || null;
-        window.veiSheetId      = client.veiculos_sheet_id || null;
-        window.veiFolderId     = client.veiculos_folder_id || null;
+        // V2: window.veiSheetId e window.veiFolderId reativados quando veículos for lançado
                
         // Sempre atualiza o token Google (importante no F5 e renovação)
         const _setGoogleToken = (tok) => {
@@ -3550,16 +3554,13 @@
         // Patrimônio Total = Imóveis + (futuramente Investimentos)
         const totalPatrimonio = totalImoveis; // será expandido quando investimentos for conectado
         document.getElementById('total-patrimonio').textContent = fmt(totalPatrimonio);
-        document.getElementById('patrimonio-change').textContent = imoveisData.length+' imóvel(is) · '+veiculosData.length+' veículo(s)';
+        document.getElementById('patrimonio-change').textContent = imoveisData.length+' imóvel(is)';
         document.getElementById('patrimonio-change').className = 'stat-change';
 
         // Investimentos — placeholder até integração
         document.getElementById('total-investimentos').textContent = '—';
         document.getElementById('investimentos-change').textContent = 'Em breve';
         document.getElementById('investimentos-change').className = 'stat-change';
-
-        // ---- VEÍCULOS (carrega silenciosamente se não carregou) ----
-        if (!veiculosData.length) await veiculosLoad();
 
         // ---- ALERTAS ----
         if (!docsData.length) {
@@ -3577,13 +3578,7 @@
           const diff=Math.round((new Date(iso+'T12:00:00')-hoje)/86400000);
           if(diff<=90) alertas.push({label:`${row[1]||''} (${row[0]||''})`, diff, tipo:'doc'});
         });
-        veiculosData.forEach(row => {
-          [['IPVA',row[10]],['Seguro',row[11]],['Licenciamento',row[12]]].forEach(([lbl,raw])=>{
-            const iso=parseSheetDate(raw); if(!iso)return;
-            const diff=Math.round((new Date(iso+'T12:00:00')-hoje)/86400000);
-            if(diff<=90) alertas.push({label:`${lbl} — ${row[0]||''}`, diff, tipo:'vei'});
-          });
-        });
+        // V2: alertas de veículos reativados quando veículos for lançado
         alertas.sort((a,b)=>a.diff-b.diff);
 
         // Renderiza carrossel
@@ -3601,7 +3596,7 @@
         const cor = a.diff < 0 ? '#dc2626' : a.diff < 30 ? '#b45309' : '#1e4d6b';
         const tag = a.diff < 0 ? 'Vencido' : a.diff < 30 ? `${a.diff} dias` : `${a.diff} dias`;
         const dot = a.diff < 0 ? '#dc2626' : a.diff < 30 ? '#d97706' : '#3b82f6';
-        const tipo = a.tipo === 'doc' ? 'Documento' : 'Veículo';
+        const tipo = 'Documento';
         return `<tr style="border-bottom:1px solid #f1f1f1;">
           <td style="padding:11px 0;width:8px;vertical-align:middle;">
             <div style="width:6px;height:6px;border-radius:50%;background:${dot};margin-right:0;"></div>
@@ -8033,8 +8028,9 @@ Esta ação não pode ser desfeita.`)) return;
     }
 
 
-    // ========== VEÍCULOS ==========
-    // VEI_SHEET_ID e VEI_FOLDER_ID agora vêm do Supabase via window.veiSheetId / window.veiFolderId
+    // ========== VEÍCULOS (V2 - OCULTO) ==========
+    // Para reativar: remover este comentário e o correspondente no final do bloco
+    /* V2_VEICULOS_START
     const DOCS_FOLDER_ID = '1VGJmS1TFQrFs9pj1btfCweD9VsholxJL';
     let veiculosData = [];
     let veiAtualIndex = -1;
@@ -8319,6 +8315,7 @@ Esta ação não pode ser desfeita.`)) return;
         veiLoadManutencao();
       } catch(e) { alert('Erro: '+e.message); }
     }
+    V2_VEICULOS_END */
 
     // ========== DOCUMENTOS PESSOAIS ==========
     let docsData = [];
