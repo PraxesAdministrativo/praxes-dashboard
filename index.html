@@ -9173,22 +9173,29 @@ Esta ação não pode ser desfeita.`)) return;
 
     function adminCarregarCliente(client) {
       resumoSheetId    = client.spreadsheet_id;
-      imoveisSheetId   = client.imoveis_sheet_id || '1FL7TlnRqTAkBUDM5ICMFvo5-6ezV92zPFAWevyEJT90';
-      imoveisFolderId  = client.imoveis_folder_id || '1fhcguz-nrayJ0kAS-y1j9LQggs5wbD7i';
+      imoveisSheetId   = client.imoveis_sheet_id || null;
+      imoveisFolderId  = client.imoveis_folder_id || null;
       window.finSheetOverride = client.financeiro_sheet_id || client.spreadsheet_id;
       window.invSheetId      = client.investimentos_sheet_id || null;
-      window.veiSheetId      = client.veiculos_sheet_id || null;
-      window.veiFolderId     = client.veiculos_folder_id || null;
 
-      // Reseta dados em memória do cliente anterior
+      // Reseta TODOS os dados em memória do cliente anterior
+      // IMPORTANTE: dataCache deve ser zerado aqui ou dados de um cliente
+      // aparecem para outro (vazamento entre sessões de admin)
       imoveisData    = [];
       finLancamentos = [];
       finGerRows     = [];
       finColMap      = {};
       docsData       = [];
-      veiculosData   = [];
       invData        = { loaded: false };
-      window.invSheetId = client.investimentos_sheet_id || null;
+      dataCache = {
+        historico: [],
+        despesasRec: [],
+        despesasExt: [],
+        ocupacao: [],
+        investimentos: [],
+        receitas: [],
+        caracteristicas: []
+      };
 
       document.getElementById('app-container').style.display = 'flex';
       document.getElementById('sidebar-name').textContent = client.name;
@@ -9208,8 +9215,9 @@ Esta ação não pode ser desfeita.`)) return;
       document.getElementById('admin-back-btn').style.display = 'none';
       document.getElementById('app-container').style.display = 'none';
 
-      // Reseta dados
-      imoveisData=[]; finLancamentos=[]; finGerRows=[]; finColMap={}; docsData=[]; veiculosData=[];
+      // Reseta todos os dados do cliente que estava sendo visualizado
+      imoveisData=[]; finLancamentos=[]; finGerRows=[]; finColMap={}; docsData=[]; invData={loaded:false};
+      dataCache = { historico:[], despesasRec:[], despesasExt:[], ocupacao:[], investimentos:[], receitas:[], caracteristicas:[] };
 
       await adminShowPanel();
     }
