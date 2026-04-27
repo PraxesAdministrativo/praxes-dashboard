@@ -3344,8 +3344,7 @@
       if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session) {
         const email = session.user.email.toLowerCase();
         currentUser = email;
-        console.log('✅ User:', email);
-        
+                
         const { data: client, error } = await db
           .from('clients')
           .select('spreadsheet_id, name, imoveis_sheet_id, imoveis_folder_id, financeiro_sheet_id, is_admin, investimentos_sheet_id, veiculos_sheet_id, veiculos_folder_id')
@@ -3359,24 +3358,17 @@
           return;
         }
         
-        console.log('📊 Client:', client.name);
-        console.log('📋 Resumo Sheet:', client.spreadsheet_id);
-        console.log('🏘️ Imoveis Sheet:', client.imoveis_sheet_id);
-        console.log('📁 Imoveis Folder:', client.imoveis_folder_id);
-        
+  
         resumoSheetId = client.spreadsheet_id;
-        imoveisSheetId = client.imoveis_sheet_id || '1FL7TlnRqTAkBUDM5ICMFvo5-6ezV92zPFAWevyEJT90';
-        imoveisFolderId = client.imoveis_folder_id || '1fhcguz-nrayJ0kAS-y1j9LQggs5wbD7i';
+        imoveisSheetId = client.imoveis_sheet_id || null;
+        imoveisFolderId = client.imoveis_folder_id || null;
         // Controle Financeiro usa a planilha de orçamento do cliente
         // Se tiver um sheet específico, usa ele; caso contrário, usa o spreadsheet_id (mesmo do resumo)
         window.finSheetOverride = client.financeiro_sheet_id || client.spreadsheet_id;
         window.invSheetId      = client.investimentos_sheet_id || null;
         window.veiSheetId      = client.veiculos_sheet_id || null;
         window.veiFolderId     = client.veiculos_folder_id || null;
-        
-        console.log('✅ Using Imoveis Sheet:', imoveisSheetId);
-        console.log('✅ Using Imoveis Folder:', imoveisFolderId);
-        
+               
         // Sempre atualiza o token Google (importante no F5 e renovação)
         const _setGoogleToken = (tok) => {
           if (tok) gapi.client.setToken({ access_token: tok });
@@ -3399,11 +3391,9 @@
               const provider_token = session.provider_token;
               if (provider_token) {
                 gapi.client.setToken({ access_token: provider_token });
-                console.log('✅ Google OAuth token set');
               }
               
               window.gInit = true;
-              console.log('✅ Sheets + Drive API ready');
               ok();
             });
           });
@@ -3412,7 +3402,6 @@
           const provider_token = session.provider_token;
           if (provider_token) {
             _setGoogleToken(provider_token);
-            console.log('✅ Token renovado (sessão restaurada)');
           }
         }
         
@@ -9069,8 +9058,12 @@ Esta ação não pode ser desfeita.`)) return;
     let _adminOriginalClient = null;
 
     async function adminShowPanel() {
+      const { data: { session } } = await db.auth.getSession();
+      const adminCheck = await db.from('clients')
+        .select('is_admin').eq('email', session?.user?.email).single();
+      if (!adminCheck?.data?.is_admin) { doLogout(); return; }
+    
       document.getElementById('admin-panel').style.display = 'flex';
-      document.getElementById('app-container').style.display = 'none';
 
       // Busca todos os clientes
       const { data: clients } = await db.from('clients').select('*').order('name');
