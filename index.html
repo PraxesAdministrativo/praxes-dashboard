@@ -3547,7 +3547,7 @@
         let rendaTotal=0, despTotal=0;
         finGerRows.forEach(row => {
           if(!row)return;
-          const lbl=String(row[1]||'').trim();
+          const lbl=String(row[2]||'').trim();
           if(lbl==='Rendas totais'    && colAtual!==undefined) rendaTotal=Math.abs(parseFloat(String(row[colAtual]||'0'))||0);
           if(lbl==='Total de despesas'&& colAtual!==undefined) despTotal =Math.abs(parseFloat(String(row[colAtual]||'0'))||0);
         });
@@ -6868,7 +6868,7 @@
 
       gerRows.forEach(row => {
         if (!row) return;
-        const label = String(row[1] || '').trim();
+        const label = String(row[2] || '').trim();
         if (label === 'Rendas totais') {
           if (colAtual !== undefined) rendaTotal = Math.abs(parseFloat(String(row[colAtual] ?? '0')) || 0);
           for (let m = 1; m <= 12; m++) {
@@ -6968,7 +6968,7 @@
       function isSubtotal(lbl) { return lbl.startsWith('(=') || lbl.startsWith('(+') || lbl.startsWith('(-'); }
       gerRows.forEach(function(row) {
         if (!row) return;
-        var label    = String(row[1] || '').trim();
+        var label    = String(row[2] || '').trim();
         var subLabel = String(row[2] || '').trim();
         if (!label || subLabel) return;
         if (SKIP.some(function(s){ return label.toLowerCase().includes(s); })) return;
@@ -7072,83 +7072,96 @@
 
         // ---- DRE GERENCIAL ----
     function finProcessarDRE(gerRows) {
-      const colAtualKey = `${finAnoAtual}-${finMesAtual}`;
-      const colAtual    = finColMap[colAtualKey];
-      const ytdCol      = finColMap[`ytd_${finAnoAtual}`];
-      // Média calculada como YTD ÷ nº de meses decorridos no ano selecionado
+      const colAtualKey     = `${finAnoAtual}-${finMesAtual}`;
+      const colAtual        = finColMap[colAtualKey];
+      const ytdCol          = finColMap[`ytd_${finAnoAtual}`];
       const mesesDecorridos = finMesAtual;
 
-      function calcMedia(ytdVal) {
-        if (!ytdVal || ytdVal === 0 || mesesDecorridos === 0) return 0;
-        return ytdVal / mesesDecorridos;
-      }
-
-      function fmtDRE(v) {
-        if (v === 0 || v === undefined || v === null || isNaN(v))
-          return '<span class="valor-zero">—</span>';
-        const cls = v > 0 ? 'valor-pos' : 'valor-neg';
-        return `<span class="${cls}">${fmt(v)}</span>`;
-      }
-
+      function calcMedia(v) { return (!v||mesesDecorridos===0) ? 0 : v/mesesDecorridos; }
       function getVal(row, ci) {
-        if (ci === undefined || !row || row[ci] === undefined || row[ci] === '') return 0;
-        const n = parseFloat(String(row[ci]).replace(',', '.'));
+        if (ci===undefined||!row||row[ci]===undefined||row[ci]==='') return 0;
+        const n = parseFloat(String(row[ci]).replace(',','.'));
         return isNaN(n) ? 0 : n;
       }
+      function fmtDRE(v) {
+        if (!v||isNaN(v)) return '<span class="valor-zero">—</span>';
+        return `<span class="${v>0?'valor-pos':'valor-neg'}">${fmt(v)}</span>`;
+      }
+      function fmtRes(v) {
+        return `<strong style="color:${v>=0?'#10b981':'#ef4444'}">${v>=0?'+':''}${fmt(v)}</strong>`;
+      }
 
-      let html = `
-        <table class="fin-dre-table">
-          <thead>
-            <tr>
-              <th style="min-width:260px;">Categoria</th>
-              <th>${MESES_PT[finMesAtual-1]}</th>
-              <th>YTD ${finAnoAtual}</th>
-              <th>Média (YTD÷meses)</th>
-            </tr>
-          </thead>
-          <tbody>
-      `;
+      // Estrutura da planilha Gerencial (coluna C = row[2]):
+      // - "Rendas totais"               → cabeçalho verde
+      // - começa com "R - " ou "R – "  → sub-item de renda (filho)
+      // - "Total de despesas"           → cabeçalho vermelho total
+      // - "Despesas rotineiras..."      → grupo intermediário (negrito, sem expand)
+      // - "Despesas eventuais..."       → grupo intermediário
+      // - sem prefixo, sem parênteses  → categoria PAI expansível (Casa, Alimentação...)
+      // - com prefixo (C -, V & S -, E -, L -, V -, etc.) → subcategoria FILHO
+      // - "(=) Sub-total..."            → linha de resultado
+      // - outros com parêntese ou TRUE → ignorar
+
+      const IGNORAR_PREFIXOS = ['(=)', 'saldo', 'true', 'false', 'controle', 'patrimônio', 'patrmônio'];
+      const GRUPOS_INTERMEDIARIOS = ['despesas rotineiras', 'despesas eventuais'];
+
+      // Detecta se label é filho (tem prefixo de categoria)
+      function isFilho(label) {
+        // Padrão: "X - " ou "X & Y - " no início (1-10 chars antes do " - ")
+        return /^[A-ZÀ-Ú&a-z\s]{1,12}\s[-–]\s/i.test(label);
+      }
+
+      let html = `<table class="fin-dre-table"><thead><tr>
+        <th style="min-width:260px;">Categoria</th>
+        <th>${MESES_PT[finMesAtual-1]}</th>
+        <th>YTD ${finAnoAtual}</th>
+        <th>Média (YTD÷meses)</th>
+      </tr></thead><tbody>`;
 
       let currentPai = null;
       let paiId = 0;
+      let rendaAtual = 0, rendaYTD = 0, despAtual = 0, despYTD = 0;
 
       gerRows.forEach((row, ri) => {
-        if (ri < 5) return;
+        if (ri < 3) return; // pula cabeçalhos
         if (!row) return;
 
-        const label    = String(row[1] || '').trim();
-        const subLabel = String(row[2] || '').trim();
-        const marcRaw  = String(row[3] || '').trim().toLowerCase();
-        // Aceita 'x', 'X', TRUE, true (checkbox do Google Sheets)
-        const marcador = (marcRaw === 'x' || marcRaw === 'true') ? 'x' : marcRaw;
+        const label = String(row[2] || '').trim();
+        if (!label) return;
 
-        if (!label && !subLabel) return;
+        const labelLow = label.toLowerCase();
+        // Ignora linhas de controle
+        if (IGNORAR_PREFIXOS.some(p => labelLow.startsWith(p))) return;
+        if (finIsExcluido(label)) return;
 
         const vAtual = getVal(row, colAtual);
         const vYTD   = getVal(row, ytdCol);
         const vMedia = calcMedia(vYTD);
 
-        // RENDAS TOTAIS
-        if (label === 'Rendas totais') {
+        // 1. RENDAS TOTAIS
+        if (labelLow === 'rendas totais') {
+          rendaAtual = vAtual; rendaYTD = vYTD;
+          currentPai = null;
           html += `<tr class="fin-dre-row-rendas">
             <td>💰 Rendas Totais</td>
             <td>${fmtDRE(vAtual)}</td><td>${fmtDRE(vYTD)}</td><td>${fmtDRE(vMedia)}</td>
           </tr>`;
-          currentPai = null;
           return;
         }
 
-        // Sub-itens de renda (sem label pai, subLabel começa com R -)
-        if (!label && subLabel && finIsRenda(subLabel)) {
+        // 2. SUB-ITENS DE RENDA (R - Salário, R - Distribuição...)
+        if (isFilho(label) && finIsRenda(label)) {
           html += `<tr class="fin-dre-row-filho">
-            <td style="padding-left:32px;">${subLabel}</td>
+            <td style="padding-left:32px;">${esc(label)}</td>
             <td>${fmtDRE(vAtual)}</td><td>${fmtDRE(vYTD)}</td><td>${fmtDRE(vMedia)}</td>
           </tr>`;
           return;
         }
 
-        // TOTAL DE DESPESAS
-        if (label === 'Total de despesas') {
+        // 3. TOTAL DE DESPESAS
+        if (labelLow === 'total de despesas') {
+          despAtual = vAtual; despYTD = vYTD;
+          currentPai = null;
           html += `<tr class="fin-dre-row-total">
             <td>📊 Total de Despesas</td>
             <td>${fmtDRE(vAtual)}</td><td>${fmtDRE(vYTD)}</td><td>${fmtDRE(vMedia)}</td>
@@ -7156,48 +7169,48 @@
           return;
         }
 
-        // CATEGORIA PAI (label preenchido, sem subLabel, marcador x)
-        if (label && !subLabel && marcador === 'x') {
-          paiId++;
-          currentPai = `pai-${paiId}`;
-          // Mantém estado de expansão entre renders, default aberto
-          if (finDreExpandido[currentPai] === undefined) finDreExpandido[currentPai] = true;
-          const exp = finDreExpandido[currentPai];
-          html += `<tr class="fin-dre-row-pai" onclick="finTogglePai('${currentPai}')">
-            <td><span class="fin-dre-toggle" id="toggle-${currentPai}">${exp ? '▾' : '▸'}</span> ${label}</td>
+        // 4. GRUPOS INTERMEDIÁRIOS (Despesas rotineiras, Despesas eventuais)
+        if (GRUPOS_INTERMEDIARIOS.some(g => labelLow.startsWith(g))) {
+          currentPai = null; // quebra hierarquia atual
+          html += `<tr class="fin-dre-row-pai" style="background:#f0f4f8;cursor:default;">
+            <td style="padding-left:8px;font-style:italic;color:#555;">${esc(label)}</td>
             <td>${fmtDRE(vAtual)}</td><td>${fmtDRE(vYTD)}</td><td>${fmtDRE(vMedia)}</td>
           </tr>`;
           return;
         }
 
-        // SUBCATEGORIA FILHO (subLabel preenchido, marcador x)
-        if (subLabel && marcador === 'x') {
-          if (finIsExcluido(subLabel)) return;
+        // 5. SUBCATEGORIA FILHO (C - Aluguel, V & S - Massagem, E - Viagens...)
+        if (isFilho(label)) {
+          if (finIsExcluido(label)) return;
           const oculto = (currentPai && !finDreExpandido[currentPai]) ? 'hidden' : '';
-          html += `<tr class="fin-dre-row-filho ${oculto}" data-pai="${currentPai || ''}">
-            <td style="padding-left:32px;">${subLabel}</td>
+          html += `<tr class="fin-dre-row-filho ${oculto}" data-pai="${currentPai||''}">
+            <td style="padding-left:40px;">${esc(label)}</td>
+            <td>${fmtDRE(vAtual)}</td><td>${fmtDRE(vYTD)}</td><td>${fmtDRE(vMedia)}</td>
+          </tr>`;
+          return;
+        }
+
+        // 6. CATEGORIA PAI (Casa, Alimentação, Filhas... — sem prefixo, sem parêntese)
+        if (!label.startsWith('(')) {
+          paiId++;
+          currentPai = `pai-${paiId}`;
+          if (finDreExpandido[currentPai] === undefined) finDreExpandido[currentPai] = false; // fechado por padrão
+          const exp = finDreExpandido[currentPai];
+          html += `<tr class="fin-dre-row-pai" onclick="finTogglePai('${currentPai}')">
+            <td style="padding-left:16px;"><span class="fin-dre-toggle" id="toggle-${currentPai}">${exp?'▾':'▸'}</span> ${esc(label)}</td>
             <td>${fmtDRE(vAtual)}</td><td>${fmtDRE(vYTD)}</td><td>${fmtDRE(vMedia)}</td>
           </tr>`;
         }
       });
 
-      // Linha de resultado
-      const rendaRow = gerRows.find(r => r && String(r[1]||'').trim() === 'Rendas totais');
-      const despRow  = gerRows.find(r => r && String(r[1]||'').trim() === 'Total de despesas');
-      const resAtual = rendaRow && despRow ? getVal(rendaRow, colAtual) + getVal(despRow, colAtual) : 0;
-      const resYTD   = rendaRow && despRow ? getVal(rendaRow, ytdCol)   + getVal(despRow, ytdCol)   : 0;
-      const resMedia = calcMedia(resYTD);
-
-      function fmtRes(v) {
-        const cls = v >= 0 ? 'color:#10b981' : 'color:#ef4444';
-        return `<strong style="${cls}">${v >= 0 ? '+' : ''}${fmt(v)}</strong>`;
-      }
-
+      // Linha de resultado final
+      const resAtual = rendaAtual + despAtual;
+      const resYTD   = rendaYTD + despYTD;
       html += `<tr style="background:#0f3d57;">
         <td style="color:#fff;font-weight:700;font-size:14px;">✅ Resultado</td>
         <td style="color:#fff;text-align:right;">${fmtRes(resAtual)}</td>
         <td style="color:#fff;text-align:right;">${fmtRes(resYTD)}</td>
-        <td style="color:#fff;text-align:right;">${fmtRes(resMedia)}</td>
+        <td style="color:#fff;text-align:right;">${fmtRes(calcMedia(resYTD))}</td>
       </tr></tbody></table>`;
 
       document.getElementById('fin-dre-container').innerHTML = html;
@@ -7582,7 +7595,7 @@ Esta ação não pode ser desfeita.`)) return;
         var rT=0, dT=0, rY=0, dY=0;
         finGerRows.forEach(function(row) {
           if (!row) return;
-          var lbl = String(row[1]||'').trim();
+          var lbl = String(row[2]||'').trim();
           if (lbl==='Rendas totais') {
             if (colAtual!==undefined) rT=Math.abs(parseFloat(String(row[colAtual]||'0'))||0);
             if (ytdCol!==undefined)   rY=Math.abs(parseFloat(String(row[ytdCol]||'0'))||0);
@@ -7672,7 +7685,7 @@ Esta ação não pode ser desfeita.`)) return;
           let r=0, d=0;
           finGerRows.forEach(function(row){
             if (!row) return;
-            const lbl = String(row[1]||'').trim();
+            const lbl = String(row[2]||'').trim();
             if (ci===undefined) return;
             if (lbl==='Rendas totais')     r = Math.abs(parseFloat(String(row[ci]||'0'))||0);
             if (lbl==='Total de despesas') d = Math.abs(parseFloat(String(row[ci]||'0'))||0);
@@ -7690,7 +7703,7 @@ Esta ação não pode ser desfeita.`)) return;
         const SKIP_PIZZA = ['rendas totais','total de despesas','despesas rotineiras (fixas)'];
         finGerRows.forEach(function(row){
           if (!row || colAtual===undefined) return;
-          const label    = String(row[1]||'').trim();
+          const label    = String(row[2]||'').trim();
           const subLabel = String(row[2]||'').trim();
           if (!label || subLabel) return;
           if (SKIP_PIZZA.some(function(s){return label.toLowerCase().includes(s);})) return;
@@ -7984,7 +7997,7 @@ Esta ação não pode ser desfeita.`)) return;
             y = drawTableHeader(y);
           }
 
-          var label    = String(row[1]||'').trim();
+          var label    = String(row[2]||'').trim();
           var subLabel = String(row[2]||'').trim();
           var marcador = String(row[3]||'').trim();
           if (!label && !subLabel) return;
