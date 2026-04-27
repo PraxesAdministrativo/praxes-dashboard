@@ -7118,7 +7118,9 @@
 
         const label    = String(row[1] || '').trim();
         const subLabel = String(row[2] || '').trim();
-        const marcador = String(row[3] || '').trim();
+        const marcRaw  = String(row[3] || '').trim().toLowerCase();
+        // Aceita 'x', 'X', TRUE, true (checkbox do Google Sheets)
+        const marcador = (marcRaw === 'x' || marcRaw === 'true') ? 'x' : marcRaw;
 
         if (!label && !subLabel) return;
 
