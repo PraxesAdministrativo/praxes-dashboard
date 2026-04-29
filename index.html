@@ -3674,18 +3674,32 @@
       const composVals = composLabels.map(k => composMap[k]);
       const cores = ['#185FA5','#1D9E75','#7F77DD','#D85A30','#888780','#BA7517'];
 
-      // Linhas do balanço
-      const rowsAtivo = itensAtivo.map(i => `
-        <tr>
-          <td style="padding:7px 0 7px 12px;font-size:13px;color:var(--text-dark);">${esc(i.nome)}</td>
-          <td style="padding:7px 0;font-size:13px;text-align:right;font-variant-numeric:tabular-nums;color:var(--text-dark);">${fmt(i.valor)}</td>
-        </tr>`).join('');
+      // Guarda itens para drill-down do gráfico
+      window._dashItensAtivo = itensAtivo;
+      window._dashComposMap  = composMap;
 
-      const rowsPassivo = itensPassivo.length ? itensPassivo.map(i => `
-        <tr>
-          <td style="padding:7px 0 7px 12px;font-size:13px;color:var(--text-dark);">${esc(i.nome)}</td>
+      // Linhas do balanço — clicáveis para navegar ao imóvel
+      const rowsAtivo = itensAtivo.map(i => {
+        const idx = imoveisData.findIndex(r => r[0] === i.nome);
+        const ok = idx >= 0;
+        return `<tr style="cursor:${ok?'pointer':'default'};" ${ok?`onclick="_dashIrParaImovel(${idx})"`:''} onmouseenter="this.style.background='#f0f7ff'" onmouseleave="this.style.background=''">
+          <td style="padding:7px 0 7px 12px;font-size:13px;color:${ok?'#185FA5':'var(--text-dark)'};text-decoration:${ok?'underline':'none'};text-underline-offset:2px;">
+            ${esc(i.nome)}${ok?'<span style="font-size:10px;margin-left:5px;opacity:.5;">↗</span>':''}
+          </td>
+          <td style="padding:7px 0;font-size:13px;text-align:right;font-variant-numeric:tabular-nums;color:var(--text-dark);">${fmt(i.valor)}</td>
+        </tr>`;
+      }).join('');
+
+      const rowsPassivo = itensPassivo.length ? itensPassivo.map(i => {
+        const idx = imoveisData.findIndex(r => i.nome.includes(r[0].substring(0,10)));
+        const ok = idx >= 0;
+        return `<tr style="cursor:${ok?'pointer':'default'};" ${ok?`onclick="_dashIrParaImovel(${idx})"`:''} onmouseenter="this.style.background='#fff5f5'" onmouseleave="this.style.background=''">
+          <td style="padding:7px 0 7px 12px;font-size:13px;color:${ok?'#185FA5':'var(--text-dark)'};text-decoration:${ok?'underline':'none'};text-underline-offset:2px;">
+            ${esc(i.nome)}${ok?'<span style="font-size:10px;margin-left:5px;opacity:.5;">↗</span>':''}
+          </td>
           <td style="padding:7px 0;font-size:13px;text-align:right;font-variant-numeric:tabular-nums;color:#A32D2D;">${fmt(i.valor)}</td>
-        </tr>`).join('') : `<tr><td colspan="2" style="padding:7px 0 7px 12px;font-size:12px;color:#aaa;">Nenhum financiamento registrado</td></tr>`;
+        </tr>`;
+      }).join('') : `<tr><td colspan="2" style="padding:7px 0 7px 12px;font-size:12px;color:#aaa;">Nenhum financiamento registrado</td></tr>`;
 
       const rowsAlerta = alertas.slice(0,8).map(a => {
         const cor = a.diff < 0 ? '#A32D2D' : a.diff < 30 ? '#854F0B' : '#185FA5';
@@ -3700,7 +3714,7 @@
       }).join('');
 
       const legendas = composLabels.map((l,i) => `
-        <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-light);">
+        <span onclick="_dashDrillDown('${l.replace(/'/g,"\\'")}'')" style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-light);cursor:pointer;" onmouseenter="this.style.textDecoration='underline'" onmouseleave="this.style.textDecoration='none'">
           <span style="width:9px;height:9px;border-radius:2px;background:${cores[i%cores.length]};flex-shrink:0;"></span>
           ${esc(l)} — ${((composVals[i]/totalAtivo)*100).toFixed(1)}%
         </span>`).join('');
@@ -3875,6 +3889,14 @@
             plugins: {
               legend: { display: false },
               tooltip: { callbacks: { label: ctx => ' ' + fmt(ctx.raw) + ' (' + ((ctx.raw/totalAtivo)*100).toFixed(1) + '%)' } }
+            },
+            onClick: (evt, elements) => {
+              if (!elements.length) return;
+              const grupo = labels[elements[0].index];
+              _dashDrillDown(grupo);
+            },
+            onHover: (evt, elements) => {
+              evt.native.target.style.cursor = elements.length ? 'pointer' : 'default';
             }
           }
         });
@@ -3957,6 +3979,58 @@
     // ============================================================
     // ========== FIM DASHBOARD ===================================
     // ============================================================
+
+    function _dashIrParaImovel(idx) {
+      viewImovelDetalhes(idx);
+    }
+
+    function _dashDrillDown(grupo) {
+      const itens = (window._dashItensAtivo || []).filter(i => (i.grupo || i.tipo || 'Outros') === grupo);
+      if (!itens.length) return;
+
+      // Remove popup anterior se existir
+      const existing = document.getElementById('dash-drill-popup');
+      if (existing) existing.remove();
+
+      const rows = itens.map(i => {
+        const idx = imoveisData.findIndex(r => r[0] === i.nome);
+        const ok = idx >= 0;
+        return `<tr style="cursor:${ok?'pointer':'default'};" ${ok?`onclick="_dashIrParaImovel(${idx});document.getElementById('dash-drill-popup').remove();"`:''} onmouseenter="this.style.background='#f0f7ff'" onmouseleave="this.style.background=''">
+          <td style="padding:8px 10px 8px 14px;font-size:13px;color:${ok?'#185FA5':'#333'};">
+            ${esc(i.nome)}${ok?'<span style="font-size:10px;margin-left:5px;opacity:.5;">↗</span>':''}
+          </td>
+          <td style="padding:8px 14px 8px 10px;font-size:13px;text-align:right;font-variant-numeric:tabular-nums;color:#333;">${fmt(i.valor)}</td>
+        </tr>`;
+      }).join('');
+
+      const total = itens.reduce((s,i) => s+i.valor, 0);
+
+      const popup = document.createElement('div');
+      popup.id = 'dash-drill-popup';
+      popup.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:9000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.35);';
+      popup.innerHTML = `
+        <div style="background:#fff;border-radius:14px;padding:0;min-width:380px;max-width:520px;box-shadow:0 8px 40px rgba(0,0,0,.18);overflow:hidden;">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #f0f0f0;">
+            <span style="font-size:13px;font-weight:700;color:#0f3d57;text-transform:uppercase;letter-spacing:.05em;">${esc(grupo)}</span>
+            <button onclick="document.getElementById('dash-drill-popup').remove()" style="background:none;border:none;font-size:18px;color:#aaa;cursor:pointer;line-height:1;">&times;</button>
+          </div>
+          <table style="width:100%;border-collapse:collapse;">
+            <tr style="background:#f8f9fa;">
+              <th style="padding:8px 10px 8px 14px;font-size:11px;color:#888;font-weight:500;text-align:left;">Imóvel</th>
+              <th style="padding:8px 14px 8px 10px;font-size:11px;color:#888;font-weight:500;text-align:right;">Valor atual</th>
+            </tr>
+            ${rows}
+            <tr style="background:#f8f9fa;border-top:2px solid #e8e8e8;">
+              <td style="padding:10px 10px 10px 14px;font-size:13px;font-weight:700;color:#0f3d57;">Total</td>
+              <td style="padding:10px 14px 10px 10px;font-size:13px;font-weight:700;color:#0f3d57;text-align:right;">${fmt(total)}</td>
+            </tr>
+          </table>
+        </div>`;
+
+      // Fecha ao clicar fora
+      popup.addEventListener('click', e => { if (e.target === popup) popup.remove(); });
+      document.body.appendChild(popup);
+    }
 
         // LOAD IMOVEIS
     let imoveisData = [];
