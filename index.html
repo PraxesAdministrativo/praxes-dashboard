@@ -9592,10 +9592,11 @@ Esta ação não pode ser desfeita.`)) return;
 
     async function finCarregarDados(nome) {
       if(!imoveisSheetId){alert('Planilha de imóveis não configurada.');return;}
+      const nomeSanitizado = nome.replace(/[\/\\*\[\]:?]/g, '-').substring(0, 40);
       try {
         const resp=await gapi.client.sheets.spreadsheets.values.batchGet({
           spreadsheetId:imoveisSheetId,
-          ranges:[`Financiamento_${nome}!A1:Z5`,`Parcelas_${nome}!A2:L500`],
+          ranges:[`Fin_${nomeSanitizado}!A1:Z5`,`Parc_${nomeSanitizado}!A2:L500`],
           valueRenderOption:'UNFORMATTED_VALUE'
         });
         const ranges=resp.result.valueRanges||[];
@@ -9858,15 +9859,32 @@ Esta ação não pode ser desfeita.`)) return;
         seguro_mensal:parseFloat(form.elements['seguro_mensal'].value)||0};
       if(!dados.banco||!dados.valor_financiado||!dados.prazo_meses||!dados.taxa_mensal||!dados.data_inicio){
         alert('Preencha: Banco, Valor Financiado, Prazo, Taxa e Data da 1ª Parcela.');return;}
+
+      // Sanitiza nome da aba — Google Sheets não aceita: / \ * [ ] : ?
+      const nomeSanitizado = nome.replace(/[\/\\*\[\]:?]/g, '-').substring(0, 40);
+      const nomeAba = `Fin_${nomeSanitizado}`;
+
+      const btnSalvar = document.querySelector('#modal-contrato-financ .btn-save');
+      const textoOriginal = btnSalvar.textContent;
+      btnSalvar.textContent = 'Salvando...';
+      btnSalvar.disabled = true;
+
       try {
-        const nomeAba=`Financiamento_${nome}`;
         const meta=await gapi.client.sheets.spreadsheets.get({spreadsheetId:imoveisSheetId});
         if(!meta.result.sheets.some(s=>s.properties.title===nomeAba))
           await gapi.client.sheets.spreadsheets.batchUpdate({spreadsheetId:imoveisSheetId,resource:{requests:[{addSheet:{properties:{title:nomeAba}}}]}});
         await gapi.client.sheets.spreadsheets.values.update({spreadsheetId:imoveisSheetId,range:`${nomeAba}!A1`,valueInputOption:'RAW',resource:{values:[Object.keys(dados),Object.values(dados)]}});
         closeModal('modal-contrato-financ');
-        await finCarregarDados(nome); finSwitchTab('visao-geral');
-      } catch(e){alert('Erro: '+(e.result?.error?.message||e.message));}
+        await finCarregarDados(nome);
+        finSwitchTab('visao-geral');
+      } catch(e) {
+        console.error('Erro salvarContrato:', e);
+        const msg = e?.result?.error?.message || e?.message || JSON.stringify(e);
+        alert('Erro ao salvar contrato:\n' + msg);
+      } finally {
+        btnSalvar.textContent = textoOriginal;
+        btnSalvar.disabled = false;
+      }
     }
 
     function abrirModalRegistrarParcela() {
@@ -9880,6 +9898,7 @@ Esta ação não pode ser desfeita.`)) return;
       const form=document.getElementById('form-registrar-parcela');
       const row=imoveisData[_finImovelIndex]; if(!row)return;
       const nome=row[0];
+      const nomeSanitizado = nome.replace(/[\/\\*\[\]:?]/g, '-').substring(0, 40);
       let dados={data_pagamento:form.elements['data_pagamento'].value,
         num_parcela:parseInt(form.elements['num_parcela'].value)||(_finParcelas.length+1),
         valor_pago:parseFloat(form.elements['valor_pago'].value)||0,
@@ -9896,21 +9915,29 @@ Esta ação não pode ser desfeita.`)) return;
         dados.amortizacao=parseFloat((dados.valor_pago-dados.juros-c.seguroMensal).toFixed(2));
         if(!dados.saldo_devedor)dados.saldo_devedor=parseFloat((saldoAnt-dados.amortizacao-dados.amort_extra).toFixed(2));
       }
+      const btn = document.querySelector('#modal-registrar-parcela .btn-save');
+      const textoOriginal = btn.textContent;
+      btn.textContent = 'Salvando...'; btn.disabled = true;
       try {
-        const nomeAba=`Parcelas_${nome}`;
+        const nomeAba=`Parc_${nomeSanitizado}`;
         const meta=await gapi.client.sheets.spreadsheets.get({spreadsheetId:imoveisSheetId});
         if(!meta.result.sheets.some(s=>s.properties.title===nomeAba))
           await gapi.client.sheets.spreadsheets.batchUpdate({spreadsheetId:imoveisSheetId,resource:{requests:[{addSheet:{properties:{title:nomeAba}}}]}});
         await gapi.client.sheets.spreadsheets.values.append({spreadsheetId:imoveisSheetId,range:`${nomeAba}!A1`,valueInputOption:'RAW',insertDataOption:'INSERT_ROWS',resource:{values:[[dados.data_pagamento,dados.num_parcela,dados.valor_pago,dados.amortizacao,dados.juros,dados.amort_extra,dados.saldo_devedor,dados.observacao]]}});
         closeModal('modal-registrar-parcela');
         await finCarregarDados(nome); finSwitchTab('parcelas');
-      } catch(e){alert('Erro: '+(e.result?.error?.message||e.message));}
+      } catch(e){
+        console.error('Erro salvarParcelaPaga:', e);
+        alert('Erro ao registrar parcela:\n'+(e?.result?.error?.message||e?.message||JSON.stringify(e)));
+      } finally { btn.textContent=textoOriginal; btn.disabled=false; }
     }
 
     async function excluirParcelaFin(idx) {
       if(!confirm('Excluir este registro de parcela?'))return;
       const row=imoveisData[_finImovelIndex]; if(!row)return;
-      const nome=row[0]; const nomeAba=`Parcelas_${nome}`;
+      const nome=row[0];
+      const nomeSanitizado = nome.replace(/[\/\\*\[\]:?]/g, '-').substring(0, 40);
+      const nomeAba=`Parc_${nomeSanitizado}`;
       try {
         const meta=await gapi.client.sheets.spreadsheets.get({spreadsheetId:imoveisSheetId});
         const sh=meta.result.sheets.find(s=>s.properties.title===nomeAba); if(!sh)return;
