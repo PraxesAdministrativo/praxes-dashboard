@@ -9593,16 +9593,30 @@ Esta ação não pode ser desfeita.`)) return;
     async function finCarregarDados(nome) {
       if(!imoveisSheetId){alert('Planilha de imóveis não configurada.');return;}
       const nomeSanitizado = nome.replace(/[\/\\*\[\]:?]/g, '-').substring(0, 40);
+      const nomeAbaFin  = `Fin_${nomeSanitizado}`;
+      const nomeAbaParc = `Parc_${nomeSanitizado}`;
+
+      // Busca cada aba separadamente — batchGet retorna 400 se qualquer aba não existir
+      _finContrato = null;
+      _finParcelas = [];
       try {
-        const resp=await gapi.client.sheets.spreadsheets.values.batchGet({
-          spreadsheetId:imoveisSheetId,
-          ranges:[`Fin_${nomeSanitizado}!A1:Z5`,`Parc_${nomeSanitizado}!A2:L500`],
-          valueRenderOption:'UNFORMATTED_VALUE'
+        const r = await gapi.client.sheets.spreadsheets.values.get({
+          spreadsheetId: imoveisSheetId,
+          range: `${nomeAbaFin}!A1:Z5`,
+          valueRenderOption: 'UNFORMATTED_VALUE'
         });
-        const ranges=resp.result.valueRanges||[];
-        _finContrato=finParseContrato(ranges[0]?.values||[]);
-        _finParcelas=finParseParcelas(ranges[1]?.values||[]);
-      } catch(e) { _finContrato=null; _finParcelas=[]; }
+        _finContrato = finParseContrato(r.result.values || []);
+      } catch(e) { /* aba ainda não existe — normal */ }
+
+      try {
+        const r = await gapi.client.sheets.spreadsheets.values.get({
+          spreadsheetId: imoveisSheetId,
+          range: `${nomeAbaParc}!A2:L500`,
+          valueRenderOption: 'UNFORMATTED_VALUE'
+        });
+        _finParcelas = finParseParcelas(r.result.values || []);
+      } catch(e) { /* aba ainda não existe — normal */ }
+
       finRenderVisaoGeral(); finRenderFluxo(); finRenderTIR(); finRenderParcelas(); finRenderContrato();
     }
 
