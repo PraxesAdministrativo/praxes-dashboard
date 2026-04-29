@@ -1506,25 +1506,11 @@
 
         <!-- DASHBOARD PAGE -->
         <div class="page active" id="page-dashboard">
-          <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);">
-            <div class="stat-card">
-              <div class="stat-label">Patrimônio Total</div>
-              <div class="stat-value" id="total-patrimonio">R$ 0</div>
-              <div class="stat-change" id="patrimonio-change">Carregando...</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-label">Imóveis</div>
-              <div class="stat-value" id="total-imoveis">R$ 0</div>
-              <div class="stat-change" id="imoveis-change">Carregando...</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-label">Investimentos</div>
-              <div class="stat-value" id="total-investimentos">—</div>
-              <div class="stat-change" id="investimentos-change">Em breve</div>
+          <div id="dash-balanco-root">
+            <div style="display:flex;align-items:center;justify-content:center;padding:60px 0;color:#999;font-size:14px;">
+              <div class="spinner" style="margin-right:12px;"></div> Carregando balanço patrimonial...
             </div>
           </div>
-          <!-- Alertas de vencimento com carrossel -->
-          <div id="dash-alertas"></div>
         </div>
 
         <!-- IMOVEIS PAGE -->
@@ -3537,147 +3523,442 @@
     // LOAD DASHBOARD
     let _dashCarrosselInterval = null;
 
+    // ============================================================
+    // ========== DASHBOARD — BALANÇO PATRIMONIAL ================
+    // ============================================================
+
+    let _dashChart = null;
+    let _dashDonut = null;
+
     async function loadDashboard() {
       const hoje = new Date();
       const mesAtual = hoje.getMonth() + 1;
       const anoAtual = hoje.getFullYear();
 
       try {
-        // ---- IMÓVEIS ----
+        // Garante dados de imóveis carregados
         if (!imoveisData.length) await loadAllDataOptimized();
-        let totalImoveis = 0, totalCompra = 0;
-        imoveisData.forEach(row => {
-          totalImoveis += getValorAtualImovel(row[0], row[7]);
-          totalCompra  += parseFloat(String(row[5]||'0').replace(/[^\d.-]/g,''))||0;
-        });
-        document.getElementById('total-imoveis').textContent = fmt(totalImoveis);
-        const varIm = totalCompra > 0 ? ((totalImoveis-totalCompra)/totalCompra*100).toFixed(1) : null;
-        const elIm = document.getElementById('imoveis-change');
-        elIm.textContent = varIm !== null ? (varIm>=0?'+':'')+varIm+'% vs compra · '+imoveisData.length+' imóvel(is)' : imoveisData.length+' imóvel(is)';
-        elIm.className = 'stat-change ' + (varIm>=0?'positive':'negative');
 
-        // ---- FINANCEIRO ----
+        // Coleta saldo devedor de cada financiamento (último pagamento registrado)
+        const saldosDevedores = await _dashGetSaldosDevedores();
+
+        // Monta balanço patrimonial
+        let ativoImoveis = 0, passivoFinanciamentos = 0;
+        const itensAtivo = [], itensPassivo = [];
+
+        imoveisData.forEach(row => {
+          if (!row[0]) return;
+          const nome = row[0];
+          const valor = getValorAtualImovel(nome, row[7]);
+          ativoImoveis += valor;
+          itensAtivo.push({ nome, valor, tipo: row[1] || 'Imóvel', grupo: row[2] || '' });
+
+          // Se tem saldo devedor registrado, entra no passivo
+          const saldo = saldosDevedores[nome] || 0;
+          if (saldo > 0) {
+            passivoFinanciamentos += saldo;
+            itensPassivo.push({ nome: 'Financ. ' + nome, valor: saldo });
+          }
+        });
+
+        const totalAtivo = ativoImoveis;
+        const totalPassivo = passivoFinanciamentos;
+        const pl = totalAtivo - totalPassivo;
+        const endividamento = totalAtivo > 0 ? (totalPassivo / totalAtivo * 100) : 0;
+
+        // Dados financeiros para fluxo de caixa
+        let rendaMes = 0, despMes = 0;
         if (!finGerRows.length) {
-          finSheetId = window.finSheetOverride || resumoSheetId;
-          finMesAtual = mesAtual; finAnoAtual = anoAtual;
-          const resp = await gapi.client.sheets.spreadsheets.values.batchGet({
-            spreadsheetId: finSheetId,
-            ranges: ['Lançamentos!A1:J5000','Gerencial!A1:AJ200'],
-            valueRenderOption:'UNFORMATTED_VALUE', dateTimeRenderOption:'FORMATTED_STRING'
-          });
-          const lancRows = resp.result.valueRanges[0].values || [];
-          finGerRows = resp.result.valueRanges[1].values || [];
-          finColMap  = finGetColMap(finGerRows);
-          finLancamentos = [];
-          for (let i=2; i<lancRows.length; i++) {
-            const row = lancRows[i];
-            if (!row||row.length<3) continue;
-            const anoVal = parseInt(row[1]);
-            if (!anoVal||isNaN(anoVal)||!row[2]) continue;
-            const valor = parseFloat(String(row[4]||'0').replace(',','.'));
-            finLancamentos.push({
-              mes:String(row[0]||'').trim(), ano:anoVal,
-              origem:String(row[2]||'').trim(), referencia:String(row[3]||'').trim(),
-              valor:isNaN(valor)?0:valor,
-              data:(function(r){
-                if(!r)return'';const s=String(r).trim();
-                if(/^\d{4}-\d{2}-\d{2}/.test(s))return s.substring(0,10);
-                if(/^\d{4,6}(\.\d+)?$/.test(s)){const d=new Date(Date.UTC(1899,11,30)+Math.floor(parseFloat(s))*86400000);return isNaN(d)?'':d.toISOString().split('T')[0];}
-                return s;
-              })(row[5]),
-              extrato:String(row[6]||'').trim(), obs:String(row[7]||'').trim(), _rowIndex:i+1
-            });
+          const fid = window.finSheetOverride || resumoSheetId;
+          if (fid) {
+            try {
+              finSheetId = fid; finMesAtual = mesAtual; finAnoAtual = anoAtual;
+              const r = await gapi.client.sheets.spreadsheets.values.batchGet({
+                spreadsheetId: fid,
+                ranges: ['Lançamentos!A1:J5000','Gerencial!A1:AJ200'],
+                valueRenderOption:'UNFORMATTED_VALUE', dateTimeRenderOption:'FORMATTED_STRING'
+              });
+              finGerRows = r.result.valueRanges[1].values || [];
+              finColMap  = finGetColMap(finGerRows);
+            } catch(e) {}
           }
         }
+        if (finGerRows.length) {
+          const col = finColMap[anoAtual+'-'+mesAtual];
+          finGerRows.forEach(row => {
+            if (!row) return;
+            const lbl = String(row[2]||'').trim().toLowerCase();
+            if (lbl === 'rendas totais' && col !== undefined)
+              rendaMes = Math.abs(parseFloat(String(row[col]||'0'))||0);
+            if (lbl === 'total de despesas' && col !== undefined)
+              despMes = Math.abs(parseFloat(String(row[col]||'0'))||0);
+          });
+        }
+        const resultadoMes = rendaMes - despMes;
 
-        const colAtual = finColMap[anoAtual+'-'+mesAtual];
-        const ytdCol   = finColMap['ytd_'+anoAtual];
-        let rendaTotal=0, despTotal=0;
-        finGerRows.forEach(row => {
-          if(!row)return;
-          const lbl=String(row[1]||'').trim();
-          if(lbl==='Rendas totais'    && colAtual!==undefined) rendaTotal=Math.abs(parseFloat(String(row[colAtual]||'0'))||0);
-          if(lbl==='Total de despesas'&& colAtual!==undefined) despTotal =Math.abs(parseFloat(String(row[colAtual]||'0'))||0);
-        });
-        const saldo = rendaTotal - despTotal;
-        const mesTxt = MESES_PT[mesAtual-1]+' '+anoAtual;
-
-        // Patrimônio Total = Imóveis + (futuramente Investimentos)
-        const totalPatrimonio = totalImoveis; // será expandido quando investimentos for conectado
-        document.getElementById('total-patrimonio').textContent = fmt(totalPatrimonio);
-        document.getElementById('patrimonio-change').textContent = imoveisData.length+' imóvel(is) · '+veiculosData.length+' veículo(s)';
-        document.getElementById('patrimonio-change').className = 'stat-change';
-
-        // Investimentos — placeholder até integração
-        document.getElementById('total-investimentos').textContent = '—';
-        document.getElementById('investimentos-change').textContent = 'Em breve';
-        document.getElementById('investimentos-change').className = 'stat-change';
-
-        // ---- VEÍCULOS (carrega silenciosamente se não carregou) ----
-        if (!veiculosData.length) await veiculosLoad();
-
-        // ---- ALERTAS ----
+        // Alertas de documentos
         if (!docsData.length) {
           try {
             const r = await gapi.client.sheets.spreadsheets.values.get({
-              spreadsheetId:resumoSheetId, range:'Documentos_Pessoais!A2:G200', valueRenderOption:'UNFORMATTED_VALUE'
+              spreadsheetId: resumoSheetId,
+              range: 'Documentos_Pessoais!A2:G200',
+              valueRenderOption: 'UNFORMATTED_VALUE'
             });
-            docsData = r.result.values||[];
-          } catch(e){}
+            docsData = r.result.values || [];
+          } catch(e) {}
         }
-
         const alertas = [];
         docsData.forEach(row => {
-          const iso=parseSheetDate(row[3]); if(!iso)return;
-          const diff=Math.round((new Date(iso+'T12:00:00')-hoje)/86400000);
-          if(diff<=90) alertas.push({label:`${row[1]||''} (${row[0]||''})`, diff, tipo:'doc'});
+          const iso = parseSheetDate(row[3]); if (!iso) return;
+          const diff = Math.round((new Date(iso+'T12:00:00') - hoje) / 86400000);
+          if (diff <= 90) alertas.push({ label: `${row[1]||''} (${row[0]||''})`, diff, tipo: 'doc' });
         });
-        veiculosData.forEach(row => {
-          [['IPVA',row[10]],['Seguro',row[11]],['Licenciamento',row[12]]].forEach(([lbl,raw])=>{
-            const iso=parseSheetDate(raw); if(!iso)return;
-            const diff=Math.round((new Date(iso+'T12:00:00')-hoje)/86400000);
-            if(diff<=90) alertas.push({label:`${lbl} — ${row[0]||''}`, diff, tipo:'vei'});
-          });
-        });
-        alertas.sort((a,b)=>a.diff-b.diff);
+        alertas.sort((a,b) => a.diff - b.diff);
 
-        // Renderiza carrossel
-        _dashRenderCarrossel(alertas, hoje);
+        _dashRender({ itensAtivo, itensPassivo, totalAtivo, totalPassivo, pl, endividamento, rendaMes, despMes, resultadoMes, alertas, hoje, mesAtual, anoAtual });
 
-      } catch(e) { console.error('❌ Dashboard:', e); }
+      } catch(e) {
+        console.error('Dashboard:', e);
+        document.getElementById('dash-balanco-root').innerHTML =
+          '<p style="padding:40px;color:#999;text-align:center;">Erro ao carregar dashboard.</p>';
+      }
     }
 
-    function _dashRenderCarrossel(alertas, hoje) {
-      const container = document.getElementById('dash-alertas');
-      if (_dashCarrosselInterval) { clearInterval(_dashCarrosselInterval); _dashCarrosselInterval = null; }
-      if (!alertas.length) { container.innerHTML = ''; return; }
+    async function _dashGetSaldosDevedores() {
+      const saldos = {};
+      if (!imoveisSheetId) return saldos;
+      try {
+        const meta = await gapi.client.sheets.spreadsheets.get({ spreadsheetId: imoveisSheetId });
+        const sheets = meta.result.sheets.map(s => s.properties.title);
+        const parcAbas = sheets.filter(t => t.startsWith('Parc_'));
+        if (!parcAbas.length) return saldos;
 
-      const rows = alertas.map(a => {
-        const cor = a.diff < 0 ? '#dc2626' : a.diff < 30 ? '#b45309' : '#1e4d6b';
-        const tag = a.diff < 0 ? 'Vencido' : a.diff < 30 ? `${a.diff} dias` : `${a.diff} dias`;
-        const dot = a.diff < 0 ? '#dc2626' : a.diff < 30 ? '#d97706' : '#3b82f6';
-        const tipo = a.tipo === 'doc' ? 'Documento' : 'Veículo';
-        return `<tr style="border-bottom:1px solid #f1f1f1;">
-          <td style="padding:11px 0;width:8px;vertical-align:middle;">
-            <div style="width:6px;height:6px;border-radius:50%;background:${dot};margin-right:0;"></div>
-          </td>
-          <td style="padding:11px 12px;font-size:13px;color:var(--text-dark);font-weight:500;">${a.label}</td>
-          <td style="padding:11px 12px;font-size:11px;color:#999;text-transform:uppercase;letter-spacing:.5px;">${tipo}</td>
-          <td style="padding:11px 0;font-size:12px;font-weight:600;color:${cor};text-align:right;white-space:nowrap;">${tag}</td>
+        const ranges = parcAbas.map(a => `${a}!A2:H500`);
+        const resp = await gapi.client.sheets.spreadsheets.values.batchGet({
+          spreadsheetId: imoveisSheetId,
+          ranges,
+          valueRenderOption: 'UNFORMATTED_VALUE'
+        });
+        resp.result.valueRanges.forEach((vr, i) => {
+          const nomeAba = parcAbas[i]; // Parc_NomeImovel
+          const nomeSan = nomeAba.replace(/^Parc_/, '');
+          // Encontra imóvel correspondente (nome sanitizado)
+          const imovelNome = imoveisData.find(r => {
+            const san = (r[0]||'').replace(/[\/\*\[\]:?]/g,'-').substring(0,40);
+            return san === nomeSan;
+          });
+          if (!imovelNome) return;
+          const rows = (vr.values || []).filter(r => r[0]);
+          if (!rows.length) return;
+          // Ordena por data e pega o mais recente
+          rows.sort((a,b) => new Date(a[0]) - new Date(b[0]));
+          const ultima = rows[rows.length - 1];
+          const saldo = parseFloat(ultima[6]) || 0;
+          if (saldo > 0) saldos[imovelNome[0]] = saldo;
+        });
+      } catch(e) { console.warn('Saldos devedores:', e); }
+      return saldos;
+    }
+
+    function _dashRender(d) {
+      const { itensAtivo, itensPassivo, totalAtivo, totalPassivo, pl, endividamento, rendaMes, despMes, resultadoMes, alertas, hoje, mesAtual, anoAtual } = d;
+      const fmtK = v => v >= 1000000 ? 'R$ ' + (v/1000000).toFixed(2).replace('.',',') + 'M' : fmt(v);
+
+      // Composição para pizza: só imóveis por tipo/grupo
+      const composMap = {};
+      itensAtivo.forEach(i => {
+        const k = i.grupo || i.tipo || 'Outros';
+        composMap[k] = (composMap[k]||0) + i.valor;
+      });
+      const composLabels = Object.keys(composMap);
+      const composVals = composLabels.map(k => composMap[k]);
+      const cores = ['#185FA5','#1D9E75','#7F77DD','#D85A30','#888780','#BA7517'];
+
+      // Linhas do balanço
+      const rowsAtivo = itensAtivo.map(i => `
+        <tr>
+          <td style="padding:7px 0 7px 12px;font-size:13px;color:var(--text-dark);">${esc(i.nome)}</td>
+          <td style="padding:7px 0;font-size:13px;text-align:right;font-variant-numeric:tabular-nums;color:var(--text-dark);">${fmt(i.valor)}</td>
+        </tr>`).join('');
+
+      const rowsPassivo = itensPassivo.length ? itensPassivo.map(i => `
+        <tr>
+          <td style="padding:7px 0 7px 12px;font-size:13px;color:var(--text-dark);">${esc(i.nome)}</td>
+          <td style="padding:7px 0;font-size:13px;text-align:right;font-variant-numeric:tabular-nums;color:#A32D2D;">${fmt(i.valor)}</td>
+        </tr>`).join('') : `<tr><td colspan="2" style="padding:7px 0 7px 12px;font-size:12px;color:#aaa;">Nenhum financiamento registrado</td></tr>`;
+
+      const rowsAlerta = alertas.slice(0,8).map(a => {
+        const cor = a.diff < 0 ? '#A32D2D' : a.diff < 30 ? '#854F0B' : '#185FA5';
+        const tag = a.diff < 0 ? 'Vencido' : a.diff + ' dias';
+        const dot = a.diff < 0 ? '#E24B4A' : a.diff < 30 ? '#EF9F27' : '#378ADD';
+        return `<tr style="border-bottom:0.5px solid #f0f0f0;">
+          <td style="padding:9px 0;width:10px;"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${dot};"></span></td>
+          <td style="padding:9px 10px;font-size:13px;color:var(--text-dark);">${esc(a.label)}</td>
+          <td style="padding:9px 0;font-size:11px;color:#999;text-transform:uppercase;letter-spacing:.04em;">Documento</td>
+          <td style="padding:9px 0;font-size:12px;font-weight:600;color:${cor};text-align:right;white-space:nowrap;">${tag}</td>
         </tr>`;
       }).join('');
 
-      container.innerHTML = `
-        <div style="background:#fff;border-radius:14px;padding:24px 28px;box-shadow:0 2px 12px rgba(15,61,87,.06);margin-top:16px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-            <span style="font-size:13px;font-weight:700;color:var(--azul-principal);letter-spacing:.3px;text-transform:uppercase;">Vencimentos</span>
-            <span style="font-size:11px;color:#aaa;">${alertas.length} item${alertas.length > 1 ? 's' : ''}</span>
+      const legendas = composLabels.map((l,i) => `
+        <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-light);">
+          <span style="width:9px;height:9px;border-radius:2px;background:${cores[i%cores.length]};flex-shrink:0;"></span>
+          ${esc(l)} — ${((composVals[i]/totalAtivo)*100).toFixed(1)}%
+        </span>`).join('');
+
+      const indEndiv = Math.min(endividamento, 100);
+      const indLiquidez = 0; // sem aplicações ainda
+      const indPoupanca = rendaMes > 0 ? Math.min(resultadoMes/rendaMes*100, 100) : 0;
+
+      document.getElementById('dash-balanco-root').innerHTML = `
+        <style>
+          .db-kpi{background:var(--cinza-claro);border-radius:10px;padding:14px 16px;}
+          .db-kpi-label{font-size:11px;color:var(--text-light);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px;}
+          .db-kpi-val{font-size:20px;font-weight:700;color:var(--azul-principal);}
+          .db-kpi-val.pos{color:#27500A;}
+          .db-kpi-val.neg{color:#A32D2D;}
+          .db-kpi-sub{font-size:11px;color:var(--text-light);margin-top:3px;}
+          .db-panel{background:#fff;border-radius:14px;padding:20px 22px;box-shadow:0 2px 12px rgba(15,61,87,.06);margin-bottom:14px;}
+          .db-panel-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--azul-principal);margin-bottom:14px;}
+          .db-bal-table{width:100%;border-collapse:collapse;}
+          .db-bal-table th{font-size:11px;color:var(--text-light);font-weight:500;padding:0 0 8px;text-align:left;border-bottom:1px solid #f0f0f0;}
+          .db-bal-table th:last-child{text-align:right;}
+          .db-bal-table tr.group td{font-size:11px;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:.04em;padding:12px 0 4px;border-bottom:none;}
+          .db-bal-table tr.subtotal td{font-weight:600;font-size:13px;border-top:1px solid #e8e8e8;padding-top:8px;}
+          .db-bal-table tr.subtotal.neg td{color:#A32D2D;}
+          .db-bal-table tr.pl td{font-size:15px;font-weight:700;color:var(--azul-principal);border-top:2px solid var(--azul-secundario);padding-top:10px;}
+          .db-bar-bg{height:6px;background:#efefef;border-radius:3px;overflow:hidden;margin-top:5px;}
+          .db-bar-fill{height:100%;border-radius:3px;}
+          .db-cf-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:0.5px solid #f0f0f0;font-size:13px;}
+          .db-cf-row.last{border:none;font-weight:700;font-size:14px;padding-top:12px;border-top:1px solid #e0e0e0;}
+          .db-cf-label{color:var(--text-light);}
+        </style>
+
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;">
+          <div class="db-kpi">
+            <div class="db-kpi-label">Patrimônio líquido</div>
+            <div class="db-kpi-val ${pl>=0?'pos':'neg'}">${fmtK(pl)}</div>
+            <div class="db-kpi-sub">Ativos − Passivos</div>
           </div>
-          <table style="width:100%;border-collapse:collapse;">${rows}</table>
-        </div>`;
+          <div class="db-kpi">
+            <div class="db-kpi-label">Total de ativos</div>
+            <div class="db-kpi-val">${fmtK(totalAtivo)}</div>
+            <div class="db-kpi-sub">${itensAtivo.length} imóvel(is)</div>
+          </div>
+          <div class="db-kpi">
+            <div class="db-kpi-label">Total de passivos</div>
+            <div class="db-kpi-val neg">${fmtK(totalPassivo)}</div>
+            <div class="db-kpi-sub">Financiamentos</div>
+          </div>
+          <div class="db-kpi">
+            <div class="db-kpi-label">Resultado ${MESES_PT[mesAtual-1]}</div>
+            <div class="db-kpi-val ${resultadoMes>=0?'pos':'neg'}">${resultadoMes>=0?'+':''}${fmtK(resultadoMes)}</div>
+            <div class="db-kpi-sub">Renda − Despesas</div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:14px;margin-bottom:14px;">
+
+          <div class="db-panel">
+            <div class="db-panel-title">Balanço patrimonial — imóveis</div>
+            <table class="db-bal-table">
+              <tr><th>Ativo</th><th style="text-align:right;">Valor</th></tr>
+              <tr class="group"><td colspan="2">Imóveis (último valor registrado)</td></tr>
+              ${rowsAtivo}
+              <tr class="subtotal"><td>Total de ativos</td><td style="text-align:right;">${fmt(totalAtivo)}</td></tr>
+            </table>
+            <div style="height:16px;"></div>
+            <table class="db-bal-table">
+              <tr><th>Passivo</th><th style="text-align:right;">Valor</th></tr>
+              <tr class="group"><td colspan="2">Financiamentos (saldo devedor atual)</td></tr>
+              ${rowsPassivo}
+              <tr class="subtotal neg"><td>Total de passivos</td><td style="text-align:right;">${fmt(totalPassivo)}</td></tr>
+              <tr class="pl"><td>Patrimônio líquido</td><td style="text-align:right;">${fmt(pl)}</td></tr>
+            </table>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:14px;">
+
+            <div class="db-panel" style="flex:1;">
+              <div class="db-panel-title">Composição dos ativos</div>
+              <div style="position:relative;width:100%;height:180px;">
+                <canvas id="db-donut" role="img" aria-label="Composição dos ativos imobiliários por grupo">Pizza de ativos</canvas>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:5px;margin-top:10px;">
+                ${legendas}
+              </div>
+            </div>
+
+            <div class="db-panel">
+              <div class="db-panel-title">Fluxo de caixa — ${MESES_PT[mesAtual-1]}/${anoAtual}</div>
+              ${rendaMes > 0 ? `
+              <div class="db-cf-row"><span class="db-cf-label">Renda total</span><span style="color:#27500A;font-weight:500;">+ ${fmt(rendaMes)}</span></div>
+              <div class="db-cf-row"><span class="db-cf-label">Despesas</span><span style="color:#A32D2D;">− ${fmt(despMes)}</span></div>
+              <div class="db-cf-row last"><span style="color:var(--azul-principal);">Resultado</span><span style="color:${resultadoMes>=0?'#27500A':'#A32D2D'};">${resultadoMes>=0?'+':''}${fmt(resultadoMes)}</span></div>
+              ` : '<p style="font-size:12px;color:#aaa;text-align:center;padding:10px 0;">Planilha financeira não conectada</p>'}
+            </div>
+
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:14px;">
+
+          <div class="db-panel">
+            <div class="db-panel-title">Evolução do patrimônio — ativo vs. PL</div>
+            <div style="position:relative;width:100%;height:200px;">
+              <canvas id="db-pl-chart" role="img" aria-label="Gráfico de barras com linha mostrando evolução do patrimônio">Evolução do PL</canvas>
+            </div>
+            <div style="display:flex;gap:16px;margin-top:10px;">
+              <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-light);">
+                <span style="width:9px;height:9px;border-radius:2px;background:#B5D4F4;"></span>Total de ativos
+              </span>
+              <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-light);">
+                <span style="display:inline-block;width:18px;height:2px;background:#1D9E75;"></span>Patrimônio líquido
+              </span>
+            </div>
+          </div>
+
+          <div class="db-panel">
+            <div class="db-panel-title">Indicadores de saúde financeira</div>
+            <div style="margin-bottom:12px;">
+              <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">
+                <span style="color:var(--text-light);">Índice de endividamento</span>
+                <span style="font-weight:600;color:${endividamento>60?'#A32D2D':endividamento>40?'#854F0B':'#27500A'};">${endividamento.toFixed(1)}%</span>
+              </div>
+              <div class="db-bar-bg"><div class="db-bar-fill" style="width:${indEndiv}%;background:${endividamento>60?'#E24B4A':endividamento>40?'#EF9F27':'#639922'};"></div></div>
+            </div>
+            <div style="margin-bottom:12px;">
+              <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">
+                <span style="color:var(--text-light);">Taxa de poupança</span>
+                <span style="font-weight:600;color:${indPoupanca>20?'#27500A':'#888'};">${rendaMes>0?indPoupanca.toFixed(1)+'%':'—'}</span>
+              </div>
+              <div class="db-bar-bg"><div class="db-bar-fill" style="width:${indPoupanca}%;background:#185FA5;"></div></div>
+            </div>
+            <div style="margin-bottom:12px;">
+              <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">
+                <span style="color:var(--text-light);">PL / Ativo total</span>
+                <span style="font-weight:600;color:var(--azul-principal);">${totalAtivo>0?((pl/totalAtivo)*100).toFixed(1)+'%':'—'}</span>
+              </div>
+              <div class="db-bar-bg"><div class="db-bar-fill" style="width:${totalAtivo>0?Math.max(0,(pl/totalAtivo)*100):0}%;background:#7F77DD;"></div></div>
+            </div>
+            ${alertas.length > 0 ? `
+            <div style="margin-top:16px;">
+              <div class="db-panel-title">Vencimentos próximos</div>
+              <table style="width:100%;border-collapse:collapse;">${rowsAlerta}</table>
+            </div>` : ''}
+          </div>
+        </div>
+      `;
+
+      // Charts
+      _dashMontarCharts(composLabels, composVals, cores, totalAtivo, totalPassivo, pl);
     }
 
-    // LOAD IMOVEIS
+    function _dashMontarCharts(labels, vals, cores, totalAtivo, totalPassivo, pl) {
+      const isDark = matchMedia('(prefers-color-scheme: dark)').matches;
+      const textClr = isDark ? '#9e9c94' : '#888780';
+      const gridClr = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
+
+      // Destrói charts anteriores se existirem
+      if (_dashDonut) { _dashDonut.destroy(); _dashDonut = null; }
+      if (_dashChart) { _dashChart.destroy(); _dashChart = null; }
+
+      const donutEl = document.getElementById('db-donut');
+      if (donutEl && vals.length) {
+        _dashDonut = new Chart(donutEl, {
+          type: 'doughnut',
+          data: {
+            labels,
+            datasets: [{ data: vals, backgroundColor: cores, borderWidth: 0, hoverOffset: 4 }]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false, cutout: '68%',
+            plugins: {
+              legend: { display: false },
+              tooltip: { callbacks: { label: ctx => ' ' + fmt(ctx.raw) + ' (' + ((ctx.raw/totalAtivo)*100).toFixed(1) + '%)' } }
+            }
+          }
+        });
+      }
+
+      // Gráfico histórico — constrói com histórico real do cache
+      const hist = dataCache.historico || [];
+      const histPorMes = {};
+      hist.forEach(r => {
+        if (!r[1]) return;
+        const d = new Date(r[1]);
+        if (isNaN(d)) return;
+        const key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+        const val = parseFloat(String(r[2]||'0').replace(/[^\d.-]/g,'')) || 0;
+        if (!histPorMes[key] || d > new Date(histPorMes[key].data)) {
+          histPorMes[key] = { data: r[1], ativo: val };
+        }
+      });
+      // Adiciona ponto atual
+      const hoje = new Date();
+      const keyAtual = hoje.getFullYear() + '-' + String(hoje.getMonth()+1).padStart(2,'0');
+      histPorMes[keyAtual] = { ativo: totalAtivo };
+
+      const mesesOrdem = Object.keys(histPorMes).sort().slice(-10);
+      const ativosHist = mesesOrdem.map(k => histPorMes[k].ativo);
+      // PL histórico: ativo − passivo (passivo atual aplicado uniformemente se não há histórico de passivo)
+      const plHist = ativosHist.map(a => Math.max(0, a - totalPassivo));
+      const labelsHist = mesesOrdem.map(k => {
+        const [ano, mes] = k.split('-');
+        return MESES_PT[parseInt(mes)-1].substring(0,3) + '/' + ano.substring(2);
+      });
+
+      const chartEl = document.getElementById('db-pl-chart');
+      if (chartEl) {
+        _dashChart = new Chart(chartEl, {
+          type: 'bar',
+          data: {
+            labels: labelsHist,
+            datasets: [
+              {
+                label: 'Total de ativos',
+                data: ativosHist,
+                backgroundColor: isDark ? 'rgba(24,95,165,0.3)' : 'rgba(181,212,244,0.7)',
+                borderColor: '#185FA5',
+                borderWidth: 1,
+                order: 2
+              },
+              {
+                label: 'Patrimônio líquido',
+                data: plHist,
+                type: 'line',
+                borderColor: '#1D9E75',
+                backgroundColor: 'transparent',
+                borderWidth: 2,
+                pointRadius: 3,
+                pointBackgroundColor: '#1D9E75',
+                tension: 0.3,
+                order: 1
+              }
+            ]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: { callbacks: { label: ctx => ' ' + fmt(ctx.raw) } }
+            },
+            scales: {
+              x: { ticks: { color: textClr, font: { size: 11 }, maxRotation: 0, autoSkip: true }, grid: { display: false } },
+              y: {
+                ticks: { color: textClr, font: { size: 11 }, callback: v => 'R$' + (v>=1000000?(v/1000000).toFixed(1)+'M':(v/1000).toFixed(0)+'k') },
+                grid: { color: gridClr }
+              }
+            }
+          }
+        });
+      }
+    }
+
+    // ============================================================
+    // ========== FIM DASHBOARD ===================================
+    // ============================================================
+
+        // LOAD IMOVEIS
     let imoveisData = [];
     let currentFilter = 'todos';
     
