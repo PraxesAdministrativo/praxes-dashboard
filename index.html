@@ -4778,38 +4778,80 @@
     }
     
     async function deleteImovel(index) {
+      const row = imoveisData[index];
+      if (!row) return;
+      const nome = row[0];
+      const nomeSanitizado = nome.replace(/[\/\\*\[\]:?]/g, '-').substring(0, 40);
+
       try {
-        const rowNumber = index + 2; // +2 porque começa na linha 2 (linha 1 é header)
-        
-        // Precisa do sheetId da aba Lista
         const sheetMetadata = await gapi.client.sheets.spreadsheets.get({
           spreadsheetId: imoveisSheetId
         });
-        
-        const listaSheet = sheetMetadata.result.sheets.find(s => s.properties.title === 'Lista');
-        const sheetId = listaSheet.properties.sheetId;
-        
-        await gapi.client.sheets.spreadsheets.batchUpdate({
-          spreadsheetId: imoveisSheetId,
-          resource: {
-            requests: [{
-              deleteDimension: {
-                range: {
-                  sheetId: sheetId,
-                  dimension: 'ROWS',
-                  startIndex: rowNumber - 1,
-                  endIndex: rowNumber
-                }
-              }
-            }]
+        const sheets = sheetMetadata.result.sheets;
+        const requests = [];
+
+        // 1. Deleta linha da aba Lista
+        const rowNumber = index + 2;
+        const listaSheet = sheets.find(s => s.properties.title === 'Lista');
+        if (!listaSheet) throw new Error('Aba Lista não encontrada');
+        requests.push({
+          deleteDimension: {
+            range: {
+              sheetId: listaSheet.properties.sheetId,
+              dimension: 'ROWS',
+              startIndex: rowNumber - 1,
+              endIndex: rowNumber
+            }
           }
         });
-        
+
+        // 2. Limpa linhas do Historico_Valores deste imóvel
+        const histSheet = sheets.find(s => s.properties.title === 'Historico_Valores');
+        if (histSheet) {
+          try {
+            const histResp = await gapi.client.sheets.spreadsheets.values.get({
+              spreadsheetId: imoveisSheetId,
+              range: 'Historico_Valores!A2:A500',
+              valueRenderOption: 'UNFORMATTED_VALUE'
+            });
+            const histRows = histResp.result.values || [];
+            // Coleta índices de trás para frente para não deslocar
+            const toDelete = histRows
+              .map((r, i) => String(r[0]||'').trim() === nome.trim() ? i : -1)
+              .filter(i => i >= 0)
+              .reverse();
+            for (const i of toDelete) {
+              requests.push({
+                deleteDimension: {
+                  range: {
+                    sheetId: histSheet.properties.sheetId,
+                    dimension: 'ROWS',
+                    startIndex: i + 1, // +1 pelo header
+                    endIndex: i + 2
+                  }
+                }
+              });
+            }
+          } catch(e) { console.warn('Histórico não encontrado:', e); }
+        }
+
+        // 3. Apaga abas Fin_ e Parc_ se existirem
+        [`Fin_${nomeSanitizado}`, `Parc_${nomeSanitizado}`].forEach(nomeAba => {
+          const aba = sheets.find(s => s.properties.title === nomeAba);
+          if (aba) requests.push({ deleteSheet: { sheetId: aba.properties.sheetId } });
+        });
+
+        // Executa tudo em um único batchUpdate
+        await gapi.client.sheets.spreadsheets.batchUpdate({
+          spreadsheetId: imoveisSheetId,
+          resource: { requests }
+        });
+
         loadImoveis();
         alert('✅ Imóvel excluído com sucesso!');
       } catch (e) {
         console.error('❌', e);
-        alert('Erro ao excluir: ' + e.message);
+        alert('Erro ao excluir: ' + (e?.result?.error?.message || e.message));
       }
     }
     
