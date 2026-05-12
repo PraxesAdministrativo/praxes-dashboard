@@ -3288,7 +3288,6 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://apis.google.com/js/api.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script>
     console.log('🔥 Praxes v3.0 - Sidebar + Imóveis');
@@ -9697,6 +9696,9 @@ Esta ação não pode ser desfeita.`)) return;
       console.log(session ? '✅ Active session' : '❌ No session');
     });
 
+    // ============================================================
+    // Scripts de financiamento e importação movidos para este escopo
+    // ============================================================
 
     // ============================================================
     // ========== MÓDULO FINANCIAMENTO IMOBILIÁRIO ================
@@ -10118,41 +10120,35 @@ Esta ação não pode ser desfeita.`)) return;
     // ========== FIM MÓDULO FINANCIAMENTO ========================
     // ============================================================
 
-  
   // ============================================================
   // ========== MÓDULO IMPORTAÇÃO DE IMÓVEIS ====================
   // ============================================================
 
   // Colunas do template — mesma ordem da aba Lista da planilha
-  // ============================================================
-  // ========== MÓDULO IMPORTAÇÃO DE IMÓVEIS ====================
-  // ============================================================
-
-  const IMPORT_SUBGRUPOS = {
-    'Uso Pessoal':  ['Residencial','Casa de Temporada','Terreno / Lote','Outro'],
-    'Investimento': ['Residencial para Renda','Comercial para Renda','Terreno / Lote','Desenvolvimento / Permuta','Outro'],
-  };
-
   const IMPORT_COLUNAS = [
-    { key: 'nome',         label: 'Nome do Imovel',       obrig: true  },
-    { key: 'tipo',         label: 'Tipo',                 obrig: true,  opts: ['Apartamento','Casa','Terreno','Comercial','Galpao','Outro'] },
-    { key: 'grupo',        label: 'Grupo',                obrig: true,  opts: ['Uso Pessoal','Investimento'] },
-    { key: 'subgrupo',     label: 'Subgrupo',             obrig: true  },
-    { key: 'titularidade', label: 'Titular',              obrig: true,  opts: ['Pessoa Fisica','Administradora de Bens','Empresa','Outros'] },
-    { key: 'familiar',     label: 'Membro da Familia',    obrig: false },
-    { key: 'percentual',   label: 'Percentual do Imovel', obrig: false },
-    { key: 'valor_compra', label: 'Valor de Compra',      obrig: true  },
-    { key: 'data_compra',  label: 'Data de Compra',       obrig: true  },
-    { key: 'valor_atual',  label: 'Valor Atual',          obrig: false },
-    { key: 'cep',          label: 'CEP',                  obrig: true  },
-    { key: 'numero_end',   label: 'Numero',               obrig: false },
-    { key: 'complemento',  label: 'Complemento',          obrig: false },
-    { key: 'area_total',   label: 'Area Total m2',        obrig: false },
-    { key: 'area_util',    label: 'Area Util m2',         obrig: false },
-    { key: 'observacoes',  label: 'Observacoes',          obrig: false },
+    { key: 'nome',          label: 'Nome do Imóvel *',        obrig: true  },
+    { key: 'tipo',          label: 'Tipo *',                  obrig: true,  opts: ['Apartamento','Casa','Terreno','Comercial','Galpão','Outro'] },
+    { key: 'grupo',         label: 'Grupo *',                 obrig: true,  opts: ['Uso Pessoal','Investimento'] },
+    { key: 'subgrupo',      label: 'Subgrupo',                obrig: false },
+    { key: 'titularidade',  label: 'Titular *',               obrig: true,  opts: ['Pessoa Física','Administradora de Bens','Empresa','Outros'] },
+    { key: 'familiar',      label: 'Membro da Família',       obrig: false },
+    { key: 'percentual',    label: '% do Imóvel (0-100)',     obrig: false },
+    { key: 'valor_compra',  label: 'Valor de Compra *',       obrig: true  },
+    { key: 'data_compra',   label: 'Data de Compra * (AAAA-MM-DD)', obrig: true  },
+    { key: 'valor_atual',   label: 'Valor Atual',             obrig: false },
+    { key: 'logradouro',    label: 'Logradouro',              obrig: false },
+    { key: 'numero_end',    label: 'Número',                  obrig: false },
+    { key: 'bairro',        label: 'Bairro',                  obrig: false },
+    { key: 'cidade',        label: 'Cidade',                  obrig: false },
+    { key: 'uf',            label: 'UF',                      obrig: false },
+    { key: 'cep',           label: 'CEP',                     obrig: false },
+    { key: 'complemento',   label: 'Complemento',             obrig: false },
+    { key: 'area_total',    label: 'Área Total m²',           obrig: false },
+    { key: 'area_util',     label: 'Área Útil m²',            obrig: false },
+    { key: 'observacoes',   label: 'Observações',             obrig: false },
   ];
 
-  let _importLinhas = [];
+  let _importLinhas = []; // linhas validadas prontas para inserir
 
   function abrirModalImportarImoveis() {
     importImovelReset();
@@ -10160,104 +10156,53 @@ Esta ação não pode ser desfeita.`)) return;
   }
 
   function importImovelReset() {
-    document.getElementById('import-preview').style.display   = 'none';
+    document.getElementById('import-preview').style.display = 'none';
     document.getElementById('import-resultado').style.display = 'none';
     document.getElementById('import-drop-zone').style.display = 'block';
     document.getElementById('import-file-input').value = '';
     _importLinhas = [];
   }
 
-  async function importImovelBaixarTemplate() {
-    const btn = event.target;
-    const txtOrig = btn.textContent;
-    btn.textContent = 'Gerando...'; btn.disabled = true;
-
-    // Busca nomes de família
-    let nomesFamilia = [];
-    try {
-      if (typeof perfilFamData !== 'undefined' && perfilFamData.length) {
-        nomesFamilia = perfilFamData.map(r => r[1]).filter(Boolean);
-      } else if (resumoSheetId) {
-        const resp = await gapi.client.sheets.spreadsheets.values.get({
-          spreadsheetId: resumoSheetId, range: 'familia!B2:B100', valueRenderOption: 'UNFORMATTED_VALUE'
-        });
-        nomesFamilia = (resp.result.values || []).map(r => r[0]).filter(Boolean);
-      }
-    } catch(e) {}
-
-    btn.textContent = txtOrig; btn.disabled = false;
-
+  function importImovelBaixarTemplate() {
     const wb = XLSX.utils.book_new();
 
-    // Cabeçalho com asterisco nos obrigatórios
-    const cab = IMPORT_COLUNAS.map(c => c.label + (c.obrig ? ' *' : ''));
-    const ex  = IMPORT_COLUNAS.map(c => {
+    // Aba de dados
+    const cabecalho = [IMPORT_COLUNAS.map(c => c.label)];
+    const exemplo = [IMPORT_COLUNAS.map(c => {
       if (c.key === 'nome')         return 'Apartamento Trindade';
       if (c.key === 'tipo')         return 'Apartamento';
       if (c.key === 'grupo')        return 'Uso Pessoal';
       if (c.key === 'subgrupo')     return 'Residencial';
-      if (c.key === 'titularidade') return 'Pessoa Fisica';
-      if (c.key === 'familiar')     return nomesFamilia[0] || '';
+      if (c.key === 'titularidade') return 'Pessoa Física';
       if (c.key === 'percentual')   return 100;
       if (c.key === 'valor_compra') return 750000;
       if (c.key === 'data_compra')  return '2022-01-15';
       if (c.key === 'valor_atual')  return 850000;
-      if (c.key === 'cep')          return '88036003';
-      if (c.key === 'numero_end')   return '302';
+      if (c.key === 'cidade')       return 'Florianópolis';
+      if (c.key === 'uf')           return 'SC';
       return '';
-    });
+    })];
 
-    const ws = XLSX.utils.aoa_to_sheet([cab, ex]);
-    ws['!cols'] = IMPORT_COLUNAS.map(c => ({ wch: Math.max(c.label.length + 4, 20) }));
+    const ws = XLSX.utils.aoa_to_sheet([...cabecalho, ...exemplo]);
 
-    // Menus suspensos nas colunas com opts
-    const validations = [];
-    IMPORT_COLUNAS.forEach((col, ci) => {
-      const colLetter = ci < 26 ? String.fromCharCode(65 + ci) : 'A' + String.fromCharCode(65 + ci - 26);
-      const sqref = colLetter + '2:' + colLetter + '500';
-      if (col.opts) {
-        validations.push({ sqref, type:'list', formula1:'"' + col.opts.join(',') + '"',
-          showDropDown:false, showErrorMessage:true,
-          error:'Use a lista suspensa.', errorTitle:'Valor invalido' });
-      } else if (col.key === 'subgrupo') {
-        const allSubs = [...new Set(Object.values(IMPORT_SUBGRUPOS).flat())];
-        validations.push({ sqref, type:'list', formula1:'"' + allSubs.join(',') + '"',
-          showDropDown:false, showErrorMessage:true,
-          error:'Subgrupo invalido.', errorTitle:'Valor invalido' });
-      } else if (col.key === 'familiar' && nomesFamilia.length) {
-        validations.push({ sqref, type:'list', formula1:'"' + nomesFamilia.join(',') + '"',
-          showDropDown:false, showErrorMessage:false });
-      }
-    });
-    if (validations.length) ws['!dataValidation'] = validations;
+    // Larguras das colunas
+    ws['!cols'] = IMPORT_COLUNAS.map((c,i) => ({ wch: Math.max(c.label.length + 2, 18) }));
 
-    XLSX.utils.book_append_sheet(wb, ws, 'Importacao');
+    XLSX.utils.book_append_sheet(wb, ws, 'Importação');
 
-    // Aba Referencia
+    // Aba de referência com opções válidas
     const ref = [
-      ['GUIA DE PREENCHIMENTO',''],['',''],
-      ['Campo','Instrucoes / Valores aceitos'],
-      ['Nome do Imovel','Nome livre. Ex: Apartamento Trindade'],
-      ['Tipo','Apartamento | Casa | Terreno | Comercial | Galpao | Outro'],
-      ['Grupo','Uso Pessoal | Investimento'],
-      ['Subgrupo (Uso Pessoal)','Residencial | Casa de Temporada | Terreno / Lote | Outro'],
-      ['Subgrupo (Investimento)','Residencial para Renda | Comercial para Renda | Terreno / Lote | Desenvolvimento / Permuta | Outro'],
-      ['Titular','Pessoa Fisica | Administradora de Bens | Empresa | Outros'],
-      ['Membro da Familia','Preencha EXATAMENTE como cadastrado no sistema (lista abaixo)'],
-      ['Percentual','Numero de 0 a 100. Ex: 100 para 100%'],
-      ['Valor de Compra / Atual','Apenas numeros. Ex: 750000'],
-      ['Data de Compra','Formato AAAA-MM-DD. Ex: 2022-01-15'],
-      ['CEP','So numeros ou com hifen. Endereco preenchido automaticamente.'],
-      ['Numero / Complemento','Apenas numero e complemento — o resto vem do CEP'],
-      ['',''],
-      ['MEMBROS DA FAMILIA CADASTRADOS',''],
+      ['Campo', 'Valores aceitos'],
+      ['Tipo', 'Apartamento | Casa | Terreno | Comercial | Galpão | Outro'],
+      ['Grupo', 'Uso Pessoal | Investimento'],
+      ['Titular', 'Pessoa Física | Administradora de Bens | Empresa | Outros'],
+      ['Data de Compra', 'Formato: AAAA-MM-DD (ex: 2023-06-20)'],
+      ['% do Imóvel', 'Número de 0 a 100 (ex: 100 para 100%)'],
+      ['Valor de Compra / Atual', 'Número sem pontos ou vírgulas (ex: 750000)'],
     ];
-    if (nomesFamilia.length) nomesFamilia.forEach(n => ref.push([n,'']));
-    else ref.push(['(nenhum cadastrado)','']);
-
     const wsRef = XLSX.utils.aoa_to_sheet(ref);
-    wsRef['!cols'] = [{ wch:35 },{ wch:65 }];
-    XLSX.utils.book_append_sheet(wb, wsRef, 'Referencia');
+    wsRef['!cols'] = [{ wch: 22 }, { wch: 60 }];
+    XLSX.utils.book_append_sheet(wb, wsRef, 'Referência');
 
     XLSX.writeFile(wb, 'Modelo_Importacao_Imoveis.xlsx');
   }
@@ -10269,79 +10214,66 @@ Esta ação não pode ser desfeita.`)) return;
     if (file) importImovelLerArquivo(file);
   }
 
-  async function importImovelLerArquivo(file) {
+  function importImovelLerArquivo(file) {
     if (!file) return;
     const ext = file.name.split('.').pop().toLowerCase();
-    if (!['xlsx','csv'].includes(ext)) { alert('Use .xlsx ou .csv'); return; }
-
+    if (!['xlsx','csv'].includes(ext)) {
+      alert('Formato não suportado. Use .xlsx ou .csv');
+      return;
+    }
     const reader = new FileReader();
-    reader.onload = async e => {
+    reader.onload = e => {
       try {
         const data = new Uint8Array(e.target.result);
-        const wb   = XLSX.read(data, { type:'array', cellDates:true });
-        const sheetName = wb.SheetNames.find(n => !n.toLowerCase().includes('refer') && !n.toLowerCase().includes('referenc')) || wb.SheetNames[0];
-        const ws   = wb.Sheets[sheetName];
-        const rows = XLSX.utils.sheet_to_json(ws, { header:1, raw:false, dateNF:'yyyy-mm-dd' });
+        const wb = XLSX.read(data, { type: 'array', cellDates: true });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, dateNF: 'yyyy-mm-dd' });
 
-        if (rows.length < 2) { alert('Planilha sem dados.'); return; }
+        if (rows.length < 2) {
+          alert('Planilha vazia ou sem dados.');
+          return;
+        }
 
-        const cab = rows[0].map(c => String(c).replace(/[*]/g,'').trim().toLowerCase());
+        // Mapeia cabeçalhos (remove asterisco e espaços extras para comparação)
+        const cab = rows[0].map(c => String(c).replace('*','').trim().toLowerCase());
+        const labelsLower = IMPORT_COLUNAS.map(c => c.label.replace('*','').trim().toLowerCase());
+
+        // Tenta mapear por label ou por key
         const colIdx = {};
-        IMPORT_COLUNAS.forEach(col => {
-          let idx = cab.indexOf(col.label.toLowerCase());
-          if (idx === -1) idx = cab.indexOf(col.key.toLowerCase().replace(/_/g,' '));
+        IMPORT_COLUNAS.forEach((col, i) => {
+          let idx = cab.indexOf(col.label.replace('*','').trim().toLowerCase());
           if (idx === -1) idx = cab.indexOf(col.key.toLowerCase());
-          colIdx[col.key] = idx;
+          colIdx[col.key] = idx; // -1 se não encontrar
         });
 
-        const linhasRaw = [];
+        // Processa linhas de dados
+        const linhas = [];
+        const erros = [];
         rows.slice(1).forEach((row, ri) => {
-          if (!row || row.every(c => !c)) return;
+          if (!row || row.every(c => !c)) return; // linha vazia
           const obj = {};
           IMPORT_COLUNAS.forEach(col => {
             const idx = colIdx[col.key];
-            obj[col.key] = idx >= 0 ? String(row[idx]||'').trim() : '';
+            obj[col.key] = idx >= 0 ? String(row[idx] || '').trim() : '';
           });
+
+          // Validações obrigatórias
           const errosLinha = [];
-          if (!obj.nome)         errosLinha.push('Nome obrigatorio');
-          if (!obj.tipo)         errosLinha.push('Tipo obrigatorio');
-          if (!obj.grupo)        errosLinha.push('Grupo obrigatorio');
-          if (!obj.subgrupo)     errosLinha.push('Subgrupo obrigatorio');
-          if (!obj.titularidade) errosLinha.push('Titular obrigatorio');
-          if (!obj.valor_compra || isNaN(parseFloat(obj.valor_compra.replace(/[^0-9.-]/g,''))))
-                                  errosLinha.push('Valor de compra invalido');
-          if (!obj.data_compra)  errosLinha.push('Data de compra obrigatoria');
-          if (!obj.cep)          errosLinha.push('CEP obrigatorio');
-          linhasRaw.push({ ...obj, _erros: errosLinha, _ri: ri + 2 });
-        });
+          if (!obj.nome) errosLinha.push('Nome obrigatório');
+          if (!obj.tipo) errosLinha.push('Tipo obrigatório');
+          if (!obj.grupo) errosLinha.push('Grupo obrigatório');
+          if (!obj.titularidade) errosLinha.push('Titular obrigatório');
+          if (!obj.valor_compra || isNaN(parseFloat(obj.valor_compra))) errosLinha.push('Valor de compra inválido');
+          if (!obj.data_compra) errosLinha.push('Data de compra obrigatória');
 
-        // Busca CEPs
-        const cepsUnicos = [...new Set(linhasRaw.filter(l => l.cep && !l._erros.length).map(l => l.cep.replace(/\D/g,'')))];
-        const cepCache = {};
-        await Promise.all(cepsUnicos.map(async cep => {
-          try {
-            const r = await fetch('https://viacep.com.br/ws/' + cep + '/json/');
-            const d = await r.json();
-            if (!d.erro) cepCache[cep] = d;
-          } catch(e) {}
-        }));
-
-        linhasRaw.forEach(l => {
-          if (l._erros.length) return;
-          const cepNum = l.cep.replace(/\D/g,'');
-          const addr = cepCache[cepNum];
-          if (addr) {
-            l.logradouro = addr.logradouro || '';
-            l.bairro     = addr.bairro     || '';
-            l.cidade     = addr.localidade || '';
-            l.uf         = addr.uf         || '';
-          } else {
-            l._avisos = ['CEP ' + l.cep + ' nao encontrado — endereco incompleto'];
+          if (errosLinha.length) {
+            erros.push(`Linha ${ri + 2}: ${errosLinha.join(', ')}`);
           }
+          linhas.push({ ...obj, _erros: errosLinha });
         });
 
-        _importLinhas = linhasRaw.filter(l => !l._erros.length);
-        importImovelMostrarPreview(linhasRaw);
+        _importLinhas = linhas.filter(l => l._erros.length === 0);
+        importImovelMostrarPreview(linhas, erros);
       } catch(err) {
         alert('Erro ao ler arquivo: ' + err.message);
       }
@@ -10349,115 +10281,136 @@ Esta ação não pode ser desfeita.`)) return;
     reader.readAsArrayBuffer(file);
   }
 
-  function importImovelMostrarPreview(linhas) {
+  function importImovelMostrarPreview(linhas, erros) {
     document.getElementById('import-drop-zone').style.display = 'none';
-    document.getElementById('import-preview').style.display   = 'block';
+    document.getElementById('import-preview').style.display = 'block';
 
-    const colsVis = ['nome','tipo','grupo','subgrupo','titularidade','valor_compra','data_compra','cep','cidade','uf'];
-    const cabHtml = colsVis.map(k => {
+    const colsVisiveis = ['nome','tipo','grupo','titularidade','valor_compra','data_compra','cidade','uf'];
+    const cabHtml = colsVisiveis.map(k => {
       const col = IMPORT_COLUNAS.find(c => c.key === k);
-      return '<th style="padding:6px 10px;font-size:11px;color:#888;font-weight:500;white-space:nowrap;background:#f8f9fa;">' + (col?col.label:k) + '</th>';
-    }).join('') + '<th style="padding:6px 10px;background:#f8f9fa;"></th>';
-
-    const rowsHtml = linhas.map(l => {
-      const temErro  = l._erros.length > 0;
-      const temAviso = !temErro && l._avisos && l._avisos.length > 0;
-      const bg = temErro ? '#fff5f5' : temAviso ? '#fffbeb' : '';
-      const cells = colsVis.map(k =>
-        '<td style="padding:6px 10px;font-size:12px;color:' + (temErro?'#991b1b':'#333') + ';white-space:nowrap;">' + esc(l[k]||'—') + '</td>'
-      ).join('');
-      const infoCell = temErro
-        ? '<td style="padding:6px 10px;font-size:11px;color:#ef4444;">' + l._erros.join('; ') + '</td>'
-        : temAviso
-          ? '<td style="padding:6px 10px;font-size:11px;color:#92400e;">&#x26A0;&#xFE0F; ' + l._avisos.join('; ') + '</td>'
-          : '<td></td>';
-      return '<tr style="background:' + bg + ';border-bottom:1px solid #f0f0f0;">' + cells + infoCell + '</tr>';
+      return `<th style="padding:7px 12px;font-size:11px;color:#888;font-weight:500;text-align:left;white-space:nowrap;background:#f8f9fa;">${col?.label.replace(' *','') || k}</th>`;
     }).join('');
 
-    document.getElementById('import-preview-table').innerHTML =
-      '<table style="width:100%;border-collapse:collapse;min-width:700px;">' +
-      '<thead><tr>' + cabHtml + '</tr></thead><tbody>' + rowsHtml + '</tbody></table>';
+    const rowsHtml = linhas.map(l => {
+      const temErro = l._erros.length > 0;
+      const bg = temErro ? '#fff5f5' : '';
+      const cells = colsVisiveis.map(k =>
+        `<td style="padding:7px 12px;font-size:12px;color:${temErro?'#991b1b':'#333'};white-space:nowrap;">${esc(l[k]||'—')}</td>`
+      ).join('');
+      const errCell = temErro ? `<td style="padding:7px 12px;font-size:11px;color:#ef4444;">${l._erros.join('; ')}</td>` : '<td></td>';
+      return `<tr style="background:${bg};border-bottom:1px solid #f0f0f0;">${cells}${errCell}</tr>`;
+    }).join('');
 
-    const erros = linhas.filter(l => l._erros.length);
+    document.getElementById('import-preview-table').innerHTML = `
+      <table style="width:100%;border-collapse:collapse;min-width:600px;">
+        <thead><tr>${cabHtml}<th style="padding:7px 12px;font-size:11px;color:#888;background:#f8f9fa;"></th></tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>`;
+
     const erroDiv = document.getElementById('import-erros');
     if (erros.length) {
       erroDiv.style.display = 'block';
-      erroDiv.innerHTML = '<strong>&#x26A0;&#xFE0F; ' + erros.length + ' linha(s) com erro serao ignoradas:</strong><br>' +
-        erros.map(l => 'Linha ' + l._ri + ': ' + l._erros.join(', ')).join('<br>');
-    } else { erroDiv.style.display = 'none'; }
+      erroDiv.innerHTML = `<strong>⚠️ ${erros.length} linha(s) com erro serão ignoradas:</strong><br>${erros.join('<br>')}`;
+    } else {
+      erroDiv.style.display = 'none';
+    }
 
     const btn = document.getElementById('btn-confirmar-import');
     if (_importLinhas.length === 0) {
-      btn.disabled = true; btn.style.opacity = '0.5'; btn.textContent = 'Nenhum dado valido';
+      btn.disabled = true;
+      btn.style.opacity = '0.5';
+      btn.textContent = 'Nenhum dado válido';
     } else {
-      btn.disabled = false; btn.style.opacity = '1';
-      btn.textContent = '\u2705 Importar ' + _importLinhas.length + ' imovel(is)';
+      btn.disabled = false;
+      btn.style.opacity = '1';
+      btn.textContent = `✅ Importar ${_importLinhas.length} imóvel(is)`;
     }
   }
 
   async function importImovelConfirmar() {
     if (!_importLinhas.length) return;
-    if (!imoveisSheetId) { alert('Planilha de imoveis nao configurada.'); return; }
+    if (!imoveisSheetId) { alert('Planilha de imóveis não configurada.'); return; }
+
     const btn = document.getElementById('btn-confirmar-import');
-    btn.textContent = 'Importando...'; btn.disabled = true;
-    const erros = []; let ok = 0;
+    btn.textContent = 'Importando...';
+    btn.disabled = true;
 
-    for (const im of _importLinhas) {
+    const erros = [];
+    let ok = 0;
+
+    for (const imovel of _importLinhas) {
       try {
-        const hoje     = new Date().toISOString().split('T')[0];
-        const valComp  = parseFloat(String(im.valor_compra).replace(/[^0-9.-]/g,'')) || 0;
-        const valAtual = im.valor_atual ? parseFloat(String(im.valor_atual).replace(/[^0-9.-]/g,'')) : valComp;
-        const pct      = im.percentual  ? parseFloat(im.percentual) : 100;
-        const endereco = [im.logradouro, im.numero_end, im.bairro, im.cidade, im.uf].filter(Boolean).join(', ');
+        const hoje = new Date().toISOString().split('T')[0];
+        const valorAtual = imovel.valor_atual ? parseFloat(imovel.valor_atual) : parseFloat(imovel.valor_compra);
+        const percentual = imovel.percentual ? parseFloat(imovel.percentual) : 100;
 
+        // Monta linha no mesmo formato da aba Lista
         const linha = [
-          im.nome, im.tipo, im.grupo, im.subgrupo, im.titularidade, im.familiar || '',
-          endereco, valAtual, valComp, im.data_compra, '', '',
-          im.area_total || '', im.area_util || '', im.observacoes || '', pct,
-          im.cep || '', im.logradouro || '', im.numero_end || '',
-          im.bairro || '', im.cidade || '', im.uf || '', im.complemento || '',
+          imovel.nome,                    // A: Nome
+          imovel.tipo,                    // B: Tipo
+          imovel.grupo,                   // C: Grupo
+          imovel.subgrupo || '',          // D: Subgrupo
+          imovel.titularidade,            // E: Titular
+          imovel.familiar || '',          // F: Familiar
+          // Endereço concatenado
+          [imovel.logradouro, imovel.numero_end, imovel.bairro, imovel.cidade, imovel.uf].filter(Boolean).join(', ') || '',
+          valorAtual,                     // H: Valor atual (col 7, índice 7 — row[7])
+          parseFloat(imovel.valor_compra),// I: Valor compra
+          imovel.data_compra,             // J: Data compra
+          '',                             // K: IPTU
+          '',                             // L: Condomínio
+          imovel.area_total || '',        // M: Área total
+          imovel.area_util || '',         // N: Área útil
+          imovel.observacoes || '',       // O: Obs
+          percentual,                     // P: %
+          imovel.cep || '',
+          imovel.logradouro || '',
+          imovel.numero_end || '',
+          imovel.bairro || '',
+          imovel.cidade || '',
+          imovel.uf || '',
+          imovel.complemento || '',
         ];
 
         await gapi.client.sheets.spreadsheets.values.append({
-          spreadsheetId: imoveisSheetId, range: 'Lista!A1',
-          valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS',
+          spreadsheetId: imoveisSheetId,
+          range: 'Lista!A1',
+          valueInputOption: 'RAW',
+          insertDataOption: 'INSERT_ROWS',
           resource: { values: [linha] }
         });
 
-        if (valAtual !== valComp) {
+        // Registra valor atual no histórico
+        if (imovel.valor_atual && parseFloat(imovel.valor_atual) !== parseFloat(imovel.valor_compra)) {
           await gapi.client.sheets.spreadsheets.values.append({
-            spreadsheetId: imoveisSheetId, range: 'Historico_Valores!A1',
-            valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS',
-            resource: { values: [[im.nome, hoje, valAtual, 'Importacao', 'Importado via sistema']] }
+            spreadsheetId: imoveisSheetId,
+            range: 'Historico_Valores!A1',
+            valueInputOption: 'RAW',
+            insertDataOption: 'INSERT_ROWS',
+            resource: { values: [[imovel.nome, hoje, parseFloat(imovel.valor_atual), 'Importação', 'Importado via sistema']] }
           });
         }
+
         ok++;
       } catch(e) {
-        erros.push(im.nome + ': ' + (e && e.result && e.result.error ? e.result.error.message : e.message));
+        erros.push(`${imovel.nome}: ${e?.result?.error?.message || e.message}`);
       }
     }
 
+    // Mostra resultado
     document.getElementById('import-preview').style.display = 'none';
     const resDiv = document.getElementById('import-resultado');
     resDiv.style.display = 'block';
-    resDiv.innerHTML =
-      '<div style="text-align:center;padding:20px 0;">' +
-      '<div style="font-size:40px;margin-bottom:12px;">' + (ok > 0 ? '\u2705' : '\u274C') + '</div>' +
-      '<div style="font-size:15px;font-weight:600;color:#0f3d57;margin-bottom:6px;">' + ok + ' imovel(is) importado(s) com sucesso</div>' +
-      (erros.length ? '<div style="font-size:12px;color:#ef4444;margin-top:8px;">' + erros.join('<br>') + '</div>' : '') +
-      '<button onclick="closeModal('modal-importar-imoveis');loadImoveis();" ' +
-      'style="margin-top:16px;background:#0f3d57;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:13px;font-weight:500;cursor:pointer;">Ver imoveis</button>' +
-      '</div>';
+    resDiv.innerHTML = `
+      <div style="text-align:center;padding:20px 0;">
+        <div style="font-size:40px;margin-bottom:12px;">${ok > 0 ? '✅' : '❌'}</div>
+        <div style="font-size:15px;font-weight:600;color:#0f3d57;margin-bottom:6px;">${ok} imóvel(is) importado(s) com sucesso</div>
+        ${erros.length ? `<div style="font-size:12px;color:#ef4444;margin-top:8px;">${erros.join('<br>')}</div>` : ''}
+        <button onclick="closeModal('modal-importar-imoveis');loadImoveis();" style="margin-top:16px;background:#0f3d57;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:13px;font-weight:500;cursor:pointer;">Ver imóveis</button>
+      </div>`;
   }
-  // Expõe funções no escopo global (window) para acesso via onclick
-  window.abrirModalImportarImoveis = abrirModalImportarImoveis;
-  window.importImovelBaixarTemplate = importImovelBaixarTemplate;
-  window.importImovelHandleDrop = importImovelHandleDrop;
-  window.importImovelLerArquivo = importImovelLerArquivo;
-  window.importImovelReset = importImovelReset;
-  window.importImovelConfirmar = importImovelConfirmar;
   // ============================================================
-  // ========== FIM MODULO IMPORTACAO ===========================
+  // ========== FIM MÓDULO IMPORTAÇÃO ===========================
   // ============================================================
 
   </script>
@@ -10662,6 +10615,63 @@ Esta ação não pode ser desfeita.`)) return;
     </div>
   </div>
   <!-- ========== FIM MODAL FINANCIAMENTO ========== -->
+
+
+  <!-- ========== MODAL IMPORTAR IMÓVEIS ========== -->
+  <div class="modal" id="modal-importar-imoveis">
+    <div class="modal-content" style="max-width:600px;">
+      <div class="modal-header">
+        <h3 class="modal-title">📥 Importar Imóveis</h3>
+        <button class="modal-close" onclick="closeModal('modal-importar-imoveis')">&times;</button>
+      </div>
+      <div class="modal-body">
+
+        <!-- Passo 1: baixar template -->
+        <div style="background:#f0f7ff;border:1px solid #bae6fd;border-radius:10px;padding:16px 18px;margin-bottom:18px;">
+          <div style="font-size:13px;font-weight:600;color:#0369a1;margin-bottom:6px;">① Baixe o modelo e preencha</div>
+          <div style="font-size:12px;color:#555;margin-bottom:12px;line-height:1.6;">
+            Baixe a planilha modelo, preencha os dados dos imóveis e salve como <strong>.xlsx</strong> ou <strong>.csv</strong>.
+            Não altere os nomes das colunas.
+          </div>
+          <button onclick="importImovelBaixarTemplate()" style="display:inline-flex;align-items:center;gap:6px;background:#0369a1;color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:12px;font-weight:500;cursor:pointer;">
+            ⬇️ Baixar modelo (.xlsx)
+          </button>
+        </div>
+
+        <!-- Passo 2: upload -->
+        <div style="margin-bottom:18px;">
+          <div style="font-size:13px;font-weight:600;color:#333;margin-bottom:10px;">② Envie a planilha preenchida</div>
+          <div id="import-drop-zone"
+            onclick="document.getElementById('import-file-input').click()"
+            ondragover="event.preventDefault();this.style.background='#e0f0ff'"
+            ondragleave="this.style.background=''"
+            ondrop="importImovelHandleDrop(event)"
+            style="border:2px dashed #c0d8f0;border-radius:10px;padding:28px;text-align:center;cursor:pointer;background:#fafcff;transition:background .2s;">
+            <div style="font-size:28px;margin-bottom:8px;">📂</div>
+            <div style="font-size:13px;color:#555;">Clique para selecionar ou arraste o arquivo aqui</div>
+            <div style="font-size:11px;color:#aaa;margin-top:4px;">Aceita .xlsx ou .csv</div>
+          </div>
+          <input type="file" id="import-file-input" accept=".xlsx,.csv" style="display:none;" onchange="importImovelLerArquivo(this.files[0])">
+        </div>
+
+        <!-- Preview -->
+        <div id="import-preview" style="display:none;">
+          <div style="font-size:13px;font-weight:600;color:#333;margin-bottom:10px;">③ Confirme os dados antes de importar</div>
+          <div id="import-preview-table" style="overflow-x:auto;max-height:280px;overflow-y:auto;border:1px solid #e8e8e8;border-radius:8px;"></div>
+          <div id="import-erros" style="display:none;margin-top:10px;padding:10px 14px;background:#fff5f5;border:1px solid #fca5a5;border-radius:8px;font-size:12px;color:#991b1b;"></div>
+          <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:14px;">
+            <button onclick="importImovelReset()" style="background:none;border:1px solid #ccc;border-radius:6px;padding:8px 16px;font-size:12px;cursor:pointer;color:#555;">Cancelar / Trocar arquivo</button>
+            <button id="btn-confirmar-import" onclick="importImovelConfirmar()" style="background:#0f3d57;color:#fff;border:none;border-radius:6px;padding:8px 18px;font-size:12px;font-weight:500;cursor:pointer;">✅ Importar imóveis</button>
+          </div>
+        </div>
+
+        <!-- Resultado -->
+        <div id="import-resultado" style="display:none;"></div>
+
+      </div>
+    </div>
+  </div>
+  <!-- ========== FIM MODAL IMPORTAR IMÓVEIS ========== -->
 
 
 </body>
