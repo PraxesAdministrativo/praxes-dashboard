@@ -9696,210 +9696,8 @@ Esta ação não pode ser desfeita.`)) return;
       const { data: { session } } = await db.auth.getSession();
       console.log(session ? '✅ Active session' : '❌ No session');
     });
-  </script>
-  <!-- ========== MODAL FINANCIAMENTO ========== -->
-  <div class="modal" id="modal-financiamento" style="z-index:1100;">
-    <div class="modal-content" style="max-width:820px;max-height:90vh;overflow-y:auto;">
-      <div class="modal-header">
-        <h3 class="modal-title" id="fin-modal-titulo">🏦 Financiamento</h3>
-        <button class="modal-close" onclick="closeModal('modal-financiamento')">&times;</button>
-      </div>
-      <div class="modal-body">
-        <div class="fin-modal-tabs">
-          <div class="fin-modal-tab active" onclick="finSwitchTab('visao-geral')">Visão Geral</div>
-          <div class="fin-modal-tab" onclick="finSwitchTab('parcelas')">Parcelas</div>
-          <div class="fin-modal-tab" onclick="finSwitchTab('fluxo')">Fluxo de Caixa</div>
-          <div class="fin-modal-tab" onclick="finSwitchTab('tir')">TIR & Retorno</div>
-          <div class="fin-modal-tab" onclick="finSwitchTab('contrato')">Contrato</div>
-        </div>
 
-        <!-- VISÃO GERAL -->
-        <div class="fin-tab-pane active" id="fin-tab-visao-geral">
-          <div id="fin-visao-geral-content"><div class="loading"><div class="spinner"></div><p>Carregando...</p></div></div>
-        </div>
 
-        <!-- PARCELAS -->
-        <div class="fin-tab-pane" id="fin-tab-parcelas">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
-            <div style="display:flex;gap:8px;align-items:center;">
-              <select id="fin-filtro-parcelas" class="form-select" style="width:160px;font-size:12px;" onchange="finRenderParcelas()">
-                <option value="todas">Todas as parcelas</option>
-                <option value="pagas">Pagas</option>
-                <option value="futuras">Futuras (proj.)</option>
-                <option value="proximas">Próximas 12 meses</option>
-              </select>
-            </div>
-            <button class="btn-save" style="font-size:12px;padding:6px 14px;" onclick="abrirModalRegistrarParcela()">+ Registrar Parcela</button>
-          </div>
-          <div style="overflow-x:auto;max-height:420px;overflow-y:auto;">
-            <table class="fin-parcela-table">
-              <thead><tr>
-                <th>Vencimento</th><th>Parc.</th><th>Total Pago</th>
-                <th>Amortização</th><th>Juros</th><th>Saldo Dev.</th><th>Status</th><th></th>
-              </tr></thead>
-              <tbody id="fin-parcelas-tbody"></tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- FLUXO DE CAIXA -->
-        <div class="fin-tab-pane" id="fin-tab-fluxo">
-          <div id="fin-fluxo-content"></div>
-        </div>
-
-        <!-- TIR & RETORNO -->
-        <div class="fin-tab-pane" id="fin-tab-tir">
-          <div id="fin-tir-content"></div>
-        </div>
-
-        <!-- CONTRATO -->
-        <div class="fin-tab-pane" id="fin-tab-contrato">
-          <div id="fin-contrato-content">
-            <div style="text-align:center;padding:20px;">
-              <button class="btn-save" onclick="abrirModalContrato()">+ Cadastrar / Editar Contrato</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- MODAL CONTRATO -->
-  <div class="modal" id="modal-contrato-financ" style="z-index:1200;">
-    <div class="modal-content" style="max-width:600px;">
-      <div class="modal-header">
-        <h3 class="modal-title">📋 Dados do Contrato</h3>
-        <button class="modal-close" onclick="closeModal('modal-contrato-financ')">&times;</button>
-      </div>
-      <div class="modal-body">
-        <form id="form-contrato-financ">
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Banco / Credor *</label>
-              <input type="text" class="form-input" name="banco" placeholder="Caixa Econômica Federal" required>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Sistema *</label>
-              <select class="form-select" name="sistema" required>
-                <option value="SAC">SAC (amortização fixa)</option>
-                <option value="PRICE">PRICE (parcela fixa)</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Valor Financiado *</label>
-              <input type="number" class="form-input" name="valor_financiado" placeholder="400000" step="0.01" required>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Entrada Paga</label>
-              <input type="number" class="form-input" name="entrada" placeholder="100000" step="0.01">
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Custo Aquisição (ITBI + Cartório)</label>
-              <input type="number" class="form-input" name="custo_aquisicao" placeholder="12000" step="0.01">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Data da 1ª Parcela *</label>
-              <input type="date" class="form-input" name="data_inicio" required>
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Prazo (meses) *</label>
-              <input type="number" class="form-input" name="prazo_meses" placeholder="360" min="1" max="600" required>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Taxa Juros Mensal (%) *</label>
-              <input type="number" class="form-input" name="taxa_mensal" placeholder="0.56" step="0.001" required>
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Índice de Correção</label>
-              <select class="form-select" name="indice">
-                <option value="Nenhum">Sem correção (taxa fixa)</option>
-                <option value="IPCA">IPCA</option>
-                <option value="INPC">INPC</option>
-                <option value="TR">TR (SBPE/Poupança)</option>
-                <option value="IGPM">IGP-M</option>
-                <option value="IPCA+">IPCA + spread fixo</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Seguro + Taxa Admin Mensal</label>
-              <input type="number" class="form-input" name="seguro_mensal" placeholder="150" step="0.01">
-            </div>
-          </div>
-        </form>
-      </div>
-      <div class="modal-footer">
-        <button class="btn-cancel" onclick="closeModal('modal-contrato-financ')">Cancelar</button>
-        <button class="btn-save" onclick="salvarContrato()">Salvar Contrato</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- MODAL REGISTRAR PARCELA -->
-  <div class="modal" id="modal-registrar-parcela" style="z-index:1200;">
-    <div class="modal-content" style="max-width:540px;">
-      <div class="modal-header">
-        <h3 class="modal-title">💳 Registrar Parcela Paga</h3>
-        <button class="modal-close" onclick="closeModal('modal-registrar-parcela')">&times;</button>
-      </div>
-      <div class="modal-body">
-        <form id="form-registrar-parcela">
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Data de Pagamento *</label>
-              <input type="date" class="form-input" name="data_pagamento" required>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Nº da Parcela</label>
-              <input type="number" class="form-input" name="num_parcela" placeholder="auto" min="1">
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Valor Total Pago *</label>
-              <input type="number" class="form-input" name="valor_pago" placeholder="3240.00" step="0.01" required>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Amortização</label>
-              <input type="number" class="form-input" name="amortizacao" placeholder="auto" step="0.01">
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Juros</label>
-              <input type="number" class="form-input" name="juros" placeholder="auto" step="0.01">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Amortização Extra</label>
-              <input type="number" class="form-input" name="amort_extra" placeholder="0" step="0.01">
-            </div>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Saldo Devedor após pagamento</label>
-            <input type="number" class="form-input" name="saldo_devedor" placeholder="auto — calculado" step="0.01">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Observação</label>
-            <input type="text" class="form-input" name="observacao" placeholder="Amortização extra, refinanciamento...">
-          </div>
-        </form>
-      </div>
-      <div class="modal-footer">
-        <button class="btn-cancel" onclick="closeModal('modal-registrar-parcela')">Cancelar</button>
-        <button class="btn-save" onclick="salvarParcelaPaga()">Registrar</button>
-      </div>
-    </div>
-  </div>
-  <!-- ========== FIM MODAL FINANCIAMENTO ========== -->
-
-  <script>
     // ============================================================
     // ========== MÓDULO FINANCIAMENTO IMOBILIÁRIO ================
     // ============================================================
@@ -10319,65 +10117,8 @@ Esta ação não pode ser desfeita.`)) return;
     // ============================================================
     // ========== FIM MÓDULO FINANCIAMENTO ========================
     // ============================================================
-  </script>
 
-  <!-- ========== MODAL IMPORTAR IMÓVEIS ========== -->
-  <div class="modal" id="modal-importar-imoveis">
-    <div class="modal-content" style="max-width:600px;">
-      <div class="modal-header">
-        <h3 class="modal-title">📥 Importar Imóveis</h3>
-        <button class="modal-close" onclick="closeModal('modal-importar-imoveis')">&times;</button>
-      </div>
-      <div class="modal-body">
-
-        <!-- Passo 1: baixar template -->
-        <div style="background:#f0f7ff;border:1px solid #bae6fd;border-radius:10px;padding:16px 18px;margin-bottom:18px;">
-          <div style="font-size:13px;font-weight:600;color:#0369a1;margin-bottom:6px;">① Baixe o modelo e preencha</div>
-          <div style="font-size:12px;color:#555;margin-bottom:12px;line-height:1.6;">
-            Baixe a planilha modelo, preencha os dados dos imóveis e salve como <strong>.xlsx</strong> ou <strong>.csv</strong>.
-            Não altere os nomes das colunas.
-          </div>
-          <button onclick="importImovelBaixarTemplate()" style="display:inline-flex;align-items:center;gap:6px;background:#0369a1;color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:12px;font-weight:500;cursor:pointer;">
-            ⬇️ Baixar modelo (.xlsx)
-          </button>
-        </div>
-
-        <!-- Passo 2: upload -->
-        <div style="margin-bottom:18px;">
-          <div style="font-size:13px;font-weight:600;color:#333;margin-bottom:10px;">② Envie a planilha preenchida</div>
-          <div id="import-drop-zone"
-            onclick="document.getElementById('import-file-input').click()"
-            ondragover="event.preventDefault();this.style.background='#e0f0ff'"
-            ondragleave="this.style.background=''"
-            ondrop="importImovelHandleDrop(event)"
-            style="border:2px dashed #c0d8f0;border-radius:10px;padding:28px;text-align:center;cursor:pointer;background:#fafcff;transition:background .2s;">
-            <div style="font-size:28px;margin-bottom:8px;">📂</div>
-            <div style="font-size:13px;color:#555;">Clique para selecionar ou arraste o arquivo aqui</div>
-            <div style="font-size:11px;color:#aaa;margin-top:4px;">Aceita .xlsx ou .csv</div>
-          </div>
-          <input type="file" id="import-file-input" accept=".xlsx,.csv" style="display:none;" onchange="importImovelLerArquivo(this.files[0])">
-        </div>
-
-        <!-- Preview -->
-        <div id="import-preview" style="display:none;">
-          <div style="font-size:13px;font-weight:600;color:#333;margin-bottom:10px;">③ Confirme os dados antes de importar</div>
-          <div id="import-preview-table" style="overflow-x:auto;max-height:280px;overflow-y:auto;border:1px solid #e8e8e8;border-radius:8px;"></div>
-          <div id="import-erros" style="display:none;margin-top:10px;padding:10px 14px;background:#fff5f5;border:1px solid #fca5a5;border-radius:8px;font-size:12px;color:#991b1b;"></div>
-          <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:14px;">
-            <button onclick="importImovelReset()" style="background:none;border:1px solid #ccc;border-radius:6px;padding:8px 16px;font-size:12px;cursor:pointer;color:#555;">Cancelar / Trocar arquivo</button>
-            <button id="btn-confirmar-import" onclick="importImovelConfirmar()" style="background:#0f3d57;color:#fff;border:none;border-radius:6px;padding:8px 18px;font-size:12px;font-weight:500;cursor:pointer;">✅ Importar imóveis</button>
-          </div>
-        </div>
-
-        <!-- Resultado -->
-        <div id="import-resultado" style="display:none;"></div>
-
-      </div>
-    </div>
-  </div>
-  <!-- ========== FIM MODAL IMPORTAR IMÓVEIS ========== -->
-
-  <script>
+  
   // ============================================================
   // ========== MÓDULO IMPORTAÇÃO DE IMÓVEIS ====================
   // ============================================================
@@ -10718,7 +10459,210 @@ Esta ação não pode ser desfeita.`)) return;
   // ============================================================
   // ========== FIM MODULO IMPORTACAO ===========================
   // ============================================================
+
   </script>
+  <!-- ========== MODAL FINANCIAMENTO ========== -->
+  <div class="modal" id="modal-financiamento" style="z-index:1100;">
+    <div class="modal-content" style="max-width:820px;max-height:90vh;overflow-y:auto;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="fin-modal-titulo">🏦 Financiamento</h3>
+        <button class="modal-close" onclick="closeModal('modal-financiamento')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="fin-modal-tabs">
+          <div class="fin-modal-tab active" onclick="finSwitchTab('visao-geral')">Visão Geral</div>
+          <div class="fin-modal-tab" onclick="finSwitchTab('parcelas')">Parcelas</div>
+          <div class="fin-modal-tab" onclick="finSwitchTab('fluxo')">Fluxo de Caixa</div>
+          <div class="fin-modal-tab" onclick="finSwitchTab('tir')">TIR & Retorno</div>
+          <div class="fin-modal-tab" onclick="finSwitchTab('contrato')">Contrato</div>
+        </div>
+
+        <!-- VISÃO GERAL -->
+        <div class="fin-tab-pane active" id="fin-tab-visao-geral">
+          <div id="fin-visao-geral-content"><div class="loading"><div class="spinner"></div><p>Carregando...</p></div></div>
+        </div>
+
+        <!-- PARCELAS -->
+        <div class="fin-tab-pane" id="fin-tab-parcelas">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+            <div style="display:flex;gap:8px;align-items:center;">
+              <select id="fin-filtro-parcelas" class="form-select" style="width:160px;font-size:12px;" onchange="finRenderParcelas()">
+                <option value="todas">Todas as parcelas</option>
+                <option value="pagas">Pagas</option>
+                <option value="futuras">Futuras (proj.)</option>
+                <option value="proximas">Próximas 12 meses</option>
+              </select>
+            </div>
+            <button class="btn-save" style="font-size:12px;padding:6px 14px;" onclick="abrirModalRegistrarParcela()">+ Registrar Parcela</button>
+          </div>
+          <div style="overflow-x:auto;max-height:420px;overflow-y:auto;">
+            <table class="fin-parcela-table">
+              <thead><tr>
+                <th>Vencimento</th><th>Parc.</th><th>Total Pago</th>
+                <th>Amortização</th><th>Juros</th><th>Saldo Dev.</th><th>Status</th><th></th>
+              </tr></thead>
+              <tbody id="fin-parcelas-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- FLUXO DE CAIXA -->
+        <div class="fin-tab-pane" id="fin-tab-fluxo">
+          <div id="fin-fluxo-content"></div>
+        </div>
+
+        <!-- TIR & RETORNO -->
+        <div class="fin-tab-pane" id="fin-tab-tir">
+          <div id="fin-tir-content"></div>
+        </div>
+
+        <!-- CONTRATO -->
+        <div class="fin-tab-pane" id="fin-tab-contrato">
+          <div id="fin-contrato-content">
+            <div style="text-align:center;padding:20px;">
+              <button class="btn-save" onclick="abrirModalContrato()">+ Cadastrar / Editar Contrato</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL CONTRATO -->
+  <div class="modal" id="modal-contrato-financ" style="z-index:1200;">
+    <div class="modal-content" style="max-width:600px;">
+      <div class="modal-header">
+        <h3 class="modal-title">📋 Dados do Contrato</h3>
+        <button class="modal-close" onclick="closeModal('modal-contrato-financ')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-contrato-financ">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Banco / Credor *</label>
+              <input type="text" class="form-input" name="banco" placeholder="Caixa Econômica Federal" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Sistema *</label>
+              <select class="form-select" name="sistema" required>
+                <option value="SAC">SAC (amortização fixa)</option>
+                <option value="PRICE">PRICE (parcela fixa)</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Valor Financiado *</label>
+              <input type="number" class="form-input" name="valor_financiado" placeholder="400000" step="0.01" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Entrada Paga</label>
+              <input type="number" class="form-input" name="entrada" placeholder="100000" step="0.01">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Custo Aquisição (ITBI + Cartório)</label>
+              <input type="number" class="form-input" name="custo_aquisicao" placeholder="12000" step="0.01">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Data da 1ª Parcela *</label>
+              <input type="date" class="form-input" name="data_inicio" required>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Prazo (meses) *</label>
+              <input type="number" class="form-input" name="prazo_meses" placeholder="360" min="1" max="600" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Taxa Juros Mensal (%) *</label>
+              <input type="number" class="form-input" name="taxa_mensal" placeholder="0.56" step="0.001" required>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Índice de Correção</label>
+              <select class="form-select" name="indice">
+                <option value="Nenhum">Sem correção (taxa fixa)</option>
+                <option value="IPCA">IPCA</option>
+                <option value="INPC">INPC</option>
+                <option value="TR">TR (SBPE/Poupança)</option>
+                <option value="IGPM">IGP-M</option>
+                <option value="IPCA+">IPCA + spread fixo</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Seguro + Taxa Admin Mensal</label>
+              <input type="number" class="form-input" name="seguro_mensal" placeholder="150" step="0.01">
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="closeModal('modal-contrato-financ')">Cancelar</button>
+        <button class="btn-save" onclick="salvarContrato()">Salvar Contrato</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL REGISTRAR PARCELA -->
+  <div class="modal" id="modal-registrar-parcela" style="z-index:1200;">
+    <div class="modal-content" style="max-width:540px;">
+      <div class="modal-header">
+        <h3 class="modal-title">💳 Registrar Parcela Paga</h3>
+        <button class="modal-close" onclick="closeModal('modal-registrar-parcela')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-registrar-parcela">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Data de Pagamento *</label>
+              <input type="date" class="form-input" name="data_pagamento" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Nº da Parcela</label>
+              <input type="number" class="form-input" name="num_parcela" placeholder="auto" min="1">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Valor Total Pago *</label>
+              <input type="number" class="form-input" name="valor_pago" placeholder="3240.00" step="0.01" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Amortização</label>
+              <input type="number" class="form-input" name="amortizacao" placeholder="auto" step="0.01">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Juros</label>
+              <input type="number" class="form-input" name="juros" placeholder="auto" step="0.01">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Amortização Extra</label>
+              <input type="number" class="form-input" name="amort_extra" placeholder="0" step="0.01">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Saldo Devedor após pagamento</label>
+            <input type="number" class="form-input" name="saldo_devedor" placeholder="auto — calculado" step="0.01">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Observação</label>
+            <input type="text" class="form-input" name="observacao" placeholder="Amortização extra, refinanciamento...">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="closeModal('modal-registrar-parcela')">Cancelar</button>
+        <button class="btn-save" onclick="salvarParcelaPaga()">Registrar</button>
+      </div>
+    </div>
+  </div>
+  <!-- ========== FIM MODAL FINANCIAMENTO ========== -->
+
 
 </body>
 </html>
