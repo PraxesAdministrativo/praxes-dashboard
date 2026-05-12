@@ -4353,88 +4353,117 @@
     
     async function renderCarteiraChart(imoveis) {
       try {
-        // Busca histórico de TODOS os imóveis filtrados (do cache!)
-        const todosHistoricos = [];
         const allHistoricoRows = dataCache.historico || [];
-        
-        for (const row of imoveis) {
-          if (!row[0]) continue;
-          const nome = row[0];
-          
-          // Filtra do cache em vez de fazer chamada à API
-          const historico = allHistoricoRows.filter(r => r[0] === nome).map(r => ({
-            imovel: r[0],
-            data: r[1],
-            valor: parseFloat(String(r[2] || '0').replace(/[^\d.-]/g, '')) || 0
-          }));
-          
-          todosHistoricos.push(...historico);
-        }
-        
-        // Agrupa por data e soma valores
-        const porData = {};
-        todosHistoricos.forEach(h => {
-          if (!porData[h.data]) {
-            porData[h.data] = {};
-          }
-          if (!porData[h.data][h.imovel]) {
-            porData[h.data][h.imovel] = h.valor;
-          }
-        });
-        
-        // Ordena datas
-        const datas = Object.keys(porData).sort((a, b) => new Date(a) - new Date(b));
-        
-        // Para cada data, soma os valores de todos os imóveis
-        const timeline = [];
-        const imoveisUnicos = [...new Set(imoveis.map(r => r[0]))];
-        
-        datas.forEach(data => {
-          let total = 0;
-          imoveisUnicos.forEach(nomeImovel => {
-            // Pega o último valor conhecido até esta data
-            let valorNaData = 0;
-            for (const d of datas) {
-              if (new Date(d) <= new Date(data) && porData[d][nomeImovel]) {
-                valorNaData = porData[d][nomeImovel];
-              }
+        const imoveisUnicos = imoveis.map(r => r[0]).filter(Boolean);
+
+        // Para cada imóvel, monta série de pontos reais (data ISO → valor)
+        const historicosPorImovel = {};
+        imoveisUnicos.forEach(nome => {
+          const pts = allHistoricoRows
+            .filter(r => r[0] === nome && r[1])
+            .map(r => ({
+              data: new Date(r[1] + 'T12:00:00'),
+              valor: parseFloat(String(r[2]||'0').replace(/[^\d.-]/g,'')) || 0
+            }))
+            .filter(p => !isNaN(p.data) && p.valor > 0)
+            .sort((a, b) => a.data - b.data);
+
+          // Garante ponto atual se só tiver compra
+          if (pts.length === 1) {
+            const valorAtual = getValorAtualImovel(nome, imoveis.find(r=>r[0]===nome)?.[7]);
+            if (valorAtual > pts[0].valor) {
+              pts.push({ data: new Date(), valor: valorAtual });
             }
-            total += valorNaData;
-          });
-          
-          timeline.push({ data, valor: total });
+          }
+          if (pts.length > 0) historicosPorImovel[nome] = pts;
         });
-        
-        if (timeline.length === 0) {
+
+        if (Object.keys(historicosPorImovel).length === 0) {
           document.querySelector('.carteira-grafico').style.display = 'none';
           return;
         }
-        
-        document.querySelector('.carteira-grafico').style.display = 'block';
-        
-        const labels = timeline.map(t => new Date(t.data).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }));
-        const valores = timeline.map(t => t.valor);
-        
-        const ctx = document.getElementById('chart-carteira');
-        
-        if (carteiraChart) {
-          carteiraChart.destroy();
+
+        // Determina janela de tempo: primeiro ponto real → hoje
+        let minData = new Date();
+        let maxData = new Date();
+        Object.values(historicosPorImovel).forEach(pts => {
+          if (pts[0].data < minData) minData = pts[0].data;
+          if (pts[pts.length-1].data > maxData) maxData = pts[pts.length-1].data;
+        });
+        maxData = new Date(); // sempre vai até hoje
+
+        // Gera eixo de tempo semestral (reduz pontos sem perder forma)
+        const eixo = [];
+        const cursor = new Date(minData);
+        cursor.setDate(1);
+        while (cursor <= maxData) {
+          eixo.push(new Date(cursor));
+          cursor.setMonth(cursor.getMonth() + 6);
         }
-        
+        if (eixo[eixo.length-1] < maxData) eixo.push(new Date(maxData));
+
+        // Para cada ponto do eixo, interpola o valor de cada imóvel via CAGR
+        function interpolarValor(pts, dataAlvo) {
+          if (!pts || pts.length === 0) return 0;
+          // Antes do primeiro ponto: sem valor (imóvel ainda não existia)
+          if (dataAlvo < pts[0].data) return 0;
+          // Após último ponto: aplica CAGR do último segmento
+          if (dataAlvo >= pts[pts.length-1].data) {
+            if (pts.length === 1) return pts[0].valor;
+            const p1 = pts[pts.length-2];
+            const p2 = pts[pts.length-1];
+            const anosSegmento = (p2.data - p1.data) / (365.25 * 24 * 3600 * 1000);
+            if (anosSegmento <= 0) return p2.valor;
+            const cagr = Math.pow(p2.valor / p1.valor, 1 / anosSegmento) - 1;
+            const anosExtra = (dataAlvo - p2.data) / (365.25 * 24 * 3600 * 1000);
+            return p2.valor * Math.pow(1 + cagr, anosExtra);
+          }
+          // Entre dois pontos: interpola com CAGR do segmento
+          for (let i = 0; i < pts.length - 1; i++) {
+            const p1 = pts[i], p2 = pts[i+1];
+            if (dataAlvo >= p1.data && dataAlvo <= p2.data) {
+              const anosTotal = (p2.data - p1.data) / (365.25 * 24 * 3600 * 1000);
+              if (anosTotal <= 0) return p1.valor;
+              const cagr = Math.pow(p2.valor / p1.valor, 1 / anosTotal) - 1;
+              const anosParcial = (dataAlvo - p1.data) / (365.25 * 24 * 3600 * 1000);
+              return p1.valor * Math.pow(1 + cagr, anosParcial);
+            }
+          }
+          return 0;
+        }
+
+        const labels = eixo.map(d => d.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }));
+        const valores = eixo.map(d => {
+          return imoveisUnicos.reduce((soma, nome) => {
+            return soma + interpolarValor(historicosPorImovel[nome], d);
+          }, 0);
+        });
+
+        document.querySelector('.carteira-grafico').style.display = 'block';
+        const ctx = document.getElementById('chart-carteira');
+        if (carteiraChart) carteiraChart.destroy();
+
         carteiraChart = new Chart(ctx, {
           type: 'line',
           data: {
-            labels: labels,
+            labels,
             datasets: [{
               label: 'Patrimônio Total',
               data: valores,
               borderColor: '#2e6b8e',
               backgroundColor: 'rgba(46, 107, 142, 0.1)',
-              borderWidth: 3,
+              borderWidth: 2.5,
               fill: true,
-              tension: 0.4,
-              pointRadius: 6,
-              pointHoverRadius: 8,
+              tension: 0.3,
+              pointRadius: (ctx) => {
+                // Só mostra ponto nos marcos reais
+                const data = eixo[ctx.dataIndex];
+                const ehMarco = Object.values(historicosPorImovel).some(pts =>
+                  pts.some(p => Math.abs(p.data - data) < 90 * 24 * 3600 * 1000)
+                );
+                return ehMarco ? 5 : 0;
+              },
+              pointHoverRadius: 7,
               pointBackgroundColor: '#2e6b8e',
               pointBorderColor: '#fff',
               pointBorderWidth: 2
@@ -4444,9 +4473,7 @@
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-              legend: {
-                display: false
-              },
+              legend: { display: false },
               tooltip: {
                 backgroundColor: '#0f3d57',
                 titleColor: '#fff',
@@ -4454,9 +4481,7 @@
                 padding: 12,
                 displayColors: false,
                 callbacks: {
-                  label: function(context) {
-                    return 'R$ ' + context.parsed.y.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-                  }
+                  label: ctx => 'R$ ' + Math.round(ctx.parsed.y).toLocaleString('pt-BR')
                 }
               }
             },
@@ -4464,27 +4489,19 @@
               y: {
                 beginAtZero: false,
                 ticks: {
-                  callback: function(value) {
-                    return 'R$ ' + (value / 1000).toFixed(0) + 'k';
-                  },
+                  callback: v => 'R$ ' + (v >= 1000000 ? (v/1000000).toFixed(1)+'M' : (v/1000).toFixed(0)+'k'),
                   color: '#666'
                 },
-                grid: {
-                  color: '#e5e5e5'
-                }
+                grid: { color: '#e5e5e5' }
               },
               x: {
-                ticks: {
-                  color: '#666'
-                },
-                grid: {
-                  display: false
-                }
+                ticks: { color: '#666', maxRotation: 0, autoSkip: true, maxTicksLimit: 10 },
+                grid: { display: false }
               }
             }
           }
         });
-        
+
       } catch (e) {
         console.error('❌ Erro ao criar gráfico:', e);
         document.querySelector('.carteira-grafico').style.display = 'none';
