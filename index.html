@@ -10127,8 +10127,8 @@ Esta ação não pode ser desfeita.`)) return;
 
   // Colunas do template — mesma ordem da aba Lista da planilha
   const IMPORT_SUBGRUPOS = {
-    'Uso Pessoal':  ['Residencial','Casa de Temporada','Terreno / Lote','Outro'],
-    'Investimento': ['Residencial para Renda','Comercial para Renda','Terreno / Lote','Desenvolvimento / Permuta','Outro'],
+    'Uso Pessoal':  ['Lazer','Moradia','Trabalho','Família','Outros'],
+    'Investimento': ['Renda','Ganho de Capital','Incorporação','Outros'],
   };
 
   const IMPORT_COLUNAS = [
@@ -10147,6 +10147,9 @@ Esta ação não pode ser desfeita.`)) return;
     { key: 'complemento',  label: 'Complemento',          obrig: false },
     { key: 'area_total',   label: 'Area Total m2',        obrig: false },
     { key: 'area_util',    label: 'Area Util m2',         obrig: false },
+    { key: 'cod_iptu',     label: 'Codigo IPTU',          obrig: false },
+    { key: 'num_registro', label: 'Numero Registro Cartorio', obrig: false },
+    { key: 'cartorio',     label: 'Cartorio',             obrig: false },
     { key: 'observacoes',  label: 'Observacoes',          obrig: false },
   ];
 
@@ -10197,15 +10200,16 @@ Esta ação não pode ser desfeita.`)) return;
         if (c.key === 'nome')         return 'Apartamento Trindade';
         if (c.key === 'tipo')         return 'Apartamento';
         if (c.key === 'grupo')        return 'Uso Pessoal';
-        if (c.key === 'subgrupo')     return 'Residencial';
+        if (c.key === 'subgrupo')     return 'Moradia';
         if (c.key === 'titularidade') return 'Pessoa Física';
         if (c.key === 'familiar')     return nomesFamilia[0] || '';
         if (c.key === 'percentual')   return 100;
         if (c.key === 'valor_compra') return 750000;
-        if (c.key === 'data_compra')  return '2022-01-15';
+        if (c.key === 'data_compra')  return '15/01/2022';
         if (c.key === 'valor_atual')  return 850000;
         if (c.key === 'cep')          return '88036003';
         if (c.key === 'numero_end')   return '302';
+        if (c.key === 'cartorio')     return '1º Ofício de Registro';
         return '';
       });
 
@@ -10242,15 +10246,18 @@ Esta ação não pode ser desfeita.`)) return;
         ['Nome do Imóvel', 'Nome livre. Ex: Apartamento Trindade'],
         ['Tipo', 'Apartamento | Casa | Terreno | Comercial | Galpão | Outro'],
         ['Grupo', 'Uso Pessoal | Investimento'],
-        ['Subgrupo (Uso Pessoal)', 'Residencial | Casa de Temporada | Terreno / Lote | Outro'],
-        ['Subgrupo (Investimento)', 'Residencial para Renda | Comercial para Renda | Terreno / Lote | Desenvolvimento / Permuta | Outro'],
+        ['Subgrupo (Uso Pessoal)', 'Lazer | Moradia | Trabalho | Família | Outros'],
+        ['Subgrupo (Investimento)', 'Renda | Ganho de Capital | Incorporação | Outros'],
         ['Titular', 'Pessoa Física | Administradora de Bens | Empresa | Outros'],
         ['Membro da Família', 'Preencha EXATAMENTE como cadastrado no sistema (lista abaixo)'],
         ['Percentual', 'Número de 0 a 100. Ex: 100 para 100%'],
-        ['Valor de Compra / Atual', 'Apenas números. Ex: 750000'],
-        ['Data de Compra', 'Formato AAAA-MM-DD. Ex: 2022-01-15'],
-        ['CEP', 'Só números. O endereço é preenchido automaticamente na importação.'],
-        ['Número / Complemento', 'Apenas número e complemento — o resto vem do CEP'],
+        ['Valor de Compra / Atual', 'Apenas números. Ex: 750000 ou 750000,00'],
+        ['Data de Compra', 'Formato DD/MM/AAAA. Ex: 15/01/2022'],
+        ['CEP', 'Só números. Ex: 88036003. O endereço é preenchido automaticamente.'],
+        ['Número / Complemento', 'Apenas número e complemento — o restante vem do CEP'],
+        ['Código IPTU', 'Código de contribuição do IPTU. Ex: 00000-0'],
+        ['Número Registro Cartório', 'Número da matrícula no cartório'],
+        ['Cartório', 'Nome do cartório. Ex: 1º Ofício de Registro'],
         ['', ''],
         ['MEMBROS DA FAMÍLIA CADASTRADOS', ''],
       ];
@@ -10297,6 +10304,22 @@ Esta ação não pode ser desfeita.`)) return;
             colIdx[col.key] = idx;
           });
 
+          // Converte data DD/MM/AAAA ou AAAA-MM-DD para AAAA-MM-DD
+          function parseDataImport(str) {
+            if (!str) return '';
+            const s = String(str).trim();
+            // DD/MM/AAAA
+            const m1 = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+            if (m1) return `${m1[3]}-${m1[2].padStart(2,'0')}-${m1[1].padStart(2,'0')}`;
+            // AAAA-MM-DD já correto
+            const m2 = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+            if (m2) return s;
+            // DD-MM-AAAA
+            const m3 = s.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+            if (m3) return `${m3[3]}-${m3[2].padStart(2,'0')}-${m3[1].padStart(2,'0')}`;
+            return '';
+          }
+
           const linhasRaw = [];
           rows.slice(1).forEach((row, ri) => {
             if (!row || row.every(c => !c)) return;
@@ -10311,9 +10334,11 @@ Esta ação não pode ser desfeita.`)) return;
             if (!obj.grupo)        errosLinha.push('Grupo obrigatório');
             if (!obj.subgrupo)     errosLinha.push('Subgrupo obrigatório');
             if (!obj.titularidade) errosLinha.push('Titular obrigatório');
-            if (!obj.valor_compra || isNaN(parseFloat(obj.valor_compra.replace(/\./g,'').replace(',','.'))))
+            if (!obj.valor_compra || isNaN(parseMoedaTemp(obj.valor_compra)))
                                     errosLinha.push('Valor de compra inválido');
-            if (!obj.data_compra)  errosLinha.push('Data de compra obrigatória');
+            // Converte data para formato ISO
+            obj.data_compra = parseDataImport(obj.data_compra);
+            if (!obj.data_compra)  errosLinha.push('Data de compra inválida (use DD/MM/AAAA)');
             if (!obj.cep)          errosLinha.push('CEP obrigatório');
             linhasRaw.push({ ...obj, _erros: errosLinha, _ri: ri + 2 });
           });
@@ -10405,6 +10430,29 @@ Esta ação não pode ser desfeita.`)) return;
     }
   }
 
+  // Converte string monetária — lida com formatos BR e EN
+  function parseMoeda(str) {
+    const s = String(str || '').trim().replace(/[R$\s]/g,'');
+    if (!s) return 0;
+    const temPonto   = s.includes('.');
+    const temVirgula = s.includes(',');
+    let limpo;
+    if (temPonto && temVirgula) {
+      limpo = s.lastIndexOf(',') > s.lastIndexOf('.')
+        ? s.replace(/\./g,'').replace(',','.')
+        : s.replace(/,/g,'');
+    } else if (temVirgula) {
+      const partes = s.split(',');
+      limpo = (partes.length === 2 && partes[1].length <= 2)
+        ? s.replace(',','.')
+        : s.replace(/,/g,'');
+    } else {
+      limpo = s;
+    }
+    return parseFloat(limpo) || 0;
+  }
+  function parseMoedaTemp(str) { return parseMoeda(str); }
+
   async function importImovelConfirmar() {
     if (!_importLinhas.length) return;
     if (!imoveisSheetId) { alert('Planilha de imóveis não configurada.'); return; }
@@ -10416,42 +10464,6 @@ Esta ação não pode ser desfeita.`)) return;
     const erros = [];
     let ok = 0;
 
-    // Converte string de valor monetário para número — lida com formatos BR e EN
-    function parseMoeda(str) {
-      const s = String(str || '').trim();
-      if (!s) return 0;
-      // Detecta formato: se tem vírgula E ponto, o último separador é o decimal
-      const temPonto  = s.includes('.');
-      const temVirgula = s.includes(',');
-      let limpo;
-      if (temPonto && temVirgula) {
-        // Ex: 44.266,78 (BR) ou 44,266.78 (EN)
-        const ultimoPonto   = s.lastIndexOf('.');
-        const ultimaVirgula = s.lastIndexOf(',');
-        if (ultimaVirgula > ultimoPonto) {
-          // BR: 44.266,78 → remove ponto, troca vírgula por ponto
-          limpo = s.replace(/\./g,'').replace(',','.');
-        } else {
-          // EN: 44,266.78 → remove vírgula
-          limpo = s.replace(/,/g,'');
-        }
-      } else if (temVirgula && !temPonto) {
-        // Só vírgula: pode ser decimal (44266,78) ou milhar (44,266)
-        const partes = s.split(',');
-        if (partes.length === 2 && partes[1].length <= 2) {
-          // Decimal: 44266,78
-          limpo = s.replace(',','.');
-        } else {
-          // Milhar: 44,266
-          limpo = s.replace(/,/g,'');
-        }
-      } else {
-        // Só ponto ou nenhum separador — já é EN ou inteiro puro
-        limpo = s;
-      }
-      return parseFloat(limpo) || 0;
-    }
-
     for (const im of _importLinhas) {
       try {
         const hoje     = new Date().toISOString().split('T')[0];
@@ -10459,18 +10471,37 @@ Esta ação não pode ser desfeita.`)) return;
         const valComp  = parseMoeda(im.valor_compra);
         const valAtual = im.valor_atual ? parseMoeda(im.valor_atual) : valComp;
         const pct      = im.percentual  ? parseFloat(im.percentual) : 100;
+        const cepNum   = (im.cep || '').replace(/\D/g,'');
         const endereco = [im.logradouro, im.numero_end, im.bairro, im.cidade, im.uf].filter(Boolean).join(', ');
 
+        // Monta linha respeitando exatamente a estrutura do saveImovel:
+        // A:nome B:tipo C:grupo D:subgrupo E:endereco F:valComp G:dataComp H:valAtual I:dataAvaliacao
+        // J:iptu K:condominio L:areaTotal M:areaUtil N:quartos O:suites P:vagas
+        // Q:observacoes R:driveFolderId S:titularidade T:familiar U:percentual
+        // V:codigos W:registros X:cartorios
         const linha = [
-          im.nome, im.tipo, im.grupo, im.subgrupo,
-          endereco,
-          valComp, dataComp, valAtual, hoje,
-          '', '',
-          im.area_total || '', im.area_util || '',
-          '', '', '',
-          im.observacoes || '', '',
-          im.titularidade, im.familiar || '', pct,
-          '', '', '',
+          im.nome,                          // A
+          im.tipo,                          // B
+          im.grupo,                         // C
+          im.subgrupo,                      // D
+          endereco,                         // E
+          valComp,                          // F
+          dataComp,                         // G
+          valAtual,                         // H
+          hoje,                             // I data avaliação
+          '',                               // J iptu
+          '',                               // K condomínio
+          im.area_total || '',              // L
+          im.area_util  || '',              // M
+          '', '', '',                       // N O P quartos suites vagas
+          im.observacoes || '',             // Q
+          '',                               // R drive folder
+          im.titularidade,                  // S titular
+          im.familiar || '',                // T familiar
+          pct,                              // U percentual
+          im.cod_iptu || '',                // V código IPTU
+          im.num_registro || '',            // W nº registro cartório
+          im.cartorio || '',                // X cartório
         ];
 
         await gapi.client.sheets.spreadsheets.values.append({
