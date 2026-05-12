@@ -3288,6 +3288,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://apis.google.com/js/api.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script>
     console.log('🔥 Praxes v3.0 - Sidebar + Imóveis');
@@ -10376,7 +10377,6 @@ Esta ação não pode ser desfeita.`)) return;
   </div>
   <!-- ========== FIM MODAL IMPORTAR IMÓVEIS ========== -->
 
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script>
   // ============================================================
   // ========== MÓDULO IMPORTAÇÃO DE IMÓVEIS ====================
@@ -10708,6 +10708,13 @@ Esta ação não pode ser desfeita.`)) return;
       'style="margin-top:16px;background:#0f3d57;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:13px;font-weight:500;cursor:pointer;">Ver imoveis</button>' +
       '</div>';
   }
+  // Expõe funções no escopo global (window) para acesso via onclick
+  window.abrirModalImportarImoveis = abrirModalImportarImoveis;
+  window.importImovelBaixarTemplate = importImovelBaixarTemplate;
+  window.importImovelHandleDrop = importImovelHandleDrop;
+  window.importImovelLerArquivo = importImovelLerArquivo;
+  window.importImovelReset = importImovelReset;
+  window.importImovelConfirmar = importImovelConfirmar;
   // ============================================================
   // ========== FIM MODULO IMPORTACAO ===========================
   // ============================================================
