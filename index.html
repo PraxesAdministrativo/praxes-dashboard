@@ -4493,46 +4493,56 @@
     
     async function renderTitularidadeChart(imoveis) {
       try {
-        // Agrupa por titularidade
-        let totalHolding = 0;
-        let totalPF = 0;
-        
+        // Agrupa por titularidade usando as 4 opções reais do cadastro
+        const categorias = {
+          'Pessoa Física':         0,
+          'Administradora de Bens':0,
+          'Empresa':               0,
+          'Outros':                0,
+        };
+
         for (const row of imoveis) {
           if (!row[0]) continue;
-          
-          const titularidade = row[18] || 'Pessoa Física'; // Coluna S (índice 18)
-          const valorAtual = getValorAtualImovel(row[0], row[7]);
-          
-          if (titularidade === 'Holding') {
-            totalHolding += valorAtual;
+          const tit = (row[18] || 'Pessoa Física').trim(); // Coluna S
+          const val = getValorAtualImovel(row[0], row[7]);
+          // Normaliza variações antigas (ex: "Holding" → "Administradora de Bens")
+          if (tit === 'Holding' || tit === 'Administradora de Bens' || tit === 'Adm. de Bens') {
+            categorias['Administradora de Bens'] += val;
+          } else if (tit === 'Empresa') {
+            categorias['Empresa'] += val;
+          } else if (tit === 'Outros') {
+            categorias['Outros'] += val;
           } else {
-            totalPF += valorAtual;
+            categorias['Pessoa Física'] += val;
           }
         }
-        
-        const total = totalHolding + totalPF;
-        
-        if (total === 0) {
-          return;
-        }
-        
-        const percHolding = ((totalHolding / total) * 100).toFixed(1);
-        const percPF = ((totalPF / total) * 100).toFixed(1);
-        
+
+        const total = Object.values(categorias).reduce((a, b) => a + b, 0);
+        if (total === 0) return;
+
+        // Filtra categorias com valor > 0
+        const labels = Object.keys(categorias).filter(k => categorias[k] > 0);
+        const values = labels.map(k => categorias[k]);
+        const percs  = labels.map(k => ((categorias[k] / total) * 100).toFixed(1));
+        const cores  = {
+          'Pessoa Física':          '#5a9ec4',
+          'Administradora de Bens': '#2e6b8e',
+          'Empresa':                '#1D9E75',
+          'Outros':                 '#888780',
+        };
+        const bgColors = labels.map(k => cores[k] || '#aaa');
+
         const ctx = document.getElementById('chart-titularidade');
-        
-        if (titularidadeChart) {
-          titularidadeChart.destroy();
-        }
-        
+        if (titularidadeChart) titularidadeChart.destroy();
+
         titularidadeChart = new Chart(ctx, {
           type: 'doughnut',
           data: {
-            labels: ['Holding', 'Pessoa Física'],
+            labels,
             datasets: [{
-              data: [totalHolding, totalPF],
-              backgroundColor: ['#2e6b8e', '#5a9ec4'],
-              borderColor: ['#fff', '#fff'],
+              data: values,
+              backgroundColor: bgColors,
+              borderColor: ['#fff'],
               borderWidth: 3
             }]
           },
@@ -4545,23 +4555,15 @@
                 position: 'bottom',
                 labels: {
                   padding: 15,
-                  font: {
-                    size: 11,
-                    family: 'Montserrat'
-                  },
+                  font: { size: 11, family: 'Montserrat' },
                   color: '#666',
                   generateLabels: function(chart) {
-                    const data = chart.data;
-                    return data.labels.map((label, i) => {
-                      const value = data.datasets[0].data[i];
-                      const perc = i === 0 ? percHolding : percPF;
-                      return {
-                        text: `${label} (${perc}%)`,
-                        fillStyle: data.datasets[0].backgroundColor[i],
-                        hidden: false,
-                        index: i
-                      };
-                    });
+                    return chart.data.labels.map((label, i) => ({
+                      text: `${label} (${percs[i]}%)`,
+                      fillStyle: bgColors[i],
+                      hidden: false,
+                      index: i
+                    }));
                   }
                 }
               },
@@ -4572,17 +4574,15 @@
                 padding: 12,
                 callbacks: {
                   label: function(context) {
-                    const label = context.label || '';
-                    const value = context.parsed || 0;
-                    const perc = context.dataIndex === 0 ? percHolding : percPF;
-                    return `${label}: R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 0 })} (${perc}%)`;
+                    const val = context.parsed || 0;
+                    return `${context.label}: R$ ${val.toLocaleString('pt-BR', { minimumFractionDigits: 0 })} (${percs[context.dataIndex]}%)`;
                   }
                 }
               }
             }
           }
         });
-        
+
       } catch (e) {
         console.error('❌ Erro ao criar gráfico de titularidade:', e);
       }
