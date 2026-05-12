@@ -10311,7 +10311,7 @@ Esta ação não pode ser desfeita.`)) return;
             if (!obj.grupo)        errosLinha.push('Grupo obrigatório');
             if (!obj.subgrupo)     errosLinha.push('Subgrupo obrigatório');
             if (!obj.titularidade) errosLinha.push('Titular obrigatório');
-            if (!obj.valor_compra || isNaN(parseFloat(obj.valor_compra.replace(/[^0-9.-]/g,''))))
+            if (!obj.valor_compra || isNaN(parseFloat(obj.valor_compra.replace(/\./g,'').replace(',','.'))))
                                     errosLinha.push('Valor de compra inválido');
             if (!obj.data_compra)  errosLinha.push('Data de compra obrigatória');
             if (!obj.cep)          errosLinha.push('CEP obrigatório');
@@ -10419,8 +10419,8 @@ Esta ação não pode ser desfeita.`)) return;
     for (const im of _importLinhas) {
       try {
         const hoje     = new Date().toISOString().split('T')[0];
-        const valComp  = parseFloat(String(im.valor_compra).replace(/[^0-9.-]/g,'')) || 0;
-        const valAtual = im.valor_atual ? parseFloat(String(im.valor_atual).replace(/[^0-9.-]/g,'')) : valComp;
+        const valComp  = parseFloat(String(im.valor_compra).replace(/\./g,'').replace(',','.')) || 0;
+        const valAtual = im.valor_atual ? parseFloat(String(im.valor_atual).replace(/\./g,'').replace(',','.')) : valComp;
         const pct      = im.percentual  ? parseFloat(im.percentual) : 100;
         const endereco = [im.logradouro, im.numero_end, im.bairro, im.cidade, im.uf].filter(Boolean).join(', ');
 
