@@ -4621,8 +4621,16 @@
 
       } else {
         // ── MODO COTA ─────────────────────────────────────────────
-        // Data de referência: primeiro evento (compra mais antiga)
-        const dataRef = eixo[0];
+        // Data de referência: data da primeira compra real registrada
+        let dataRef = new Date();
+        for (const d of Object.values(dadosPorImovel)) {
+          if (d.dataCompra) {
+            const dc = new Date(d.dataCompra + 'T12:00:00');
+            if (!isNaN(dc) && dc < dataRef) dataRef = dc;
+          }
+        }
+        // Fallback: primeiro ponto do eixo
+        if (!dataRef || dataRef > eixo[0]) dataRef = eixo[0];
 
         // Para cada ponto do eixo, calcula:
         //   valorMercado(t) = soma dos imóveis interpolados
@@ -4631,11 +4639,15 @@
         //   TotalReturn(t) = [valorMercado(t) + rendaAcumulada(t) - capitalInvestido(t)] / capitalInvestido(dataRef)
         //   Cota(t) = 100 * (1 + TotalReturn(t)) se capitalInvestido(dataRef) > 0
 
-        // Capital investido na data de referência (apenas compras)
-        const capitalBase = Object.values(dadosPorImovel).reduce((soma, d) => {
-          const dc = d.dataCompra ? new Date(d.dataCompra + 'T12:00:00') : null;
-          return soma + (dc && dc <= dataRef ? d.valorCompra : 0);
-        }, 0) || 1; // evita divisão por zero
+        // ── Cota correta ─────────────────────────────────────────
+        // A cota mede quanto R$ 100 aportados viram ao longo do tempo.
+        // Fórmula: Cota(t) = 100 × (ValorMercado(t) + RendaAcumulada(t)) / CustoAcumulado(t)
+        //
+        // No ponto inicial (primeira compra), CustoAcumulado = valorCompra e
+        // ValorMercado = valorCompra → Cota = 100. ✓
+        //
+        // Cada real que entra como saída (despesa, investimento) aumenta o denominador,
+        // cada real de aluguel ou receita aumenta o numerador → penaliza gastos e premia renda.
 
         const cotaCarteira = eixo.map(d => {
           const nomes = Object.keys(dadosPorImovel);
@@ -4644,21 +4656,26 @@
             const dd = dadosPorImovel[nome];
             valorMercadoTotal += _interpolarValorMercado(historicosPorImovel[nome] || [], d);
             const fl = _fluxoAcumuladoAte(dd, d);
-            saidasTotal  += fl.saidas;
+            saidasTotal   += fl.saidas;
             entradasTotal += fl.entradas;
           }
-          // TotalReturn = (ValorMercado + RendaAcumulada - SaídasAcumuladas) / capitalBase
-          const tr = (valorMercadoTotal + entradasTotal - saidasTotal) / capitalBase;
-          return Math.max(0, 100 * (1 + tr));
+          if (saidasTotal <= 0) return null; // ainda sem capital aportado
+          // Numerador: valor de mercado atual + toda renda recebida
+          // Denominador: todo capital desembolsado (compra + despesas + investimentos + desp. recorrentes)
+          return (valorMercadoTotal + entradasTotal) / saidasTotal * 100;
+        }).map((v, i, arr) => {
+          // Substitui nulls no início por null (Chart.js pula pontos nulos)
+          if (v === null) return null;
+          return Math.max(0, v);
         });
 
         // Benchmarks a partir da data de referência, base 100
         const cdiBench  = eixo.map(d => 100 * _benchmarkCDIMultiplicador(dataRef, d));
         const ipcaBench = eixo.map(d => 100 * _benchmarkIPCAMultiplicador(dataRef, d));
 
-        // KPIs
-        const cotaFinal = cotaCarteira[cotaCarteira.length - 1] || 100;
-        const retornoTotal = ((cotaFinal / 100) - 1) * 100;
+        // KPIs — usa o último valor não-nulo da cota
+        const cotaFinal = [...cotaCarteira].reverse().find(v => v !== null) || 100;
+        const retornoTotal = (cotaFinal / 100 - 1) * 100;
         const anosTotal = (hoje - dataRef) / (365.25 * 864e5);
         const cagrTR = anosTotal > 0 ? (Math.pow(cotaFinal / 100, 1 / anosTotal) - 1) * 100 : 0;
 
@@ -4694,6 +4711,7 @@
                 borderColor: '#0f3d57',
                 backgroundColor: 'rgba(15,61,87,0.08)',
                 borderWidth: 2.5, fill: true, tension: 0.3,
+                spanGaps: false,
                 pointRadius: 0, pointHoverRadius: 6,
                 pointBackgroundColor: '#0f3d57', pointBorderColor: '#fff', pointBorderWidth: 2
               },
