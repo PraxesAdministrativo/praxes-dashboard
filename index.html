@@ -1530,49 +1530,9 @@
             
             <!-- GRÁFICO DE EVOLUÇÃO -->
             <div class="carteira-grafico">
-              <!-- Header com toggle -->
-              <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
-                <div class="carteira-grafico-titulo" style="margin-bottom:0;">📊 Evolução do Patrimônio</div>
-                <div style="display:flex;align-items:center;gap:6px;background:#f1f5f9;border-radius:8px;padding:3px;">
-                  <button id="btn-modo-valor" onclick="setModoGrafico('valor')" style="padding:5px 12px;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;background:#0f3d57;color:#fff;font-family:inherit;transition:all .2s;">Valor de Mercado</button>
-                  <button id="btn-modo-cota" onclick="setModoGrafico('cota')" style="padding:5px 12px;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;background:transparent;color:#666;font-family:inherit;transition:all .2s;">Cota Ajustada</button>
-                </div>
-              </div>
-
-              <!-- KPIs da cota (visíveis só no modo cota) -->
-              <div id="cota-kpis" style="display:none;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;">
-                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;">
-                  <div style="font-size:10px;color:#888;margin-bottom:2px;">Cota Atual</div>
-                  <div id="kpi-cota-atual" style="font-size:18px;font-weight:700;color:#0f3d57;">—</div>
-                  <div style="font-size:10px;color:#888;">base R$ 100</div>
-                </div>
-                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;">
-                  <div style="font-size:10px;color:#888;margin-bottom:2px;">Retorno Total</div>
-                  <div id="kpi-retorno-total" style="font-size:18px;font-weight:700;color:#0f3d57;">—</div>
-                  <div style="font-size:10px;color:#888;">vs capital investido</div>
-                </div>
-                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;">
-                  <div style="font-size:10px;color:#888;margin-bottom:2px;">CAGR Total Return</div>
-                  <div id="kpi-cagr-tr" style="font-size:18px;font-weight:700;color:#0f3d57;">—</div>
-                  <div style="font-size:10px;color:#888;">ao ano</div>
-                </div>
-                <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;">
-                  <div style="font-size:10px;color:#888;margin-bottom:2px;">Renda Acumulada</div>
-                  <div id="kpi-renda-acum" style="font-size:18px;font-weight:700;color:#27500a;">—</div>
-                  <div style="font-size:10px;color:#888;">aluguéis + receitas</div>
-                </div>
-              </div>
-
+              <div class="carteira-grafico-titulo">📊 Evolução do Patrimônio</div>
               <div class="carteira-chart-container" style="height: 300px;">
                 <canvas id="chart-carteira"></canvas>
-              </div>
-
-              <!-- Legenda benchmarks (visível só no modo cota) -->
-              <div id="cota-legenda" style="display:none;flex-wrap:wrap;gap:14px;margin-top:10px;font-size:11px;color:#666;">
-                <span style="display:flex;align-items:center;gap:5px;"><span style="display:inline-block;width:18px;height:2.5px;background:#0f3d57;border-radius:2px;"></span>Sua Carteira</span>
-                <span style="display:flex;align-items:center;gap:5px;"><span style="display:inline-block;width:18px;height:2.5px;background:#f59e0b;border-radius:2px;border-style:dashed;"></span>CDI</span>
-                <span style="display:flex;align-items:center;gap:5px;"><span style="display:inline-block;width:18px;height:2.5px;background:#ef4444;border-radius:2px;border-style:dashed;"></span>IPCA</span>
-                <span style="font-size:10px;color:#aaa;margin-left:auto;">* CDI e IPCA são estimativas baseadas em médias históricas</span>
               </div>
             </div>
 
@@ -1673,6 +1633,10 @@
                           style="padding:5px 12px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;background:transparent;color:#666;font-family:inherit;">
                           Yield Anualizado
                         </button>
+                        <button id="btn-rent-cota" onclick="rentToggle('cota')"
+                          style="padding:5px 12px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;background:transparent;color:#666;font-family:inherit;">
+                          Cota vs Benchmarks
+                        </button>
                       </div>
                     </div>
                     <!-- legenda dinâmica -->
@@ -1680,6 +1644,13 @@
                       <span id="rent-leg-1" style="display:flex;align-items:center;gap:5px;font-size:12px;color:#555;"><span style="display:inline-block;width:14px;height:3px;background:#2e6b8e;border-radius:2px;"></span>Retorno Total</span>
                       <span id="rent-leg-2" style="display:flex;align-items:center;gap:5px;font-size:12px;color:#555;"><span style="display:inline-block;width:14px;height:3px;background:#16a34a;border-radius:2px;"></span>Retorno Aluguel</span>
                       <span style="display:flex;align-items:center;gap:5px;font-size:12px;color:#555;"><span style="display:inline-block;width:14px;height:10px;background:rgba(180,180,180,0.4);border-radius:2px;border:1px solid rgba(180,180,180,0.6);"></span>Valor do Imóvel</span>
+                    </div>
+                    <div id="rent-legenda-cota" style="display:none;gap:12px;margin-bottom:10px;flex-wrap:wrap;align-items:center;">
+                      <span style="display:flex;align-items:center;gap:5px;font-size:12px;color:#555;"><span style="display:inline-block;width:18px;height:2.5px;background:#0f3d57;border-radius:2px;"></span>Este Imóvel</span>
+                      <span style="display:flex;align-items:center;gap:5px;font-size:12px;color:#555;"><span style="display:inline-block;width:18px;height:2px;background:#f59e0b;border-radius:2px;"></span>CDI</span>
+                      <span style="display:flex;align-items:center;gap:5px;font-size:12px;color:#555;"><span style="display:inline-block;width:18px;height:2px;background:#ef4444;border-radius:2px;"></span>IPCA</span>
+                      <span style="display:flex;align-items:center;gap:5px;font-size:12px;color:#555;"><span style="display:inline-block;width:18px;height:2px;background:#8b5cf6;border-radius:2px;"></span>IPCA + 6%</span>
+                      <span style="font-size:10px;color:#aaa;margin-left:4px;">* base 100 na data de compra · benchmarks são estimativas históricas</span>
                     </div>
                     <div id="chart-rentabilidade-empty" style="display:none;text-align:center;padding:40px;color:#999;font-size:13px;">
                       Sem dados suficientes para calcular rentabilidade.<br>Cadastre o histórico de valores e um período de ocupação.
@@ -4390,193 +4361,81 @@
     
     let carteiraChart = null;
     let titularidadeChart = null;
-    
-    // ============================================================
-    // ===== GRÁFICO DE CARTEIRA — MODO VALOR E MODO COTA =========
-    // ============================================================
 
-    // Estado compartilhado do gráfico de carteira
-    let _carteiraGraficoState = null; // guarda dados calculados para reuso no toggle
-    let _modoGrafico = 'valor'; // 'valor' | 'cota'
+    async function renderCarteiraChart(imoveis) {
+      try {
+        const allHistoricoRows = dataCache.historico || [];
+        const imoveisUnicos = imoveis.map(r => r[0]).filter(Boolean);
 
-    function setModoGrafico(modo) {
-      _modoGrafico = modo;
-      // Atualiza botões
-      document.getElementById('btn-modo-valor').style.background = modo === 'valor' ? '#0f3d57' : 'transparent';
-      document.getElementById('btn-modo-valor').style.color = modo === 'valor' ? '#fff' : '#666';
-      document.getElementById('btn-modo-cota').style.background = modo === 'cota' ? '#0f3d57' : 'transparent';
-      document.getElementById('btn-modo-cota').style.color = modo === 'cota' ? '#fff' : '#666';
-      // Mostra/esconde KPIs e legenda
-      const kpis = document.getElementById('cota-kpis');
-      const leg  = document.getElementById('cota-legenda');
-      if (kpis) kpis.style.display = modo === 'cota' ? 'grid' : 'none';
-      if (leg)  leg.style.display  = modo === 'cota' ? 'flex' : 'none';
-      // Re-renderiza com dados já calculados
-      if (_carteiraGraficoState) _renderGraficoComEstado(_carteiraGraficoState);
-    }
+        const historicosPorImovel = {};
+        imoveisUnicos.forEach(nome => {
+          const pts = allHistoricoRows
+            .filter(r => r[0] === nome && r[1])
+            .map(r => ({
+              data: new Date(r[1] + 'T12:00:00'),
+              valor: parseFloat(String(r[2]||'0').replace(/[^\d.-]/g,'')) || 0
+            }))
+            .filter(p => !isNaN(p.data) && p.valor > 0)
+            .sort((a, b) => a.data - b.data);
 
-    // ── Interpolação CAGR entre reavaliações ────────────────────
-    function _interpolarValorMercado(pts, dataAlvo) {
-      if (!pts || pts.length === 0) return 0;
-      if (dataAlvo < pts[0].data) return 0;
-      if (dataAlvo >= pts[pts.length - 1].data) {
-        if (pts.length === 1) return pts[0].valor;
-        const p1 = pts[pts.length - 2], p2 = pts[pts.length - 1];
-        const anos = (p2.data - p1.data) / (365.25 * 864e5);
-        if (anos <= 0) return p2.valor;
-        const cagr = Math.pow(p2.valor / p1.valor, 1 / anos) - 1;
-        const extra = (dataAlvo - p2.data) / (365.25 * 864e5);
-        return p2.valor * Math.pow(1 + cagr, extra);
-      }
-      for (let i = 0; i < pts.length - 1; i++) {
-        const p1 = pts[i], p2 = pts[i + 1];
-        if (dataAlvo >= p1.data && dataAlvo <= p2.data) {
-          const anos = (p2.data - p1.data) / (365.25 * 864e5);
-          if (anos <= 0) return p1.valor;
-          const cagr = Math.pow(p2.valor / p1.valor, 1 / anos) - 1;
-          const parcial = (dataAlvo - p1.data) / (365.25 * 864e5);
-          return p1.valor * Math.pow(1 + cagr, parcial);
+          if (pts.length === 1) {
+            const valorAtual = getValorAtualImovel(nome, imoveis.find(r=>r[0]===nome)?.[7]);
+            if (valorAtual > pts[0].valor) pts.push({ data: new Date(), valor: valorAtual });
+          }
+          if (pts.length > 0) historicosPorImovel[nome] = pts;
+        });
+
+        if (Object.keys(historicosPorImovel).length === 0) {
+          document.querySelector('.carteira-grafico').style.display = 'none';
+          return;
         }
-      }
-      return 0;
-    }
 
-    // ── Acumula fluxo de caixa até uma data ─────────────────────
-    // Retorna { saidasAcum, entradasAcum }
-    // Saídas: compra + despExt + investimentos + despRec (mês a mês)
-    // Entradas: aluguéis + receitas avulsas
-    function _fluxoAcumuladoAte(dadosImovel, dataAlvo) {
-      const MS_DIA = 864e5;
-      let saidas = 0, entradas = 0;
+        let minData = new Date();
+        Object.values(historicosPorImovel).forEach(pts => {
+          if (pts[0].data < minData) minData = pts[0].data;
+        });
 
-      // 1. Compra (data de compra do imóvel)
-      const dataCompra = dadosImovel.dataCompra ? new Date(dadosImovel.dataCompra + 'T12:00:00') : null;
-      if (dataCompra && dataCompra <= dataAlvo) {
-        saidas += dadosImovel.valorCompra;
-      } else if (!dataCompra || dataCompra > dataAlvo) {
-        // Imóvel ainda não existia nessa data
-        return { saidas: 0, entradas: 0 };
-      }
-
-      // 2. Despesas extraordinárias (têm data individual)
-      for (const d of dadosImovel.despExt) {
-        const dt = d.data ? new Date(d.data + 'T12:00:00') : null;
-        if (dt && dt >= dataCompra && dt <= dataAlvo) saidas += d.valor;
-      }
-
-      // 3. Investimentos no imóvel (têm data individual)
-      for (const inv of dadosImovel.investimentos) {
-        const dt = inv.data ? new Date(inv.data + 'T12:00:00') : null;
-        if (dt && dt >= dataCompra && dt <= dataAlvo) saidas += inv.valor;
-      }
-
-      // 4. Despesas recorrentes — acumula mês a mês desde a compra
-      //    Usa o somatório de despesasMensais × meses decorridos
-      if (dadosImovel.despesasMensais > 0) {
-        const mesesDecorridos = Math.max(0, (dataAlvo - dataCompra) / (30.44 * MS_DIA));
-        saidas += dadosImovel.despesasMensais * mesesDecorridos;
-      }
-
-      // 5. Aluguéis — percorre períodos de ocupação
-      for (const oc of dadosImovel.ocupacao) {
-        if (!oc.dataInicio) continue;
-        const ini = new Date(oc.dataInicio + 'T12:00:00');
-        const fim = oc.dataFim ? new Date(oc.dataFim + 'T12:00:00') : new Date();
-        const efetivo_ini = ini < dataCompra ? dataCompra : ini;
-        const efetivo_fim = fim > dataAlvo   ? dataAlvo   : fim;
-        if (efetivo_fim <= efetivo_ini) continue;
-        const meses = (efetivo_fim - efetivo_ini) / (30.44 * MS_DIA);
-        entradas += oc.valorAluguel * meses;
-        // Desconta taxa de imobiliária se existir
-        if (oc.taxaImobiliaria > 0) {
-          entradas -= oc.valorAluguel * (oc.taxaImobiliaria / 100) * meses;
+        const eixo = [];
+        const cursor = new Date(minData);
+        cursor.setDate(1);
+        while (cursor <= new Date()) {
+          eixo.push(new Date(cursor));
+          cursor.setMonth(cursor.getMonth() + 6);
         }
-      }
+        if (eixo[eixo.length-1] < new Date()) eixo.push(new Date());
 
-      // 6. Receitas avulsas (venda parcial, indenização, etc.)
-      for (const rec of dadosImovel.receitas) {
-        const dt = rec.data ? new Date(rec.data + 'T12:00:00') : null;
-        if (dt && dt >= dataCompra && dt <= dataAlvo) entradas += rec.valor;
-      }
+        function interpolarValor(pts, dataAlvo) {
+          if (!pts || pts.length === 0) return 0;
+          if (dataAlvo < pts[0].data) return 0;
+          if (dataAlvo >= pts[pts.length-1].data) {
+            if (pts.length === 1) return pts[0].valor;
+            const p1 = pts[pts.length-2], p2 = pts[pts.length-1];
+            const anos = (p2.data - p1.data) / (365.25 * 864e5);
+            if (anos <= 0) return p2.valor;
+            return p2.valor * Math.pow(p2.valor / p1.valor, (dataAlvo - p2.data) / (p2.data - p1.data));
+          }
+          for (let i = 0; i < pts.length - 1; i++) {
+            const p1 = pts[i], p2 = pts[i+1];
+            if (dataAlvo >= p1.data && dataAlvo <= p2.data) {
+              const anos = (p2.data - p1.data) / (365.25 * 864e5);
+              if (anos <= 0) return p1.valor;
+              const cagr = Math.pow(p2.valor / p1.valor, 1 / anos) - 1;
+              return p1.valor * Math.pow(1 + cagr, (dataAlvo - p1.data) / (365.25 * 864e5));
+            }
+          }
+          return 0;
+        }
 
-      return { saidas, entradas };
-    }
-
-    // ── Benchmark CDI acumulado desde uma data ──────────────────
-    // CDI anual histórico estimado por período (médias reais aproximadas)
-    function _benchmarkCDIMultiplicador(dataInicio, dataFim) {
-      // CDI anual estimado por período (pré-definido, evita chamada API)
-      const periodos = [
-        { ate: new Date('2003-01-01'), taxa: 0.235 },
-        { ate: new Date('2006-01-01'), taxa: 0.185 },
-        { ate: new Date('2010-01-01'), taxa: 0.135 },
-        { ate: new Date('2013-01-01'), taxa: 0.105 },
-        { ate: new Date('2016-01-01'), taxa: 0.115 },
-        { ate: new Date('2018-01-01'), taxa: 0.110 },
-        { ate: new Date('2021-01-01'), taxa: 0.045 },
-        { ate: new Date('2023-01-01'), taxa: 0.125 },
-        { ate: new Date('2025-01-01'), taxa: 0.107 },
-        { ate: new Date('2099-01-01'), taxa: 0.135 } // atual ~13.5% Selic
-      ];
-
-      let mult = 1;
-      let cursor = new Date(dataInicio);
-      while (cursor < dataFim) {
-        const periodo = periodos.find(p => cursor < p.ate);
-        const taxaAnual = periodo ? periodo.taxa : 0.10;
-        // Avança até a quebra do período ou o fim
-        const fimPeriodo = periodos.find(p => cursor < p.ate)?.ate || dataFim;
-        const ate = fimPeriodo < dataFim ? fimPeriodo : dataFim;
-        const anos = (ate - cursor) / (365.25 * 864e5);
-        mult *= Math.pow(1 + taxaAnual, anos);
-        cursor = new Date(ate);
-      }
-      return mult;
-    }
-
-    // CDI anual estimado por período (mesma lógica, para IPCA)
-    function _benchmarkIPCAMultiplicador(dataInicio, dataFim) {
-      const periodos = [
-        { ate: new Date('2003-01-01'), taxa: 0.125 },
-        { ate: new Date('2006-01-01'), taxa: 0.075 },
-        { ate: new Date('2010-01-01'), taxa: 0.055 },
-        { ate: new Date('2016-01-01'), taxa: 0.065 },
-        { ate: new Date('2020-01-01'), taxa: 0.040 },
-        { ate: new Date('2022-01-01'), taxa: 0.088 },
-        { ate: new Date('2023-01-01'), taxa: 0.057 },
-        { ate: new Date('2099-01-01'), taxa: 0.048 }
-      ];
-      let mult = 1;
-      let cursor = new Date(dataInicio);
-      while (cursor < dataFim) {
-        const periodo = periodos.find(p => cursor < p.ate);
-        const taxaAnual = periodo ? periodo.taxa : 0.05;
-        const fimPeriodo = periodos.find(p => cursor < p.ate)?.ate || dataFim;
-        const ate = fimPeriodo < dataFim ? fimPeriodo : dataFim;
-        const anos = (ate - cursor) / (365.25 * 864e5);
-        mult *= Math.pow(1 + taxaAnual, anos);
-        cursor = new Date(ate);
-      }
-      return mult;
-    }
-
-    // ── Renderiza o gráfico dado o estado calculado ──────────────
-    function _renderGraficoComEstado(state) {
-      const { eixo, historicosPorImovel, dadosPorImovel, labels } = state;
-      const hoje = new Date();
-
-      if (_modoGrafico === 'valor') {
-        // Modo original: soma de valores de mercado
+        const labels = eixo.map(d => d.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }));
         const valores = eixo.map(d =>
           Object.keys(historicosPorImovel).reduce((soma, nome) =>
-            soma + _interpolarValorMercado(historicosPorImovel[nome], d), 0)
+            soma + interpolarValor(historicosPorImovel[nome], d), 0)
         );
 
-        document.getElementById('cota-kpis').style.display = 'none';
-        document.getElementById('cota-legenda').style.display = 'none';
-
+        document.querySelector('.carteira-grafico').style.display = 'block';
         const ctx = document.getElementById('chart-carteira');
         if (carteiraChart) carteiraChart.destroy();
+
         carteiraChart = new Chart(ctx, {
           type: 'line',
           data: {
@@ -4618,233 +4477,6 @@
             }
           }
         });
-
-      } else {
-        // ── MODO COTA ─────────────────────────────────────────────
-        // Data de referência: data da primeira compra real registrada
-        let dataRef = new Date();
-        for (const d of Object.values(dadosPorImovel)) {
-          if (d.dataCompra) {
-            const dc = new Date(d.dataCompra + 'T12:00:00');
-            if (!isNaN(dc) && dc < dataRef) dataRef = dc;
-          }
-        }
-        // Fallback: primeiro ponto do eixo
-        if (!dataRef || dataRef > eixo[0]) dataRef = eixo[0];
-
-        // Para cada ponto do eixo, calcula:
-        //   valorMercado(t) = soma dos imóveis interpolados
-        //   capitalInvestido(t) = soma das saídas acumuladas de todos imóveis
-        //   rendaAcumulada(t) = soma das entradas acumuladas
-        //   TotalReturn(t) = [valorMercado(t) + rendaAcumulada(t) - capitalInvestido(t)] / capitalInvestido(dataRef)
-        //   Cota(t) = 100 * (1 + TotalReturn(t)) se capitalInvestido(dataRef) > 0
-
-        // ── Cota correta ─────────────────────────────────────────
-        // A cota mede quanto R$ 100 aportados viram ao longo do tempo.
-        // Fórmula: Cota(t) = 100 × (ValorMercado(t) + RendaAcumulada(t)) / CustoAcumulado(t)
-        //
-        // No ponto inicial (primeira compra), CustoAcumulado = valorCompra e
-        // ValorMercado = valorCompra → Cota = 100. ✓
-        //
-        // Cada real que entra como saída (despesa, investimento) aumenta o denominador,
-        // cada real de aluguel ou receita aumenta o numerador → penaliza gastos e premia renda.
-
-        const cotaCarteira = eixo.map(d => {
-          const nomes = Object.keys(dadosPorImovel);
-          let valorMercadoTotal = 0, saidasTotal = 0, entradasTotal = 0;
-          for (const nome of nomes) {
-            const dd = dadosPorImovel[nome];
-            valorMercadoTotal += _interpolarValorMercado(historicosPorImovel[nome] || [], d);
-            const fl = _fluxoAcumuladoAte(dd, d);
-            saidasTotal   += fl.saidas;
-            entradasTotal += fl.entradas;
-          }
-          if (saidasTotal <= 0) return null; // ainda sem capital aportado
-          // Numerador: valor de mercado atual + toda renda recebida
-          // Denominador: todo capital desembolsado (compra + despesas + investimentos + desp. recorrentes)
-          return (valorMercadoTotal + entradasTotal) / saidasTotal * 100;
-        }).map((v, i, arr) => {
-          // Substitui nulls no início por null (Chart.js pula pontos nulos)
-          if (v === null) return null;
-          return Math.max(0, v);
-        });
-
-        // Benchmarks a partir da data de referência, base 100
-        const cdiBench  = eixo.map(d => 100 * _benchmarkCDIMultiplicador(dataRef, d));
-        const ipcaBench = eixo.map(d => 100 * _benchmarkIPCAMultiplicador(dataRef, d));
-
-        // KPIs — usa o último valor não-nulo da cota
-        const cotaFinal = [...cotaCarteira].reverse().find(v => v !== null) || 100;
-        const retornoTotal = (cotaFinal / 100 - 1) * 100;
-        const anosTotal = (hoje - dataRef) / (365.25 * 864e5);
-        const cagrTR = anosTotal > 0 ? (Math.pow(cotaFinal / 100, 1 / anosTotal) - 1) * 100 : 0;
-
-        // Renda acumulada total hoje
-        const rendaAcumTotal = Object.values(dadosPorImovel).reduce((soma, d) => {
-          return soma + _fluxoAcumuladoAte(d, hoje).entradas;
-        }, 0);
-
-        const fmt2 = v => v >= 1e6
-          ? 'R$ ' + (v/1e6).toFixed(2) + 'M'
-          : 'R$ ' + Math.round(v).toLocaleString('pt-BR');
-
-        document.getElementById('kpi-cota-atual').textContent  = cotaFinal.toFixed(2);
-        document.getElementById('kpi-retorno-total').textContent = (retornoTotal >= 0 ? '+' : '') + retornoTotal.toFixed(1) + '%';
-        document.getElementById('kpi-retorno-total').style.color = retornoTotal >= 0 ? '#0f3d57' : '#dc2626';
-        document.getElementById('kpi-cagr-tr').textContent = (cagrTR >= 0 ? '+' : '') + cagrTR.toFixed(2) + '% a.a.';
-        document.getElementById('kpi-cagr-tr').style.color = cagrTR >= 0 ? '#0f3d57' : '#dc2626';
-        document.getElementById('kpi-renda-acum').textContent = fmt2(rendaAcumTotal);
-
-        document.getElementById('cota-kpis').style.display = 'grid';
-        document.getElementById('cota-legenda').style.display = 'flex';
-
-        const ctx = document.getElementById('chart-carteira');
-        if (carteiraChart) carteiraChart.destroy();
-        carteiraChart = new Chart(ctx, {
-          type: 'line',
-          data: {
-            labels,
-            datasets: [
-              {
-                label: 'Sua Carteira',
-                data: cotaCarteira,
-                borderColor: '#0f3d57',
-                backgroundColor: 'rgba(15,61,87,0.08)',
-                borderWidth: 2.5, fill: true, tension: 0.3,
-                spanGaps: false,
-                pointRadius: 0, pointHoverRadius: 6,
-                pointBackgroundColor: '#0f3d57', pointBorderColor: '#fff', pointBorderWidth: 2
-              },
-              {
-                label: 'CDI',
-                data: cdiBench,
-                borderColor: '#f59e0b',
-                borderWidth: 1.5, borderDash: [5, 3],
-                fill: false, tension: 0.2,
-                pointRadius: 0, pointHoverRadius: 4
-              },
-              {
-                label: 'IPCA',
-                data: ipcaBench,
-                borderColor: '#ef4444',
-                borderWidth: 1.5, borderDash: [3, 3],
-                fill: false, tension: 0.2,
-                pointRadius: 0, pointHoverRadius: 4
-              }
-            ]
-          },
-          options: {
-            responsive: true, maintainAspectRatio: false,
-            interaction: { mode: 'index', intersect: false },
-            plugins: {
-              legend: { display: false },
-              tooltip: {
-                backgroundColor: '#0f3d57', titleColor: '#fff', bodyColor: '#fff',
-                padding: 12,
-                callbacks: {
-                  label: c => {
-                    const val = c.parsed.y.toFixed(2);
-                    const delta = ((c.parsed.y / 100) - 1) * 100;
-                    const sinal = delta >= 0 ? '+' : '';
-                    return `${c.dataset.label}: ${val} pts (${sinal}${delta.toFixed(1)}%)`;
-                  }
-                }
-              }
-            },
-            scales: {
-              y: {
-                beginAtZero: false,
-                ticks: { callback: v => v.toFixed(0) + ' pts', color: '#666' },
-                grid: { color: '#e5e5e5' }
-              },
-              x: { ticks: { color: '#666', maxRotation: 0, autoSkip: true, maxTicksLimit: 10 }, grid: { display: false } }
-            }
-          }
-        });
-      }
-    }
-
-    async function renderCarteiraChart(imoveis) {
-      try {
-        const allHistoricoRows = dataCache.historico || [];
-        const imoveisUnicos = imoveis.map(r => r[0]).filter(Boolean);
-
-        // ── 1. Histórico de reavaliações por imóvel ─────────────
-        const historicosPorImovel = {};
-        imoveisUnicos.forEach(nome => {
-          const pts = allHistoricoRows
-            .filter(r => r[0] === nome && r[1])
-            .map(r => ({
-              data: new Date(r[1] + 'T12:00:00'),
-              valor: parseFloat(String(r[2]||'0').replace(/[^\d.-]/g,'')) || 0
-            }))
-            .filter(p => !isNaN(p.data) && p.valor > 0)
-            .sort((a, b) => a.data - b.data);
-
-          if (pts.length === 1) {
-            const valorAtual = getValorAtualImovel(nome, imoveis.find(r=>r[0]===nome)?.[7]);
-            if (valorAtual > pts[0].valor) pts.push({ data: new Date(), valor: valorAtual });
-          }
-          if (pts.length > 0) historicosPorImovel[nome] = pts;
-        });
-
-        if (Object.keys(historicosPorImovel).length === 0) {
-          document.querySelector('.carteira-grafico').style.display = 'none';
-          return;
-        }
-
-        // ── 2. Dados de fluxo de caixa por imóvel ──────────────
-        const dadosPorImovel = {};
-        for (const row of imoveis) {
-          const nome = row[0];
-          if (!nome) continue;
-          const despExt      = await loadDespesasExtraordinarias(nome);
-          const despesasRec  = await loadDespesasRecorrentes(nome);
-          const investimentos = await loadInvestimentos(nome);
-          const ocupacao     = await loadOcupacao(nome);
-          const receitas     = await loadReceitas(nome);
-          dadosPorImovel[nome] = {
-            nome,
-            dataCompra:      row[4] || null,  // coluna E
-            valorCompra:     parseFloat(String(row[5]||'0').replace(/[^\d.-]/g,'')) || 0,
-            despExt,
-            despesasMensais: despesasRec.reduce((s, d) => s + d.valorMensal, 0),
-            investimentos,
-            ocupacao,
-            receitas
-          };
-        }
-
-        // ── 3. Janela temporal ──────────────────────────────────
-        let minData = new Date();
-        Object.values(historicosPorImovel).forEach(pts => {
-          if (pts[0].data < minData) minData = pts[0].data;
-        });
-        // Também leva em conta datas de compra
-        for (const d of Object.values(dadosPorImovel)) {
-          if (d.dataCompra) {
-            const dc = new Date(d.dataCompra + 'T12:00:00');
-            if (!isNaN(dc) && dc < minData) minData = dc;
-          }
-        }
-        const maxData = new Date();
-
-        // ── 4. Eixo temporal semestral ──────────────────────────
-        const eixo = [];
-        const cursor = new Date(minData);
-        cursor.setDate(1);
-        while (cursor <= maxData) {
-          eixo.push(new Date(cursor));
-          cursor.setMonth(cursor.getMonth() + 6);
-        }
-        if (eixo[eixo.length - 1] < maxData) eixo.push(new Date(maxData));
-
-        const labels = eixo.map(d => d.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }));
-
-        // ── 5. Guarda estado e renderiza ────────────────────────
-        _carteiraGraficoState = { eixo, historicosPorImovel, dadosPorImovel, labels };
-        document.querySelector('.carteira-grafico').style.display = 'block';
-        _renderGraficoComEstado(_carteiraGraficoState);
 
       } catch (e) {
         console.error('❌ Erro ao criar gráfico:', e);
@@ -5783,6 +5415,104 @@
         }
 
         _rentDados = { labels, valoresPL, retornoTotal, retornoAluguel, yieldBruto, yieldLiquido };
+
+        // ── COTA INDIVIDUAL vs BENCHMARKS ────────────────────────
+        // Busca dados completos de fluxo para este imóvel
+        const receitas = await loadReceitas(nomeImovel);
+
+        // Encontra a data de compra real (primeiro ponto do histórico)
+        const dataCompraRef = historico.length > 0 ? historico[0].data : null;
+
+        if (dataCompraRef) {
+          // Benchmarks CDI e IPCA históricos por período
+          function benchMultiplicador(dataInicio, dataFim, tabela) {
+            let mult = 1, cursor = new Date(dataInicio);
+            while (cursor < dataFim) {
+              const p = tabela.find(t => cursor < t.ate);
+              const taxa = p ? p.taxa : tabela[tabela.length-1].taxa;
+              const ate = (p && p.ate < dataFim) ? p.ate : dataFim;
+              mult *= Math.pow(1 + taxa, (ate - cursor) / (365.25 * 864e5));
+              cursor = new Date(ate);
+            }
+            return mult;
+          }
+          const tabelaCDI = [
+            { ate: new Date('2003-01-01'), taxa: 0.235 },
+            { ate: new Date('2006-01-01'), taxa: 0.185 },
+            { ate: new Date('2010-01-01'), taxa: 0.135 },
+            { ate: new Date('2013-01-01'), taxa: 0.105 },
+            { ate: new Date('2016-01-01'), taxa: 0.115 },
+            { ate: new Date('2018-01-01'), taxa: 0.110 },
+            { ate: new Date('2021-01-01'), taxa: 0.045 },
+            { ate: new Date('2023-01-01'), taxa: 0.125 },
+            { ate: new Date('2025-01-01'), taxa: 0.107 },
+            { ate: new Date('2099-01-01'), taxa: 0.135 }
+          ];
+          const tabelaIPCA = [
+            { ate: new Date('2003-01-01'), taxa: 0.125 },
+            { ate: new Date('2006-01-01'), taxa: 0.075 },
+            { ate: new Date('2010-01-01'), taxa: 0.055 },
+            { ate: new Date('2016-01-01'), taxa: 0.065 },
+            { ate: new Date('2020-01-01'), taxa: 0.040 },
+            { ate: new Date('2022-01-01'), taxa: 0.088 },
+            { ate: new Date('2023-01-01'), taxa: 0.057 },
+            { ate: new Date('2099-01-01'), taxa: 0.048 }
+          ];
+          const tabelaIPCA6 = tabelaIPCA.map(p => ({ ate: p.ate, taxa: p.taxa + 0.06 }));
+
+          // Cota do imóvel: base 100 na data de compra
+          // Cota(t) = 100 × (ValorMercado(t) + AluguelAcumulado(t) + ReceitasAcum(t))
+          //               / (CustoAquisição + DespExtAcum(t) + InvestimAcum(t) + DespRecAcum(t))
+          const cotaImovel = [], cotaCDI = [], cotaIPCA = [], cotaIPCA6 = [];
+          let cur2 = new Date(dataCompraRef.getFullYear(), dataCompraRef.getMonth(), 1);
+          const fim2 = new Date(hoje2.getFullYear(), hoje2.getMonth(), 1);
+          let alugAcum2 = 0;
+
+          while (cur2 <= fim2) {
+            // Valor de mercado nesse ponto
+            const vm = valorNaData(cur2);
+
+            // Aluguel acumulado até aqui
+            const alugMes = aluguelNaData(cur2);
+            alugAcum2 += alugMes;
+
+            // Receitas avulsas acumuladas
+            const recAcum = receitas
+              .filter(r => r.data && new Date(r.data) <= cur2)
+              .reduce((s, r) => s + r.valor, 0);
+
+            // Despesas extraordinárias acumuladas (têm data)
+            const despExtAcum = despExt
+              .filter(d => d.data && new Date(d.data) <= cur2)
+              .reduce((s, d) => s + d.valor, 0);
+
+            // Investimentos acumulados (têm data)
+            const invAcum = investim
+              .filter(i => i.data && new Date(i.data) <= cur2)
+              .reduce((s, i) => s + i.valor, 0);
+
+            // Despesas recorrentes acumuladas (mês a mês desde a compra)
+            const mesesDecorridos = Math.max(0, (cur2 - dataCompraRef) / (30.44 * 864e5));
+            const despRecAcum = despMensal * mesesDecorridos;
+
+            const custo = custoTotalGraf + despRecAcum; // custo total crescente no tempo
+            const retorno = vm + alugAcum2 + recAcum;
+
+            const cota = custo > 0 ? (retorno / custo * 100) : 100;
+            cotaImovel.push(Math.max(0, parseFloat(cota.toFixed(2))));
+            cotaCDI.push(parseFloat((100 * benchMultiplicador(dataCompraRef, cur2, tabelaCDI)).toFixed(2)));
+            cotaIPCA.push(parseFloat((100 * benchMultiplicador(dataCompraRef, cur2, tabelaIPCA)).toFixed(2)));
+            cotaIPCA6.push(parseFloat((100 * benchMultiplicador(dataCompraRef, cur2, tabelaIPCA6)).toFixed(2)));
+
+            cur2 = new Date(cur2.getFullYear(), cur2.getMonth() + 1, 1);
+          }
+
+          _rentDados.cotaImovel = cotaImovel;
+          _rentDados.cotaCDI    = cotaCDI;
+          _rentDados.cotaIPCA   = cotaIPCA;
+          _rentDados.cotaIPCA6  = cotaIPCA6;
+        }
+
         rentToggle('acumulado');
 
       } catch(e) {
@@ -5792,28 +5522,118 @@
 
     function rentToggle(modo) {
       if (!_rentDados) return;
-      const { labels, valoresPL, retornoTotal, retornoAluguel, yieldBruto, yieldLiquido } = _rentDados;
+      const { labels, valoresPL, retornoTotal, retornoAluguel, yieldBruto, yieldLiquido,
+              cotaImovel, cotaCDI, cotaIPCA, cotaIPCA6 } = _rentDados;
 
       // Atualiza botões
-      document.getElementById('btn-rent-acum').style.background  = modo === 'acumulado' ? '#0f3d57' : 'transparent';
-      document.getElementById('btn-rent-acum').style.color        = modo === 'acumulado' ? '#fff' : '#666';
-      document.getElementById('btn-rent-yield').style.background  = modo === 'yield' ? '#0f3d57' : 'transparent';
-      document.getElementById('btn-rent-yield').style.color       = modo === 'yield' ? '#fff' : '#666';
+      const btns = { acumulado: 'btn-rent-acum', yield: 'btn-rent-yield', cota: 'btn-rent-cota' };
+      Object.entries(btns).forEach(([m, id]) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.style.background = m === modo ? '#0f3d57' : 'transparent';
+        el.style.color       = m === modo ? '#fff' : '#666';
+      });
 
-      // Atualiza legenda
-      document.getElementById('rent-leg-1').querySelector('span').style.background = '#2e6b8e';
-      document.getElementById('rent-leg-2').querySelector('span').style.background = '#16a34a';
-      document.getElementById('rent-leg-1').childNodes[1].textContent = modo === 'acumulado' ? 'Retorno Total' : 'Yield Bruto (a.a.)';
-      document.getElementById('rent-leg-2').childNodes[1].textContent = modo === 'acumulado' ? 'Retorno Aluguel' : 'Yield Líquido (a.a.)';
+      // Legendas
+      const legNormal = document.getElementById('rent-legenda');
+      const legCota   = document.getElementById('rent-legenda-cota');
+      if (legNormal) legNormal.style.display = modo === 'cota' ? 'none' : 'flex';
+      if (legCota)   legCota.style.display   = modo === 'cota' ? 'flex' : 'none';
 
+      if (modo !== 'cota') {
+        // Atualiza legenda normal
+        document.getElementById('rent-leg-1').querySelector('span').style.background = '#2e6b8e';
+        document.getElementById('rent-leg-2').querySelector('span').style.background = '#16a34a';
+        document.getElementById('rent-leg-1').childNodes[1].textContent = modo === 'acumulado' ? 'Retorno Total' : 'Yield Bruto (a.a.)';
+        document.getElementById('rent-leg-2').childNodes[1].textContent = modo === 'acumulado' ? 'Retorno Aluguel' : 'Yield Líquido (a.a.)';
+      }
+
+      const ctx = document.getElementById('chart-rentabilidade');
+      if (rentabilidadeChart) rentabilidadeChart.destroy();
+
+      if (modo === 'cota') {
+        // ── Modo Cota vs Benchmarks ────────────────────────────────
+        if (!cotaImovel) {
+          document.getElementById('chart-rentabilidade-empty').style.display = 'block';
+          document.getElementById('chart-rentabilidade-wrap').style.display = 'none';
+          return;
+        }
+        document.getElementById('chart-rentabilidade-empty').style.display = 'none';
+        document.getElementById('chart-rentabilidade-wrap').style.display = 'block';
+
+        rentabilidadeChart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [
+              {
+                label: 'Este Imóvel',
+                data: cotaImovel,
+                borderColor: '#0f3d57',
+                backgroundColor: 'rgba(15,61,87,0.07)',
+                fill: true, borderWidth: 2.5, tension: 0.3,
+                pointRadius: 0, pointHoverRadius: 5
+              },
+              {
+                label: 'CDI',
+                data: cotaCDI,
+                borderColor: '#f59e0b',
+                borderDash: [6, 3],
+                fill: false, borderWidth: 1.8, tension: 0.2,
+                pointRadius: 0, pointHoverRadius: 4
+              },
+              {
+                label: 'IPCA',
+                data: cotaIPCA,
+                borderColor: '#ef4444',
+                borderDash: [4, 3],
+                fill: false, borderWidth: 1.8, tension: 0.2,
+                pointRadius: 0, pointHoverRadius: 4
+              },
+              {
+                label: 'IPCA + 6%',
+                data: cotaIPCA6,
+                borderColor: '#8b5cf6',
+                borderDash: [3, 3],
+                fill: false, borderWidth: 1.5, tension: 0.2,
+                pointRadius: 0, pointHoverRadius: 4
+              }
+            ]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: '#0f3d57', titleColor: '#fff', bodyColor: '#fff', padding: 12,
+                callbacks: {
+                  label: c => {
+                    const v = c.parsed.y;
+                    const delta = ((v / 100) - 1) * 100;
+                    return ` ${c.dataset.label}: ${v.toFixed(1)} pts (${delta >= 0 ? '+' : ''}${delta.toFixed(1)}%)`;
+                  }
+                }
+              }
+            },
+            scales: {
+              y: {
+                ticks: { callback: v => v.toFixed(0) + ' pts', color: '#666' },
+                grid: { color: '#e5e5e5' }
+              },
+              x: { ticks: { color: '#666', maxTicksLimit: 12 }, grid: { display: false } }
+            }
+          }
+        });
+        return;
+      }
+
+      // ── Modos Acumulado e Yield (comportamento original) ───────
       const linha1 = modo === 'acumulado' ? retornoTotal  : yieldBruto;
       const linha2 = modo === 'acumulado' ? retornoAluguel : yieldLiquido;
       const sufixo = modo === 'acumulado' ? '%' : '% a.a.';
       const label1 = modo === 'acumulado' ? 'Retorno Total' : 'Yield Bruto';
       const label2 = modo === 'acumulado' ? 'Retorno Aluguel' : 'Yield Líquido';
-
-      const ctx = document.getElementById('chart-rentabilidade');
-      if (rentabilidadeChart) rentabilidadeChart.destroy();
 
       rentabilidadeChart = new Chart(ctx, {
         data: {
