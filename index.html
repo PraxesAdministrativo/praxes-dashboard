@@ -6901,14 +6901,12 @@
           chars.forEach((c, i) => doc.text(c, margin + i*colW + colW/2, yPos + 6.5, { align: 'center' }));
           yPos += 14;
 
-          // ── Gráfico de Evolução de Preço ─────────────────────────
-          doc.setFontSize(9); doc.setFont('helvetica', 'bold');
-          doc.setTextColor(15, 61, 87);
-          doc.text('Evolução do Valor de Mercado', margin, yPos);
-          yPos += 3;
+          // ── Gráficos: lado a lado ─────────────────────────────────
+          const chartH  = 58;
+          const halfW   = (contentW - 4) / 2;
 
-          // Monta pontos do histórico
-          const histRows = (dataCache.historico || [])
+          // Monta histórico de preços (com interpolação mensal para suavizar)
+          const histPts = (dataCache.historico || [])
             .filter(r => r[0] === nome && r[1])
             .map(r => ({
               x: new Date(r[1] + 'T12:00:00'),
@@ -6916,17 +6914,247 @@
             }))
             .filter(p => !isNaN(p.x) && p.y > 0)
             .sort((a,b) => a.x - b.x);
-
-          // Adiciona ponto atual se diferente do último
           if (valorAtual > 0) {
-            const last = histRows[histRows.length - 1];
-            if (!last || Math.abs(last.y - valorAtual) > 1) {
-              histRows.push({ x: new Date(), y: valorAtual });
-            }
+            const last = histPts[histPts.length - 1];
+            if (!last || Math.abs(last.y - valorAtual) > 1)
+              histPts.push({ x: new Date(), y: valorAtual });
           }
 
-          const chartH = 52;
-          drawLineChart(histRows, margin, yPos, contentW, chartH, { valorCompra });
+          // Interpola mensalmente entre reavaliações (para curva suave no gráfico de preço)
+          function interpolarMensal(pts) {
+            if (!pts || pts.length < 2) return pts;
+            const out = [];
+            for (let i = 0; i < pts.length - 1; i++) {
+              const p1 = pts[i], p2 = pts[i+1];
+              const anos = (p2.x - p1.x) / (365.25 * 864e5);
+              if (anos <= 0) { out.push(p1); continue; }
+              const cagr = Math.pow(p2.y / p1.y, 1/anos) - 1;
+              let cur = new Date(p1.x.getFullYear(), p1.x.getMonth(), 1);
+              const fim = new Date(p2.x.getFullYear(), p2.x.getMonth(), 1);
+              while (cur <= fim) {
+                const t = (cur - p1.x) / (365.25 * 864e5);
+                out.push({ x: new Date(cur), y: p1.y * Math.pow(1 + cagr, t) });
+                cur = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
+              }
+            }
+            out.push(pts[pts.length-1]);
+            return out;
+          }
+          const histSmooth = interpolarMensal(histPts);
+
+          // ── Gráfico 1: Evolução do Valor de Mercado ───────────────
+          doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+          doc.setTextColor(15, 61, 87);
+          doc.text('Evolução do Valor de Mercado', margin, yPos);
+
+          // Legenda gráfico 1
+          doc.setFillColor(15, 61, 87);
+          doc.rect(margin + halfW - 40, yPos - 3, 3, 3, 'F');
+          doc.setFontSize(6); doc.setFont('helvetica', 'normal');
+          doc.setTextColor(80, 80, 80);
+          doc.text('Valor mercado', margin + halfW - 36, yPos);
+          doc.setDrawColor(200, 80, 80); doc.setLineWidth(0.3);
+          doc.line(margin + halfW - 15, yPos - 1.5, margin + halfW - 9, yPos - 1.5);
+          doc.text('Compra', margin + halfW - 8, yPos);
+
+          yPos += 2;
+          drawLineChart(histSmooth, margin, yPos, halfW, chartH, { valorCompra });
+
+          // ── Gráfico 2: Rentabilidade vs Benchmarks ────────────────
+          doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+          doc.setTextColor(15, 61, 87);
+          doc.text('Retorno Acumulado vs Benchmarks', margin + halfW + 4, yPos - 2);
+
+          // Legenda gráfico 2
+          const leg2X = margin + halfW + 4;
+          const legItems = [
+            ['Imóvel', [15,61,87]], ['CDI', [245,158,11]], ['IPCA', [239,68,68]], ['IPCA+6%', [139,92,246]]
+          ];
+          let legX = leg2X;
+          legItems.forEach(([lbl, cor]) => {
+            doc.setFillColor(...cor);
+            doc.rect(legX, yPos - 5, 3, 2, 'F');
+            doc.setFontSize(5.5); doc.setFont('helvetica', 'normal');
+            doc.setTextColor(80, 80, 80);
+            doc.text(lbl, legX + 4, yPos - 3.5);
+            legX += 16;
+          });
+
+          // Calcula séries de retorno acumulado % mês a mês
+          function benchMult(dataInicio, dataFim, tabela) {
+            if (dataFim <= dataInicio) return 1;
+            let mult = 1, cur = new Date(dataInicio);
+            while (cur < dataFim) {
+              const p = tabela.find(t => cur < t.ate);
+              const taxa = p ? p.taxa : tabela[tabela.length-1].taxa;
+              const ate  = (p && p.ate < dataFim) ? p.ate : dataFim;
+              mult *= Math.pow(1 + taxa, (ate - cur) / (365.25 * 864e5));
+              cur = new Date(ate);
+            }
+            return mult;
+          }
+          const tCDI  = [
+            {ate:new Date('2003-01-01'),taxa:0.235},{ate:new Date('2006-01-01'),taxa:0.185},
+            {ate:new Date('2010-01-01'),taxa:0.135},{ate:new Date('2013-01-01'),taxa:0.105},
+            {ate:new Date('2016-01-01'),taxa:0.115},{ate:new Date('2018-01-01'),taxa:0.110},
+            {ate:new Date('2021-01-01'),taxa:0.045},{ate:new Date('2023-01-01'),taxa:0.125},
+            {ate:new Date('2025-01-01'),taxa:0.107},{ate:new Date('2099-01-01'),taxa:0.135}
+          ];
+          const tIPCA = [
+            {ate:new Date('2003-01-01'),taxa:0.125},{ate:new Date('2006-01-01'),taxa:0.075},
+            {ate:new Date('2010-01-01'),taxa:0.055},{ate:new Date('2016-01-01'),taxa:0.065},
+            {ate:new Date('2020-01-01'),taxa:0.040},{ate:new Date('2022-01-01'),taxa:0.088},
+            {ate:new Date('2023-01-01'),taxa:0.057},{ate:new Date('2099-01-01'),taxa:0.048}
+          ];
+          const tIPCA6 = tIPCA.map(p => ({ ate: p.ate, taxa: p.taxa + 0.06 }));
+
+          const dataRef = histPts.length > 0 ? histPts[0].x : new Date();
+          const despExtOrd = despExt.filter(d => d.data);
+          const receitasIm = await loadReceitas(nome);
+
+          // Série mensal de retorno acumulado %
+          const retImovel = [], retCDI = [], retIPCA = [], retIPCA6 = [], retLabels = [];
+          let curR = new Date(dataRef.getFullYear(), dataRef.getMonth(), 1);
+          const fimR = new Date();
+          let alugAcumR = 0;
+
+          function vmNaData(d) {
+            if (!histPts.length) return 0;
+            if (d <= histPts[0].x) return histPts[0].y;
+            if (d >= histPts[histPts.length-1].x) return histPts[histPts.length-1].y;
+            for (let i = 0; i < histPts.length-1; i++) {
+              const p1=histPts[i], p2=histPts[i+1];
+              if (d >= p1.x && d <= p2.x) {
+                const anos = (p2.x-p1.x)/(365.25*864e5);
+                if (anos<=0) return p1.y;
+                return p1.y * Math.pow(p2.y/p1.y, (d-p1.x)/(p2.x-p1.x));
+              }
+            }
+            return histPts[histPts.length-1].y;
+          }
+          function alugNaData(d) {
+            for (const o of ocupacao) {
+              const ini = new Date(o.dataInicio);
+              const fim2 = o.dataFim ? new Date(o.dataFim) : new Date('2099-12-31');
+              if (d >= ini && d <= fim2) return o.valorAluguel || 0;
+            }
+            return 0;
+          }
+
+          while (curR <= fimR) {
+            alugAcumR += alugNaData(curR);
+            const recAcum = receitasIm.filter(r => r.data && new Date(r.data) <= curR)
+              .reduce((s,r) => s+r.valor, 0);
+            const meses = Math.max(0, (curR - dataRef) / (30.44 * 864e5));
+            const despRecAcum = despMensal * meses;
+            const custoAcum = custoTotal + despRecAcum;
+            const vm = vmNaData(curR);
+            const ret = custoTotal > 0
+              ? ((vm + alugAcumR + recAcum - custoAcum) / custoTotal * 100) : 0;
+
+            retImovel.push({ x: new Date(curR), y: parseFloat(ret.toFixed(2)) });
+            retCDI.push({  x: new Date(curR), y: parseFloat(((benchMult(dataRef, curR, tCDI)  - 1)*100).toFixed(2)) });
+            retIPCA.push({ x: new Date(curR), y: parseFloat(((benchMult(dataRef, curR, tIPCA) - 1)*100).toFixed(2)) });
+            retIPCA6.push({x: new Date(curR), y: parseFloat(((benchMult(dataRef, curR, tIPCA6)- 1)*100).toFixed(2)) });
+
+            curR = new Date(curR.getFullYear(), curR.getMonth()+1, 1);
+          }
+
+          // Desenha gráfico de rentabilidade com múltiplas séries
+          function drawReturnChart(series, gx, gy, gw, gh) {
+            const allYs = series.flatMap(s => s.pts.map(p => p.y));
+            const allXs = series[0].pts.map(p => p.x.getTime());
+            if (!allXs.length) return;
+
+            const minX = Math.min(...allXs), maxX = Math.max(...allXs);
+            const minY = Math.min(0, Math.min(...allYs)) * 1.05;
+            const maxY = Math.max(...allYs) * 1.08;
+            const rangeX = maxX - minX || 1, rangeY = maxY - minY || 1;
+
+            // fundo
+            doc.setFillColor(250, 252, 254);
+            doc.setDrawColor(220, 228, 236);
+            doc.roundedRect(gx, gy, gw, gh, 2, 2, 'FD');
+
+            const pad = { l: 22, r: 4, t: 5, b: 13 };
+            const cx = gx + pad.l, cy = gy + pad.t;
+            const cw = gw - pad.l - pad.r, ch = gh - pad.t - pad.b;
+
+            const toX = t => cx + ((t - minX) / rangeX) * cw;
+            const toY = v => cy + ch - ((v - minY) / rangeY) * ch;
+
+            // Grid + labels Y
+            doc.setDrawColor(230, 235, 240); doc.setLineWidth(0.2);
+            for (let i = 0; i <= 4; i++) {
+              const v = minY + rangeY * i / 4;
+              const yy = toY(v);
+              doc.line(cx, yy, cx + cw, yy);
+              doc.setFontSize(5.5); doc.setTextColor(150,150,150);
+              doc.setFont('helvetica','normal');
+              doc.text((v >= 0 ? '+' : '') + v.toFixed(0) + '%', cx - 2, yy + 1.5, { align: 'right' });
+            }
+
+            // Linha zero
+            if (minY < 0 && maxY > 0) {
+              const y0 = toY(0);
+              doc.setDrawColor(180,180,180); doc.setLineWidth(0.3);
+              doc.line(cx, y0, cx + cw, y0);
+            }
+
+            // Área preenchida do imóvel (série 0)
+            const s0 = series[0].pts;
+            doc.setFillColor(210, 228, 242);
+            for (let i = 0; i < s0.length - 1; i++) {
+              const x1=toX(s0[i].x.getTime()), y1=toY(s0[i].y);
+              const x2=toX(s0[i+1].x.getTime()), y2=toY(s0[i+1].y);
+              const baseY = toY(0);
+              doc.triangle(x1, y1, x2, y2, x1, baseY, 'F');
+              doc.triangle(x2, y2, x2, baseY, x1, baseY, 'F');
+            }
+
+            // Linhas de cada série
+            series.forEach(s => {
+              doc.setDrawColor(...s.color);
+              doc.setLineWidth(s.width || 0.5);
+              if (s.dash) {
+                // tracejado manual
+                for (let i = 0; i < s.pts.length - 1; i++) {
+                  const x1=toX(s.pts[i].x.getTime()), y1=toY(s.pts[i].y);
+                  const x2=toX(s.pts[i+1].x.getTime()), y2=toY(s.pts[i+1].y);
+                  const dx=x2-x1, dy=y2-y1, dist=Math.sqrt(dx*dx+dy*dy);
+                  const steps = Math.max(1, Math.round(dist/2));
+                  for (let j=0; j<steps; j+=2) {
+                    const t1=j/steps, t2=Math.min((j+1)/steps,1);
+                    doc.line(x1+dx*t1, y1+dy*t1, x1+dx*t2, y1+dy*t2);
+                  }
+                }
+              } else {
+                for (let i = 0; i < s.pts.length - 1; i++) {
+                  doc.line(toX(s.pts[i].x.getTime()), toY(s.pts[i].y),
+                           toX(s.pts[i+1].x.getTime()), toY(s.pts[i+1].y));
+                }
+              }
+            });
+
+            // Labels eixo X — a cada ~3 anos
+            doc.setFontSize(5.5); doc.setTextColor(150,150,150);
+            const totalMeses = series[0].pts.length;
+            const passoAnos = totalMeses > 120 ? 5 : totalMeses > 60 ? 3 : 2;
+            const passoMeses = passoAnos * 12;
+            series[0].pts.forEach((p, i) => {
+              if (i % passoMeses === 0 || i === series[0].pts.length - 1) {
+                doc.text(String(p.x.getFullYear()), toX(p.x.getTime()), cy + ch + 5.5, { align: 'center' });
+              }
+            });
+          }
+
+          drawReturnChart([
+            { pts: retImovel, color: [15, 61, 87],   width: 0.9, dash: false },
+            { pts: retCDI,   color: [245,158, 11],   width: 0.5, dash: true  },
+            { pts: retIPCA,  color: [239, 68, 68],   width: 0.5, dash: true  },
+            { pts: retIPCA6, color: [139, 92,246],   width: 0.4, dash: true  },
+          ], margin + halfW + 4, yPos, halfW, chartH);
+
           yPos += chartH + 5;
 
           // ── Ocupação atual ────────────────────────────────────────
