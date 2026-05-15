@@ -1650,7 +1650,7 @@
                       <span style="display:flex;align-items:center;gap:5px;font-size:12px;color:#555;"><span style="display:inline-block;width:18px;height:2px;background:#f59e0b;border-radius:2px;"></span>CDI</span>
                       <span style="display:flex;align-items:center;gap:5px;font-size:12px;color:#555;"><span style="display:inline-block;width:18px;height:2px;background:#ef4444;border-radius:2px;"></span>IPCA</span>
                       <span style="display:flex;align-items:center;gap:5px;font-size:12px;color:#555;"><span style="display:inline-block;width:18px;height:2px;background:#8b5cf6;border-radius:2px;"></span>IPCA + 6%</span>
-                      <span style="font-size:10px;color:#aaa;margin-left:4px;">* base 100 na data de compra · benchmarks são estimativas históricas</span>
+                      <span style="font-size:10px;color:#aaa;margin-left:4px;">* retorno acumulado % desde a data de compra · benchmarks são estimativas históricas</span>
                     </div>
                     <div id="chart-rentabilidade-empty" style="display:none;text-align:center;padding:40px;color:#999;font-size:13px;">
                       Sem dados suficientes para calcular rentabilidade.<br>Cadastre o histórico de valores e um período de ocupação.
@@ -5364,13 +5364,22 @@
           historico.push({ data: hoje2, valor: valorAtualReal });
         }
 
+        // valorNaData com interpolação CAGR entre reavaliações
         function valorNaData(data) {
-          let ultimo = historico[0].valor;
-          for (let i = 0; i < historico.length; i++) {
-            if (historico[i].data <= data) ultimo = historico[i].valor;
-            else break;
+          if (!historico || historico.length === 0) return 0;
+          if (data <= historico[0].data) return historico[0].valor;
+          if (data >= historico[historico.length - 1].data) return historico[historico.length - 1].valor;
+          for (let i = 0; i < historico.length - 1; i++) {
+            const p1 = historico[i], p2 = historico[i + 1];
+            if (data >= p1.data && data <= p2.data) {
+              const anos = (p2.data - p1.data) / (365.25 * 864e5);
+              if (anos <= 0) return p1.valor;
+              const cagr = Math.pow(p2.valor / p1.valor, 1 / anos) - 1;
+              const t = (data - p1.data) / (365.25 * 864e5);
+              return p1.valor * Math.pow(1 + cagr, t);
+            }
           }
-          return ultimo;
+          return historico[historico.length - 1].valor;
         }
 
         function aluguelNaData(data) {
@@ -5460,49 +5469,40 @@
           ];
           const tabelaIPCA6 = tabelaIPCA.map(p => ({ ate: p.ate, taxa: p.taxa + 0.06 }));
 
-          // Cota do imóvel: base 100 na data de compra
-          // Cota(t) = 100 × (ValorMercado(t) + AluguelAcumulado(t) + ReceitasAcum(t))
-          //               / (CustoAquisição + DespExtAcum(t) + InvestimAcum(t) + DespRecAcum(t))
+          // Retorno acumulado % — todos partem de 0% na data de compra
+          // Imóvel: (ValorMercado(t) + Renda(t) - CustoAcumulado(t)) / CustoAquisição × 100
+          // Benchmarks: (multiplicador(t) - 1) × 100
           const cotaImovel = [], cotaCDI = [], cotaIPCA = [], cotaIPCA6 = [];
           let cur2 = new Date(dataCompraRef.getFullYear(), dataCompraRef.getMonth(), 1);
           const fim2 = new Date(hoje2.getFullYear(), hoje2.getMonth(), 1);
           let alugAcum2 = 0;
 
           while (cur2 <= fim2) {
-            // Valor de mercado nesse ponto
             const vm = valorNaData(cur2);
 
-            // Aluguel acumulado até aqui
             const alugMes = aluguelNaData(cur2);
             alugAcum2 += alugMes;
 
-            // Receitas avulsas acumuladas
             const recAcum = receitas
               .filter(r => r.data && new Date(r.data) <= cur2)
               .reduce((s, r) => s + r.valor, 0);
 
-            // Despesas extraordinárias acumuladas (têm data)
-            const despExtAcum = despExt
-              .filter(d => d.data && new Date(d.data) <= cur2)
-              .reduce((s, d) => s + d.valor, 0);
-
-            // Investimentos acumulados (têm data)
-            const invAcum = investim
-              .filter(i => i.data && new Date(i.data) <= cur2)
-              .reduce((s, i) => s + i.valor, 0);
-
-            // Despesas recorrentes acumuladas (mês a mês desde a compra)
             const mesesDecorridos = Math.max(0, (cur2 - dataCompraRef) / (30.44 * 864e5));
             const despRecAcum = despMensal * mesesDecorridos;
 
-            const custo = custoTotalGraf + despRecAcum; // custo total crescente no tempo
-            const retorno = vm + alugAcum2 + recAcum;
+            // Custo total crescente (aquisição + recorrentes acumuladas)
+            const custoAcum = custoTotalGraf + despRecAcum;
 
-            const cota = custo > 0 ? (retorno / custo * 100) : 100;
-            cotaImovel.push(Math.max(0, parseFloat(cota.toFixed(2))));
-            cotaCDI.push(parseFloat((100 * benchMultiplicador(dataCompraRef, cur2, tabelaCDI)).toFixed(2)));
-            cotaIPCA.push(parseFloat((100 * benchMultiplicador(dataCompraRef, cur2, tabelaIPCA)).toFixed(2)));
-            cotaIPCA6.push(parseFloat((100 * benchMultiplicador(dataCompraRef, cur2, tabelaIPCA6)).toFixed(2)));
+            // Retorno acumulado %: quanto o investimento gerou além do que custou
+            const retAcum = custoTotalGraf > 0
+              ? ((vm + alugAcum2 + recAcum - custoAcum) / custoTotalGraf * 100)
+              : 0;
+
+            cotaImovel.push(parseFloat(retAcum.toFixed(2)));
+            // Benchmarks: retorno acumulado % a partir da data de compra
+            cotaCDI.push(parseFloat(((benchMultiplicador(dataCompraRef, cur2, tabelaCDI) - 1) * 100).toFixed(2)));
+            cotaIPCA.push(parseFloat(((benchMultiplicador(dataCompraRef, cur2, tabelaIPCA) - 1) * 100).toFixed(2)));
+            cotaIPCA6.push(parseFloat(((benchMultiplicador(dataCompraRef, cur2, tabelaIPCA6) - 1) * 100).toFixed(2)));
 
             cur2 = new Date(cur2.getFullYear(), cur2.getMonth() + 1, 1);
           }
@@ -5610,15 +5610,14 @@
                 callbacks: {
                   label: c => {
                     const v = c.parsed.y;
-                    const delta = ((v / 100) - 1) * 100;
-                    return ` ${c.dataset.label}: ${v.toFixed(1)} pts (${delta >= 0 ? '+' : ''}${delta.toFixed(1)}%)`;
+                    return ` ${c.dataset.label}: ${v >= 0 ? '+' : ''}${v.toFixed(1)}%`;
                   }
                 }
               }
             },
             scales: {
               y: {
-                ticks: { callback: v => v.toFixed(0) + ' pts', color: '#666' },
+                ticks: { callback: v => (v >= 0 ? '+' : '') + v.toFixed(0) + '%', color: '#666' },
                 grid: { color: '#e5e5e5' }
               },
               x: { ticks: { color: '#666', maxTicksLimit: 12 }, grid: { display: false } }
