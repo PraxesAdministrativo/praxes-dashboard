@@ -6564,240 +6564,443 @@
     async function gerarRelatorioPDF() {
       try {
         const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        
-        // Configurações
-        const pageWidth = doc.internal.pageSize.getWidth();
+        const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+        const pageWidth  = doc.internal.pageSize.getWidth();
         const pageHeight = doc.internal.pageSize.getHeight();
-        const margin = 20;
+        const margin = 18;
+        const contentW = pageWidth - 2 * margin;
         let yPos = margin;
-        
-        // CAPA
-        doc.setFillColor(15, 61, 87); // azul-principal
-        doc.rect(0, 0, pageWidth, 60, 'F');
-        
+
+        const filtered = currentFilter === 'todos' ? imoveisData
+          : currentFilter === 'investimento' ? imoveisData.filter(r => r[2] === 'Investimento')
+          : imoveisData.filter(r => r[2] === 'Bem Pessoal');
+
+        // ── Helpers ────────────────────────────────────────────────
+        const fmtR = v => v >= 1e6
+          ? 'R$ ' + (v/1e6).toFixed(2).replace('.', ',') + 'M'
+          : 'R$ ' + Math.round(v).toLocaleString('pt-BR');
+
+        function headerBar(title, subtitle) {
+          doc.setFillColor(15, 61, 87);
+          doc.rect(0, 0, pageWidth, 18, 'F');
+          doc.setFillColor(184, 146, 74);
+          doc.rect(0, 18, pageWidth, 1.2, 'F');
+          doc.setTextColor(255, 255, 255);
+          doc.setFontSize(11); doc.setFont('helvetica', 'bold');
+          doc.text('PRAXES', margin, 12);
+          doc.setFontSize(8); doc.setFont('helvetica', 'normal');
+          doc.text(title, margin + 22, 12);
+          if (subtitle) {
+            doc.setTextColor(180, 210, 235);
+            doc.text(subtitle, pageWidth - margin, 12, { align: 'right' });
+          }
+          doc.setTextColor(0, 0, 0);
+        }
+
+        function footerBar(pageNum, total) {
+          doc.setFillColor(240, 240, 240);
+          doc.rect(0, pageHeight - 10, pageWidth, 10, 'F');
+          doc.setFontSize(7); doc.setFont('helvetica', 'normal');
+          doc.setTextColor(130, 130, 130);
+          doc.text('Praxes Family Office  •  Relatório confidencial', margin, pageHeight - 4);
+          doc.text(`Página ${pageNum}`, pageWidth - margin, pageHeight - 4, { align: 'right' });
+        }
+
+        function kpiBox(x, y, w, h, label, value, valueColor) {
+          doc.setFillColor(248, 250, 252);
+          doc.setDrawColor(220, 228, 236);
+          doc.roundedRect(x, y, w, h, 2, 2, 'FD');
+          doc.setFontSize(7); doc.setFont('helvetica', 'normal');
+          doc.setTextColor(120, 140, 160);
+          doc.text(label, x + 3, y + 5);
+          doc.setFontSize(10); doc.setFont('helvetica', 'bold');
+          doc.setTextColor(...(valueColor || [15, 61, 87]));
+          doc.text(value, x + 3, y + 12);
+        }
+
+        // ── Desenha gráfico de linha no PDF ────────────────────────
+        // pts: [{x: Date, y: number}], área do gráfico em mm
+        function drawLineChart(pts, gx, gy, gw, gh, opts = {}) {
+          if (!pts || pts.length < 2) {
+            doc.setFillColor(245, 245, 245);
+            doc.rect(gx, gy, gw, gh, 'F');
+            doc.setFontSize(8); doc.setTextColor(160,160,160);
+            doc.text('Dados insuficientes', gx + gw/2, gy + gh/2, { align: 'center' });
+            return;
+          }
+
+          // fundo
+          doc.setFillColor(250, 252, 254);
+          doc.setDrawColor(220, 228, 236);
+          doc.roundedRect(gx, gy, gw, gh, 2, 2, 'FD');
+
+          const pad = { l: 22, r: 6, t: 6, b: 14 };
+          const cx = gx + pad.l, cy = gy + pad.t;
+          const cw = gw - pad.l - pad.r, ch = gh - pad.t - pad.b;
+
+          const xs = pts.map(p => p.x.getTime());
+          const ys = pts.map(p => p.y);
+          const minX = Math.min(...xs), maxX = Math.max(...xs);
+          const minY = Math.min(...ys) * 0.95;
+          const maxY = Math.max(...ys) * 1.05;
+          const rangeX = maxX - minX || 1, rangeY = maxY - minY || 1;
+
+          const toSvgX = t => cx + ((t - minX) / rangeX) * cw;
+          const toSvgY = v => cy + ch - ((v - minY) / rangeY) * ch;
+
+          // Grid linhas horizontais (4)
+          doc.setDrawColor(230, 235, 240);
+          doc.setLineWidth(0.2);
+          for (let i = 0; i <= 4; i++) {
+            const v = minY + (rangeY * i / 4);
+            const yy = toSvgY(v);
+            doc.line(cx, yy, cx + cw, yy);
+            // label eixo Y
+            doc.setFontSize(5.5); doc.setTextColor(150, 150, 150);
+            doc.setFont('helvetica', 'normal');
+            const label = v >= 1e6 ? (v/1e6).toFixed(1)+'M' : (v/1000).toFixed(0)+'k';
+            doc.text('R$'+label, cx - 2, yy + 1.5, { align: 'right' });
+          }
+
+          // Área preenchida (polígono)
+          const polyPts = [];
+          polyPts.push([toSvgX(xs[0]), cy + ch]);
+          pts.forEach((p, i) => polyPts.push([toSvgX(xs[i]), toSvgY(p.y)]));
+          polyPts.push([toSvgX(xs[xs.length-1]), cy + ch]);
+
+          // fill com cor suave
+          doc.setFillColor(46, 107, 142, 0.12);
+          doc.setDrawColor(46, 107, 142, 0);
+          // jsPDF não suporta fill de polyline nativamente — usa rect aproximado
+          // Desenhamos segmentos individuais para o fill de forma simples:
+          doc.setFillColor(210, 228, 242);
+          for (let i = 0; i < pts.length - 1; i++) {
+            const x1 = toSvgX(xs[i]),   y1 = toSvgY(ys[i]);
+            const x2 = toSvgX(xs[i+1]), y2 = toSvgY(ys[i+1]);
+            const baseY = cy + ch;
+            // Trapézio aproximado
+            doc.triangle(x1, y1, x2, y2, x1, baseY, 'F');
+            doc.triangle(x2, y2, x2, baseY, x1, baseY, 'F');
+          }
+
+          // Linha principal
+          doc.setDrawColor(15, 61, 87);
+          doc.setLineWidth(0.7);
+          for (let i = 0; i < pts.length - 1; i++) {
+            doc.line(toSvgX(xs[i]), toSvgY(ys[i]), toSvgX(xs[i+1]), toSvgY(ys[i+1]));
+          }
+
+          // Pontos de reavaliação
+          doc.setFillColor(15, 61, 87);
+          pts.forEach((p, i) => {
+            doc.circle(toSvgX(xs[i]), toSvgY(ys[i]), 0.9, 'F');
+          });
+
+          // Labels eixo X (max 5 ticks)
+          doc.setFontSize(5.5); doc.setTextColor(150, 150, 150);
+          const tickCount = Math.min(pts.length, 5);
+          const step = Math.floor((pts.length - 1) / (tickCount - 1)) || 1;
+          for (let i = 0; i < pts.length; i += step) {
+            const d = pts[i].x;
+            const label = d.getFullYear() + (i === 0 || d.getMonth() === 0 ? '' : '');
+            doc.text(String(d.getFullYear()), toSvgX(xs[i]), cy + ch + 6, { align: 'center' });
+          }
+
+          // Linha de compra (horizontal tracejada)
+          if (opts.valorCompra && opts.valorCompra > minY) {
+            const yComp = toSvgY(opts.valorCompra);
+            doc.setDrawColor(200, 80, 80);
+            doc.setLineWidth(0.3);
+            // Tracejado manual
+            let xd = cx;
+            while (xd < cx + cw) {
+              doc.line(xd, yComp, Math.min(xd + 3, cx + cw), yComp);
+              xd += 5;
+            }
+            doc.setFontSize(5.5); doc.setTextColor(200, 80, 80);
+            doc.text('Compra', cx + cw + 1, yComp + 1);
+          }
+        }
+
+        // ══════════════════════════════════════════════════════
+        // PÁGINA 1 — CAPA
+        // ══════════════════════════════════════════════════════
+        doc.setFillColor(15, 61, 87);
+        doc.rect(0, 0, pageWidth, pageHeight * 0.38, 'F');
+        doc.setFillColor(184, 146, 74);
+        doc.rect(0, pageHeight * 0.38, pageWidth, 1.5, 'F');
+
         doc.setTextColor(255, 255, 255);
-        doc.setFontSize(28);
-        doc.setFont('helvetica', 'bold');
-        doc.text('PRAXES', margin, 30);
-        
-        doc.setFontSize(14);
-        doc.setFont('helvetica', 'normal');
-        doc.text('Family Office', margin, 42);
-        
-        yPos = 80;
-        doc.setTextColor(0, 0, 0);
-        doc.setFontSize(20);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Relatório de Imóveis', margin, yPos);
-        
-        yPos += 10;
-        doc.setFontSize(11);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(100, 100, 100);
-        doc.text(`Gerado em ${new Date().toLocaleDateString('pt-BR')}`, margin, yPos);
-        
-        yPos += 5;
-        doc.text(`Cliente: ${currentUser?.user_metadata?.name || 'Luiz Henrique Beck'}`, margin, yPos);
-        
-        // LINHA DIVISÓRIA
-        yPos += 10;
-        doc.setDrawColor(184, 146, 74); // gold
-        doc.setLineWidth(0.5);
-        doc.line(margin, yPos, pageWidth - margin, yPos);
-        
-        // RESUMO EXECUTIVO
-        yPos += 15;
-        doc.setFontSize(14);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(0, 0, 0);
-        doc.text('Resumo Executivo', margin, yPos);
-        
-        yPos += 10;
-        
-        // Calcula métricas
-        const filtered = currentFilter === 'todos' ? imoveisData : 
-                        currentFilter === 'investimento' ? imoveisData.filter(r => r[2] === 'Investimento') :
-                        imoveisData.filter(r => r[2] === 'Bem Pessoal');
-        
-        let totalValorAtual = 0;
-        let totalValorCompra = 0;
-        let totalInvestido = 0;
-        let totalAluguel = 0;
-        let countOcupados = 0;
-        
+        doc.setFontSize(32); doc.setFont('helvetica', 'bold');
+        doc.text('PRAXES', margin, 35);
+        doc.setFontSize(13); doc.setFont('helvetica', 'normal');
+        doc.setTextColor(180, 210, 235);
+        doc.text('Family Office', margin, 45);
+
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(22); doc.setFont('helvetica', 'bold');
+        doc.text('Relatório de Imóveis', margin, 68);
+        doc.setFontSize(10); doc.setFont('helvetica', 'normal');
+        doc.setTextColor(180, 210, 235);
+        doc.text(`Gerado em ${new Date().toLocaleDateString('pt-BR', { day:'2-digit', month:'long', year:'numeric' })}`, margin, 78);
+
+        // Métricas da capa
+        let totalValorAtual = 0, totalValorCompra = 0, totalInvestido = 0;
+        let totalAluguel = 0, countOcupados = 0;
         for (const row of filtered) {
           if (!row[0]) continue;
           const nome = row[0];
-          const valorCompra = parseFloat(String(row[5] || '0').replace(/[^\d.-]/g, '')) || 0;
-          const valorAtual = getValorAtualImovel(nome, row[7]);
-          
-          totalValorAtual += valorAtual;
-          totalValorCompra += valorCompra;
-          
-          const despesasExt = await loadDespesasExtraordinarias(nome);
-          const totalDespExtra = despesasExt.reduce((sum, d) => sum + d.valor, 0);
-          totalInvestido += valorCompra + totalDespExtra;
-          
-          const ocupacao = await loadOcupacao(nome);
-          const ocupacaoAtual = ocupacao.find(o => o.status === 'Ocupado');
-          
-          if (ocupacaoAtual) {
-            totalAluguel += ocupacaoAtual.valorAluguel;
-            countOcupados++;
-          }
+          const vc   = parseFloat(String(row[5]||'0').replace(/[^\d.-]/g,'')) || 0;
+          const va   = getValorAtualImovel(nome, row[7]);
+          totalValorAtual  += va;
+          totalValorCompra += vc;
+          const despExt = await loadDespesasExtraordinarias(nome);
+          totalInvestido += vc + despExt.reduce((s,d) => s+d.valor, 0);
+          const ocup = await loadOcupacao(nome);
+          const ocAtual = ocup.find(o => o.status === 'Ocupado');
+          if (ocAtual) { totalAluguel += ocAtual.valorAluguel; countOcupados++; }
         }
-        
-        const valorizacao = totalValorCompra > 0 ? ((totalValorAtual - totalValorCompra) / totalValorCompra * 100).toFixed(1) : 0;
-        const taxaOcupacao = filtered.length > 0 ? ((countOcupados / filtered.length) * 100).toFixed(1) : 0;
-        
-        // Box de métricas
-        doc.setFillColor(249, 247, 243);
-        doc.roundedRect(margin, yPos, pageWidth - 2*margin, 55, 3, 3, 'F');
-        
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(46, 107, 142);
-        
-        const col1 = margin + 10;
-        const col2 = pageWidth / 2 + 5;
-        let boxY = yPos + 10;
-        
-        doc.text('Quantidade de Imóveis:', col1, boxY);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(0, 0, 0);
-        doc.text(String(filtered.length), col1 + 60, boxY);
-        
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(46, 107, 142);
-        doc.text('Valor Total:', col2, boxY);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(0, 0, 0);
-        doc.text(fmt(totalValorAtual), col2 + 40, boxY);
-        
-        boxY += 8;
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(46, 107, 142);
-        doc.text('Valorização:', col1, boxY);
-        doc.setFont('helvetica', 'normal');
-        const valColor = valorizacao >= 0 ? [46, 125, 82] : [192, 57, 43];
-        doc.setTextColor(...valColor);
-        doc.text(`${valorizacao >= 0 ? '+' : ''}${valorizacao}%`, col1 + 60, boxY);
-        
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(46, 107, 142);
-        doc.text('Total Investido:', col2, boxY);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(0, 0, 0);
-        doc.text(fmt(totalInvestido), col2 + 40, boxY);
-        
-        boxY += 8;
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(46, 107, 142);
-        doc.text('Aluguel Mensal:', col1, boxY);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(0, 0, 0);
-        doc.text(fmt(totalAluguel), col1 + 60, boxY);
-        
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(46, 107, 142);
-        doc.text('Taxa de Ocupação:', col2, boxY);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(0, 0, 0);
-        doc.text(`${taxaOcupacao}%`, col2 + 40, boxY);
-        
-        boxY += 8;
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(46, 107, 142);
-        doc.text('Imóveis Ocupados:', col1, boxY);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(0, 0, 0);
-        doc.text(`${countOcupados} / ${filtered.length}`, col1 + 60, boxY);
-        
-        yPos += 65;
-        
-        // LISTA DE IMÓVEIS
-        doc.addPage();
-        yPos = margin;
-        
-        doc.setFontSize(14);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(0, 0, 0);
-        doc.text('Carteira de Imóveis', margin, yPos);
-        
-        yPos += 10;
-        
-        // Tabela de imóveis
+        const valorizacaoGeral = totalValorCompra > 0
+          ? ((totalValorAtual - totalValorCompra) / totalValorCompra * 100).toFixed(1) : '0.0';
+
+        yPos = pageHeight * 0.42;
+        const kw = (contentW - 9) / 4;
+        [
+          ['Imóveis na Carteira', String(filtered.length), null],
+          ['Patrimônio Total',    fmtR(totalValorAtual),   null],
+          ['Total Investido',     fmtR(totalInvestido),    null],
+          ['Valorização Geral',   `${valorizacaoGeral >= 0 ? '+' : ''}${valorizacaoGeral}%`,
+           valorizacaoGeral >= 0 ? [39, 125, 82] : [192, 57, 43]]
+        ].forEach((item, i) => kpiBox(margin + i*(kw+3), yPos, kw, 20, item[0], item[1], item[2]));
+
+        yPos += 26;
+        [
+          ['Renda Mensal Total',  fmtR(totalAluguel),                       null],
+          ['Imóveis Ocupados',    `${countOcupados} / ${filtered.length}`,  null],
+          ['Taxa de Ocupação',    `${filtered.length > 0 ? ((countOcupados/filtered.length)*100).toFixed(0) : 0}%`, null],
+          ['Custo Médio',         fmtR(totalInvestido / Math.max(filtered.length,1)), null]
+        ].forEach((item, i) => kpiBox(margin + i*(kw+3), yPos, kw, 20, item[0], item[1], item[2]));
+
+        footerBar(1, '');
+
+        // ══════════════════════════════════════════════════════
+        // PÁGINAS POR IMÓVEL
+        // ══════════════════════════════════════════════════════
+        let pageNum = 2;
+
         for (const row of filtered) {
           if (!row[0]) continue;
-          
-          if (yPos > pageHeight - 50) {
-            doc.addPage();
-            yPos = margin;
-          }
-          
-          const nome = row[0];
-          const tipo = row[1] || '';
-          const grupo = row[2] || '';
-          const valorAtual = getValorAtualImovel(nome, row[7]);
-          const valorCompra = parseFloat(String(row[5] || '0').replace(/[^\d.-]/g, '')) || 0;
-          const variacao = valorCompra > 0 ? ((valorAtual - valorCompra) / valorCompra * 100).toFixed(1) : 0;
-          
-          // Box do imóvel
-          doc.setFillColor(255, 255, 255);
-          doc.roundedRect(margin, yPos, pageWidth - 2*margin, 35, 2, 2, 'F');
-          doc.setDrawColor(229, 221, 208);
-          doc.roundedRect(margin, yPos, pageWidth - 2*margin, 35, 2, 2, 'S');
-          
-          yPos += 8;
-          
-          doc.setFontSize(12);
-          doc.setFont('helvetica', 'bold');
-          doc.setTextColor(0, 0, 0);
-          doc.text(nome, margin + 5, yPos);
-          
+
+          doc.addPage();
+          const nome        = row[0];
+          const tipo        = row[1] || '';
+          const grupo       = row[2] || '';
+          const subgrupo    = row[3] || '';
+          const endereco    = row[4] || '';
+          const valorCompra = parseFloat(String(row[5]||'0').replace(/[^\d.-]/g,'')) || 0;
+          const dataCompra  = row[6] || '';
+          const valorAtual  = getValorAtualImovel(nome, row[7]);
+          const areaTotal   = row[11] || '—';
+          const areaUtil    = row[12] || '—';
+          const quartos     = row[13] || '—';
+          const vagas       = row[15] || '—';
+
+          // Dados financeiros avançados
+          const despExt     = await loadDespesasExtraordinarias(nome);
+          const despRec     = await loadDespesasRecorrentes(nome);
+          const investim    = await loadInvestimentos(nome);
+          const ocupacao    = await loadOcupacao(nome);
+
+          const despExtTotal = despExt.reduce((s,d) => s+d.valor, 0);
+          const invTotal     = investim.reduce((s,d) => s+d.valor, 0);
+          const despMensal   = despRec.reduce((s,d) => s+d.valorMensal, 0);
+          const custoTotal   = valorCompra + despExtTotal + invTotal;
+
+          const ocAtual = ocupacao.find(o => {
+            const hoje = new Date();
+            const ini  = new Date(o.dataInicio);
+            const fim  = o.dataFim ? new Date(o.dataFim) : new Date('2099-12-31');
+            return hoje >= ini && hoje <= fim;
+          }) || ocupacao.find(o => o.status === 'Ocupado');
+          const aluguel = ocAtual ? ocAtual.valorAluguel : 0;
+
+          const anos = dataCompra ? (new Date() - new Date(dataCompra)) / (365.25*864e5) : 0;
+          const varPercent  = valorCompra > 0 ? ((valorAtual - valorCompra) / valorCompra * 100) : 0;
+          const varReal     = custoTotal  > 0 ? ((valorAtual - custoTotal)  / custoTotal  * 100) : 0;
+          const cagrVal     = anos > 0 && valorCompra > 0
+            ? ((Math.pow(valorAtual/valorCompra, 1/anos) - 1)*100) : 0;
+          const yieldBruto  = valorAtual > 0 && aluguel > 0
+            ? ((aluguel*12)/valorAtual*100) : 0;
+          const cashFlow    = aluguel - despMensal;
+
+          const varColor    = varPercent >= 0 ? [39,125,82] : [192,57,43];
+          const varRealColor= varReal    >= 0 ? [39,125,82] : [192,57,43];
+
+          // Header da página
+          headerBar('Relatório de Imóveis', new Date().toLocaleDateString('pt-BR'));
+          yPos = 26;
+
+          // Nome e subtítulo
+          doc.setFontSize(14); doc.setFont('helvetica', 'bold');
+          doc.setTextColor(15, 61, 87);
+          doc.text(nome, margin, yPos);
           yPos += 6;
-          doc.setFontSize(9);
-          doc.setFont('helvetica', 'normal');
-          doc.setTextColor(100, 100, 100);
-          doc.text(`${tipo} • ${grupo}`, margin + 5, yPos);
-          
-          yPos += 8;
-          doc.setFontSize(10);
-          doc.setFont('helvetica', 'bold');
-          doc.setTextColor(46, 107, 142);
-          doc.text('Valor:', margin + 5, yPos);
-          doc.setFont('helvetica', 'normal');
-          doc.setTextColor(0, 0, 0);
-          doc.text(fmt(valorAtual), margin + 25, yPos);
-          
-          doc.setFont('helvetica', 'bold');
-          doc.setTextColor(46, 107, 142);
-          doc.text('Valorização:', pageWidth / 2, yPos);
-          doc.setFont('helvetica', 'normal');
-          const varColor = variacao >= 0 ? [46, 125, 82] : [192, 57, 43];
-          doc.setTextColor(...varColor);
-          doc.text(`${variacao >= 0 ? '+' : ''}${variacao}%`, pageWidth / 2 + 30, yPos);
-          
-          yPos += 15;
+          doc.setFontSize(8); doc.setFont('helvetica', 'normal');
+          doc.setTextColor(100, 120, 140);
+          const meta = [tipo, grupo, subgrupo].filter(Boolean).join(' • ');
+          doc.text(meta, margin, yPos);
+          if (endereco) {
+            doc.setTextColor(130, 130, 130);
+            doc.text(endereco, pageWidth - margin, yPos, { align: 'right' });
+          }
+
+          // Linha decorativa
+          yPos += 4;
+          doc.setDrawColor(184, 146, 74);
+          doc.setLineWidth(0.4);
+          doc.line(margin, yPos, pageWidth - margin, yPos);
+          yPos += 5;
+
+          // ── KPIs principais (2 linhas × 4 colunas) ─────────────
+          const kw2 = (contentW - 9) / 4;
+          const kh  = 18;
+
+          const kpis1 = [
+            ['Preço de Compra',  fmtR(valorCompra), null],
+            ['Custo Total',      fmtR(custoTotal),  null],
+            ['Valor Atual',      fmtR(valorAtual),  null],
+            ['Variação (compra)',`${varPercent >= 0 ? '+' : ''}${varPercent.toFixed(1)}%`, varColor],
+          ];
+          kpis1.forEach((k, i) => kpiBox(margin + i*(kw2+3), yPos, kw2, kh, k[0], k[1], k[2]));
+          yPos += kh + 3;
+
+          const kpis2 = [
+            ['Valoriz. Real',   `${varReal >= 0 ? '+' : ''}${varReal.toFixed(1)}%`, varRealColor],
+            ['CAGR (compra)',   `${cagrVal >= 0 ? '+' : ''}${cagrVal.toFixed(2)}% a.a.`, null],
+            ['Yield Bruto',     yieldBruto > 0 ? `${yieldBruto.toFixed(2)}% a.a.` : '—', null],
+            ['Cash Flow Mensal',cashFlow !== 0 ? fmtR(cashFlow) : '—',
+             cashFlow > 0 ? [39,125,82] : cashFlow < 0 ? [192,57,43] : null],
+          ];
+          kpis2.forEach((k, i) => kpiBox(margin + i*(kw2+3), yPos, kw2, kh, k[0], k[1], k[2]));
+          yPos += kh + 5;
+
+          // ── Características (linha compacta) ──────────────────────
+          doc.setFillColor(240, 244, 248);
+          doc.roundedRect(margin, yPos, contentW, 10, 1.5, 1.5, 'F');
+          doc.setFontSize(7.5); doc.setFont('helvetica', 'normal');
+          doc.setTextColor(80, 100, 120);
+          const chars = [
+            `Área total: ${areaTotal} m²`,
+            `Área útil: ${areaUtil} m²`,
+            `Quartos: ${quartos}`,
+            `Vagas: ${vagas}`,
+            `Data de compra: ${dataCompra ? new Date(dataCompra+'T12:00:00').toLocaleDateString('pt-BR') : '—'}`,
+            `Posse: ${anos > 0 ? anos.toFixed(1) + ' anos' : '—'}`,
+          ];
+          const colW = contentW / chars.length;
+          chars.forEach((c, i) => doc.text(c, margin + i*colW + colW/2, yPos + 6.5, { align: 'center' }));
+          yPos += 14;
+
+          // ── Gráfico de Evolução de Preço ─────────────────────────
+          doc.setFontSize(9); doc.setFont('helvetica', 'bold');
+          doc.setTextColor(15, 61, 87);
+          doc.text('Evolução do Valor de Mercado', margin, yPos);
+          yPos += 3;
+
+          // Monta pontos do histórico
+          const histRows = (dataCache.historico || [])
+            .filter(r => r[0] === nome && r[1])
+            .map(r => ({
+              x: new Date(r[1] + 'T12:00:00'),
+              y: parseFloat(String(r[2]||'0').replace(/[^\d.-]/g,'')) || 0
+            }))
+            .filter(p => !isNaN(p.x) && p.y > 0)
+            .sort((a,b) => a.x - b.x);
+
+          // Adiciona ponto atual se diferente do último
+          if (valorAtual > 0) {
+            const last = histRows[histRows.length - 1];
+            if (!last || Math.abs(last.y - valorAtual) > 1) {
+              histRows.push({ x: new Date(), y: valorAtual });
+            }
+          }
+
+          const chartH = 52;
+          drawLineChart(histRows, margin, yPos, contentW, chartH, { valorCompra });
+          yPos += chartH + 5;
+
+          // ── Ocupação atual ────────────────────────────────────────
+          if (ocAtual) {
+            doc.setFontSize(9); doc.setFont('helvetica', 'bold');
+            doc.setTextColor(15, 61, 87);
+            doc.text('Ocupação Atual', margin, yPos);
+            yPos += 3;
+            doc.setFillColor(240, 252, 244);
+            doc.setDrawColor(134, 200, 160);
+            doc.roundedRect(margin, yPos, contentW, 16, 2, 2, 'FD');
+            doc.setFontSize(8); doc.setFont('helvetica', 'normal');
+            doc.setTextColor(30, 90, 50);
+            const ocInfo = [
+              `Inquilino: ${ocAtual.inquilino || '—'}`,
+              `Aluguel: ${fmtR(aluguel)}/mês`,
+              `Desde: ${ocAtual.dataInicio ? new Date(ocAtual.dataInicio+'T12:00:00').toLocaleDateString('pt-BR') : '—'}`,
+              `Yield: ${yieldBruto > 0 ? yieldBruto.toFixed(2)+'% a.a.' : '—'}`,
+            ];
+            const oc4W = contentW / 4;
+            ocInfo.forEach((t, i) => doc.text(t, margin + i*oc4W + 4, yPos + 10));
+            yPos += 20;
+          }
+
+          // ── Composição do custo ───────────────────────────────────
+          if (custoTotal > valorCompra) {
+            doc.setFontSize(9); doc.setFont('helvetica', 'bold');
+            doc.setTextColor(15, 61, 87);
+            doc.text('Composição do Custo Total', margin, yPos);
+            yPos += 3;
+            const custoItems = [
+              ['Valor de Compra',          valorCompra,     [15,61,87]],
+              ['Despesas Extraordinárias', despExtTotal,    [184,100,50]],
+              ['Investimentos no Imóvel',  invTotal,        [100,60,160]],
+            ].filter(c => c[1] > 0);
+
+            const bw = contentW, bh = 8;
+            doc.setFillColor(235, 240, 245);
+            doc.roundedRect(margin, yPos, bw, bh, 1, 1, 'F');
+            let bx = margin;
+            custoItems.forEach(c => {
+              const pct = c[1] / custoTotal;
+              doc.setFillColor(...c[2]);
+              doc.rect(bx, yPos, bw * pct, bh, 'F');
+              bx += bw * pct;
+            });
+
+            yPos += bh + 3;
+            doc.setFontSize(7); doc.setFont('helvetica', 'normal');
+            custoItems.forEach((c, i) => {
+              const lx = margin + i * (contentW/3);
+              doc.setFillColor(...c[2]);
+              doc.rect(lx, yPos, 3, 3, 'F');
+              doc.setTextColor(60, 70, 80);
+              doc.text(`${c[0]}: ${fmtR(c[1])} (${(c[1]/custoTotal*100).toFixed(0)}%)`, lx + 5, yPos + 2.5);
+            });
+            yPos += 8;
+          }
+
+          footerBar(pageNum, '');
+          pageNum++;
         }
-        
-        // RODAPÉ
-        const totalPages = doc.internal.pages.length - 1;
-        for (let i = 1; i <= totalPages; i++) {
+
+        // Numeração final
+        const total = doc.internal.pages.length - 1;
+        for (let i = 1; i <= total; i++) {
           doc.setPage(i);
-          doc.setFontSize(8);
-          doc.setTextColor(150, 150, 150);
-          doc.text(`Praxes Family Office • Relatório confidencial`, margin, pageHeight - 10);
-          doc.text(`Página ${i} de ${totalPages}`, pageWidth - margin - 30, pageHeight - 10);
+          doc.setFontSize(7); doc.setTextColor(130, 130, 130);
+          doc.text(`${i} / ${total}`, pageWidth - margin, pageHeight - 4, { align: 'right' });
         }
-        
-        // Salva PDF
+
         const fileName = `Praxes_Imoveis_${new Date().toISOString().split('T')[0]}.pdf`;
         doc.save(fileName);
-        
-        console.log('✅ PDF gerado:', fileName);
-        
+
       } catch (e) {
         console.error('❌ Erro ao gerar PDF:', e);
         alert('Erro ao gerar relatório PDF: ' + e.message);
