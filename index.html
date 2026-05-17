@@ -6617,205 +6617,236 @@
 
         // ── Header de página ────────────────────────────────────
         function pageHeader(imovelNome) {
-          // Barra azul topo
+          // Faixa navy fina
           doc.setFillColor(...C.navy);
-          doc.rect(0, 0, PW, 14, 'F');
-          // Friso dourado
+          doc.rect(0, 0, PW, 12, 'F');
           doc.setFillColor(...C.gold);
-          doc.rect(0, 14, PW, 0.8, 'F');
+          doc.rect(0, 12, PW, 0.6, 'F');
 
+          // Logo: mantém proporção (max 24mm wide, 8mm tall)
           if (logoB64) {
-            try { doc.addImage(logoB64, 'PNG', M, 2, 18, 10); } catch(e) {}
+            try {
+              // Calcula proporção sem distorcer
+              const props = doc.getImageProperties(logoB64);
+              const maxW = 24, maxH = 8;
+              const ratio = Math.min(maxW / props.width, maxH / props.height);
+              const lw = props.width * ratio, lh = props.height * ratio;
+              doc.addImage(logoB64, 'PNG', M, (12 - lh) / 2, lw, lh);
+            } catch(e) {
+              doc.setTextColor(...C.white);
+              doc.setFontSize(9); doc.setFont('helvetica','bold');
+              doc.text('PRAXES', M, 8.5);
+            }
           } else {
             doc.setTextColor(...C.white);
-            doc.setFontSize(10); doc.setFont('helvetica','bold');
-            doc.text('PRAXES', M, 10);
+            doc.setFontSize(9); doc.setFont('helvetica','bold');
+            doc.text('PRAXES', M, 8.5);
           }
 
-          doc.setTextColor(200, 220, 235);
-          doc.setFontSize(7); doc.setFont('helvetica','normal');
-          if (imovelNome) doc.text(imovelNome, M + 22, 9.5);
-
-          doc.setTextColor(180, 200, 220);
-          doc.text(new Date().toLocaleDateString('pt-BR'), PW - M, 9.5, { align: 'right' });
+          if (imovelNome) {
+            doc.setTextColor(180, 205, 225);
+            doc.setFontSize(6.5); doc.setFont('helvetica','normal');
+            doc.text(imovelNome, PW / 2, 8, { align: 'center' });
+          }
+          doc.setTextColor(140, 175, 205);
+          doc.setFontSize(6.5); doc.setFont('helvetica','normal');
+          doc.text(new Date().toLocaleDateString('pt-BR'), PW - M, 8, { align: 'right' });
         }
 
-        // ── Footer ──────────────────────────────────────────────
         function pageFooter(num) {
           doc.setDrawColor(...C.border);
-          doc.setLineWidth(0.2);
-          doc.line(M, PH - 9, PW - M, PH - 9);
-          doc.setFontSize(6.5); doc.setFont('helvetica','normal');
-          doc.setTextColor(...C.muted);
-          doc.text('Praxes Family Office  •  Documento confidencial', M, PH - 5);
-          doc.text(String(num), PW - M, PH - 5, { align: 'right' });
+          doc.setLineWidth(0.15);
+          doc.line(M, PH - 8, PW - M, PH - 8);
+          doc.setFontSize(6); doc.setFont('helvetica','normal');
+          doc.setTextColor(170, 180, 190);
+          doc.text('Praxes Family Office  ·  Confidencial', M, PH - 4);
+          doc.text(String(num), PW - M, PH - 4, { align: 'right' });
         }
 
-        // ── Separador de seção ──────────────────────────────────
+        // Linha de seção: label pequeno + linha dourada fina
         function sectionLabel(label, y) {
-          doc.setFontSize(7); doc.setFont('helvetica','bold');
-          doc.setTextColor(...C.muted);
+          doc.setFontSize(6.5); doc.setFont('helvetica','bold');
+          doc.setTextColor(...C.gold);
           doc.text(label.toUpperCase(), M, y);
-          doc.setDrawColor(...C.border);
-          doc.setLineWidth(0.2);
-          doc.line(M + doc.getTextWidth(label.toUpperCase()) + 2, y - 0.5, PW - M, y - 0.5);
-          return y + 4;
+          doc.setDrawColor(...C.gold);
+          doc.setLineWidth(0.15);
+          doc.line(M + doc.getTextWidth(label.toUpperCase()) + 3, y - 0.8, PW - M, y - 0.8);
+          return y + 5;
         }
 
-        // ── KPI inline (sem box, estilo tabela financeira) ──────
-        // Renderiza uma linha de KPIs: label acima, valor abaixo, separados por linha vertical
+        // KPIs: sem box, sem fundo — só label cinza + valor negrito, separados por espaço
         function kpiRow(items, x, y, totalW, h) {
           const colW = totalW / items.length;
-          // Fundo muito sutil
-          doc.setFillColor(251, 252, 254);
-          doc.setDrawColor(...C.border);
-          doc.setLineWidth(0.2);
-          doc.roundedRect(x, y, totalW, h, 1.5, 1.5, 'FD');
-
           items.forEach((item, i) => {
-            const cx = x + i * colW;
-            // Separador vertical (não no primeiro)
+            const midX = x + i * colW + colW / 2;
+            // label
+            doc.setFontSize(6); doc.setFont('helvetica','normal');
+            doc.setTextColor(...C.muted);
+            doc.text(item.label, midX, y + 4, { align: 'center' });
+            // valor
+            doc.setFontSize(item.size || 9); doc.setFont('helvetica','bold');
+            doc.setTextColor(...(item.color || C.navy));
+            doc.text(item.value, midX, y + h - 3, { align: 'center' });
+            // separador vertical fino entre colunas
             if (i > 0) {
               doc.setDrawColor(...C.border);
-              doc.setLineWidth(0.2);
-              doc.line(cx, y + 3, cx, y + h - 3);
+              doc.setLineWidth(0.15);
+              doc.line(x + i * colW, y + 2, x + i * colW, y + h - 2);
             }
-            // Label
-            doc.setFontSize(6.5); doc.setFont('helvetica','normal');
-            doc.setTextColor(...C.muted);
-            doc.text(item.label, cx + colW/2, y + 5.5, { align: 'center' });
-            // Valor
-            doc.setFontSize(item.size || 9.5); doc.setFont('helvetica','bold');
-            doc.setTextColor(...(item.color || C.navy));
-            doc.text(item.value, cx + colW/2, y + h - 4, { align: 'center' });
           });
         }
 
-        // ── Gráfico de linha com área preenchida ────────────────
+        // Gráfico limpo: sem fundo colorido, sem área preenchida pesada
+        // Série principal: linha fina; benchmarks: tracejados ainda mais finos
         function drawChart(pts, gx, gy, gw, gh, opts = {}) {
           const hasPts = pts && pts.length >= 2;
-          doc.setFillColor(...C.bg);
+
+          // Apenas borda fina ao redor
+          doc.setFillColor(255, 255, 255);
           doc.setDrawColor(...C.border);
-          doc.setLineWidth(0.25);
-          doc.roundedRect(gx, gy, gw, gh, 1.5, 1.5, 'FD');
+          doc.setLineWidth(0.2);
+          doc.roundedRect(gx, gy, gw, gh, 1, 1, 'FD');
 
           if (!hasPts) {
             doc.setFontSize(7); doc.setTextColor(...C.muted);
-            doc.text('Dados insuficientes', gx + gw/2, gy + gh/2, { align: 'center' });
+            doc.text('Dados insuficientes', gx + gw / 2, gy + gh / 2, { align: 'center' });
             return;
           }
 
-          const pad = { l: 20, r: 6, t: 5, b: 12 };
-          const cx = gx+pad.l, cy = gy+pad.t, cw = gw-pad.l-pad.r, ch = gh-pad.t-pad.b;
+          const pad = { l: 22, r: 8, t: 6, b: 13 };
+          const cx = gx + pad.l, cy = gy + pad.t;
+          const cw = gw - pad.l - pad.r, ch = gh - pad.t - pad.b;
 
+          // Calcular domínio incluindo benchmarks se existirem
+          let allYs = pts.map(p => p.y);
+          if (opts.extras) opts.extras.forEach(ex => ex.pts.forEach(p => allYs.push(p.y)));
           const allXs = pts.map(p => p.x.getTime());
-          const allYs = pts.map(p => p.y);
           const minX = Math.min(...allXs), maxX = Math.max(...allXs);
-          const rawMinY = opts.forceZero ? 0 : Math.min(...allYs) * (Math.min(...allYs) < 0 ? 1.08 : 0.93);
-          const rawMaxY = Math.max(...allYs) * 1.07;
-          const minY = rawMinY, maxY = rawMaxY;
+          const yPad = opts.isPct ? 1.06 : 1.05;
+          const minY = opts.isPct
+            ? Math.min(0, Math.min(...allYs)) * yPad
+            : Math.min(...allYs) * 0.94;
+          const maxY = Math.max(...allYs) * yPad;
           const rX = maxX - minX || 1, rY = maxY - minY || 1;
 
-          const toX = t => cx + ((t-minX)/rX)*cw;
-          const toY = v => cy + ch - ((v-minY)/rY)*ch;
+          const toX = t => cx + ((t - minX) / rX) * cw;
+          const toY = v => cy + ch - ((v - minY) / rY) * ch;
 
-          // Grid Y (4 linhas)
-          doc.setLineWidth(0.15);
-          for (let i=0; i<=4; i++) {
-            const v = minY + rY*i/4;
+          // Grid horizontal — linhas muito sutis
+          doc.setLineWidth(0.1);
+          for (let i = 0; i <= 4; i++) {
+            const v = minY + rY * i / 4;
             const yy = toY(v);
-            doc.setDrawColor(235,240,245);
-            doc.line(cx, yy, cx+cw, yy);
+            doc.setDrawColor(240, 243, 246);
+            doc.line(cx, yy, cx + cw, yy);
             doc.setFontSize(5); doc.setFont('helvetica','normal');
-            doc.setTextColor(...C.muted);
+            doc.setTextColor(170, 180, 190);
             const lbl = opts.isPct
-              ? (v>=0?'+':'')+v.toFixed(0)+'%'
-              : (v>=1e6?(v/1e6).toFixed(1)+'M':(v/1000).toFixed(0)+'k');
-            doc.text(opts.isPct ? lbl : 'R$'+lbl, cx-1, yy+1.5, { align:'right' });
+              ? (v >= 0 ? '+' : '') + v.toFixed(0) + '%'
+              : (v >= 1e6 ? (v/1e6).toFixed(1)+'M' : (v/1000).toFixed(0)+'k');
+            doc.text(opts.isPct ? lbl : 'R$'+lbl, cx - 2, yy + 1.5, { align: 'right' });
           }
 
-          // Linha zero (só em gráficos %)
-          if (opts.isPct && minY < 0) {
+          // Linha zero
+          if (opts.isPct) {
             const y0 = toY(0);
-            doc.setDrawColor(180,180,180); doc.setLineWidth(0.3);
-            doc.line(cx, y0, cx+cw, y0);
+            doc.setDrawColor(200, 208, 216); doc.setLineWidth(0.2);
+            doc.line(cx, y0, cx + cw, y0);
           }
 
-          // Benchmarks (séries extras, tracejadas)
+          // Benchmarks PRIMEIRO (atrás da linha principal)
           if (opts.extras) {
             opts.extras.forEach(ex => {
-              doc.setDrawColor(...ex.color); doc.setLineWidth(0.45);
-              for (let i=0; i<ex.pts.length-1; i++) {
-                const x1=toX(ex.pts[i].x.getTime()), y1=toY(ex.pts[i].y);
-                const x2=toX(ex.pts[i+1].x.getTime()), y2=toY(ex.pts[i+1].y);
-                const dx=x2-x1, dy=y2-y1, d=Math.sqrt(dx*dx+dy*dy);
-                const steps=Math.max(1,Math.round(d/1.8));
-                for (let j=0;j<steps;j+=2){
-                  const t1=j/steps, t2=Math.min((j+1)/steps,1);
-                  doc.line(x1+dx*t1,y1+dy*t1,x1+dx*t2,y1+dy*t2);
+              doc.setDrawColor(...ex.color); doc.setLineWidth(0.3);
+              const exXs = ex.pts.map(p => p.x.getTime());
+              for (let i = 0; i < ex.pts.length - 1; i++) {
+                const x1 = toX(exXs[i]),   y1 = toY(ex.pts[i].y);
+                const x2 = toX(exXs[i+1]), y2 = toY(ex.pts[i+1].y);
+                // Tracejado a cada ~3mm
+                const dx = x2-x1, dy = y2-y1, dist = Math.sqrt(dx*dx+dy*dy);
+                const steps = Math.max(1, Math.round(dist / 1.5));
+                for (let j = 0; j < steps; j += 2) {
+                  const t1 = j/steps, t2 = Math.min((j+1)/steps, 1);
+                  doc.line(x1+dx*t1, y1+dy*t1, x1+dx*t2, y1+dy*t2);
                 }
               }
             });
           }
 
-          // Área preenchida (série principal)
-          doc.setFillColor(188, 218, 238);
-          for (let i=0; i<pts.length-1; i++) {
-            const x1=toX(allXs[i]),   y1=toY(allYs[i]);
-            const x2=toX(allXs[i+1]), y2=toY(allYs[i+1]);
-            const base = toY(opts.forceZero || opts.isPct ? Math.max(0,minY) : minY);
-            doc.triangle(x1,y1,x2,y2,x1,base,'F');
-            doc.triangle(x2,y2,x2,base,x1,base,'F');
+          // Área levíssima sob a linha principal (só gráfico de preço, não benchmarks)
+          if (!opts.isPct) {
+            doc.setFillColor(220, 234, 244);
+            for (let i = 0; i < pts.length - 1; i++) {
+              const x1=toX(allXs[i]),   y1=toY(pts[i].y);
+              const x2=toX(allXs[i+1]), y2=toY(pts[i+1].y);
+              const base = cy + ch;
+              doc.triangle(x1, y1, x2, y2, x1, base, 'F');
+              doc.triangle(x2, y2, x2, base, x1, base, 'F');
+            }
           }
 
-          // Linha principal
-          doc.setDrawColor(...C.navy); doc.setLineWidth(0.7);
-          for (let i=0; i<pts.length-1; i++) {
-            doc.line(toX(allXs[i]),toY(allYs[i]),toX(allXs[i+1]),toY(allYs[i+1]));
+          // Linha principal — navy, fina
+          doc.setDrawColor(...C.navy); doc.setLineWidth(0.5);
+          for (let i = 0; i < pts.length - 1; i++) {
+            doc.line(toX(allXs[i]), toY(pts[i].y), toX(allXs[i+1]), toY(pts[i+1].y));
           }
 
-          // Linha horizontal de compra (gráfico de preço)
+          // Linha de compra tracejada (só gráfico de preço)
           if (opts.valorCompra) {
             const yc = toY(opts.valorCompra);
-            doc.setDrawColor(200,70,70); doc.setLineWidth(0.3);
-            let xd=cx; while(xd<cx+cw){ doc.line(xd,yc,Math.min(xd+2.5,cx+cw),yc); xd+=4.5; }
-            doc.setFontSize(5); doc.setTextColor(200,70,70);
-            doc.text('compra', cx+cw+1, yc+1.5);
+            doc.setDrawColor(...C.gold); doc.setLineWidth(0.25);
+            let xd = cx;
+            while (xd < cx + cw) { doc.line(xd, yc, Math.min(xd+2, cx+cw), yc); xd += 3.5; }
+            doc.setFontSize(4.5); doc.setTextColor(...C.gold);
+            doc.text('preço de compra', cx + cw + 1.5, yc + 1.2);
           }
 
-          // Eixo X
-          doc.setFontSize(5); doc.setTextColor(...C.muted);
-          const nTicks = Math.min(pts.length, 6);
-          const step = Math.max(1, Math.floor((pts.length-1)/(nTicks-1)));
-          for (let i=0; i<pts.length; i+=step) {
-            doc.text(String(pts[i].x.getFullYear()), toX(allXs[i]), cy+ch+5.5, { align:'center' });
+          // Eixo X — anos
+          doc.setFontSize(5); doc.setTextColor(170, 180, 190);
+          const nTicks = Math.min(pts.length, 7);
+          const stepT = Math.max(1, Math.floor((pts.length - 1) / (nTicks - 1)));
+          const yearsShown = new Set();
+          for (let i = 0; i < pts.length; i += stepT) {
+            const yr = String(pts[i].x.getFullYear());
+            if (!yearsShown.has(yr)) {
+              doc.text(yr, toX(allXs[i]), cy + ch + 6, { align: 'center' });
+              yearsShown.add(yr);
+            }
           }
-          // Último ponto sempre
-          const last = pts[pts.length-1];
-          doc.text(String(last.x.getFullYear()), toX(last.x.getTime()), cy+ch+5.5, { align:'center' });
+          // Último ano
+          const lastPt = pts[pts.length-1];
+          const lastYr = String(lastPt.x.getFullYear());
+          if (!yearsShown.has(lastYr))
+            doc.text(lastYr, toX(lastPt.x.getTime()), cy + ch + 6, { align: 'center' });
 
-          // Pontos de marco
-          doc.setFillColor(...C.navy);
-          pts.forEach((p,i) => {
-            if (opts.marcoPts || !opts.extras) doc.circle(toX(allXs[i]),toY(p.y),0.8,'F');
-          });
+          // Pontos nos marcos reais (só se não for série suavizada)
+          if (opts.showDots) {
+            doc.setFillColor(...C.navy);
+            pts.forEach((p, i) => doc.circle(toX(allXs[i]), toY(p.y), 0.7, 'F'));
+          }
         }
 
-        // ── Legenda de benchmarks ───────────────────────────────
+        // Legenda benchmarks inline, discreta
         function benchLegend(x, y) {
           const items = [
-            { label:'Imóvel',   color: C.navy   },
-            { label:'CDI',      color: [245,158,11] },
-            { label:'IPCA',     color: [239,68,68]  },
-            { label:'IPCA+6%',  color: [139,92,246] },
+            { label: 'Imóvel',  color: C.navy,      solid: true  },
+            { label: 'CDI',     color: [245,158,11], solid: false },
+            { label: 'IPCA',    color: [239,68,68],  solid: false },
+            { label: 'IPCA+6%', color: [139,92,246], solid: false },
           ];
-          items.forEach((it, i) => {
-            const lx = x + i * 32;
-            doc.setFillColor(...it.color);
-            doc.rect(lx, y-2, 5, 1.5, 'F');
-            doc.setFontSize(6); doc.setFont('helvetica','normal');
+          let lx = x;
+          items.forEach(it => {
+            if (it.solid) {
+              doc.setFillColor(...it.color);
+              doc.rect(lx, y - 1.8, 7, 1.2, 'F');
+            } else {
+              doc.setDrawColor(...it.color); doc.setLineWidth(0.3);
+              doc.line(lx, y - 1.2, lx + 7, y - 1.2);
+            }
+            doc.setFontSize(5.5); doc.setFont('helvetica','normal');
             doc.setTextColor(...C.muted);
-            doc.text(it.label, lx+6.5, y-0.8);
+            doc.text(it.label, lx + 9, y - 0.5);
+            lx += 30;
           });
         }
 
@@ -6879,7 +6910,12 @@
 
         // Logo na capa
         if (logoB64) {
-          try { doc.addImage(logoB64,'PNG', M, 22, 48, 26); } catch(e) {}
+          try {
+            const props = doc.getImageProperties(logoB64);
+            const maxW = 52, maxH = 28;
+            const ratio = Math.min(maxW/props.width, maxH/props.height);
+            doc.addImage(logoB64, 'PNG', M, 18, props.width*ratio, props.height*ratio);
+          } catch(e) {}
         } else {
           doc.setTextColor(...C.white);
           doc.setFontSize(28); doc.setFont('helvetica','bold');
@@ -7087,22 +7123,24 @@
           }
           const histSmooth = interpolarMensal(histPts);
 
-          const ch1 = 52;
-          drawChart(histSmooth, M, y, CW, ch1, {valorCompra, marcoPts:false});
-          // Pontinhos nos marcos reais
-          doc.setFillColor(...C.navy);
-          histPts.forEach(p => {
-            const xs2=histSmooth.map(q=>q.x.getTime());
-            const ys2=histSmooth.map(q=>q.y);
-            const minX2=Math.min(...xs2),maxX2=Math.max(...xs2);
-            const minY2=Math.min(...ys2)*0.93,maxY2=Math.max(...ys2)*1.07;
-            const pad2={l:20,r:6,t:5,b:12};
-            const cx2=M+pad2.l,cy2=y+pad2.t,cw2=CW-pad2.l-pad2.r,ch2=ch1-pad2.t-pad2.b;
-            const tx=(p.x.getTime()-minX2)/(maxX2-minX2||1)*cw2+cx2;
-            const ty=cy2+ch2-((p.y-minY2)/(maxY2-minY2||1)*ch2);
-            doc.circle(tx,ty,1,'F');
-          });
-          y += ch1 + 6;
+          const ch1 = 54;
+          drawChart(histSmooth, M, y, CW, ch1, { valorCompra });
+          // Pontos nos marcos reais (sobre a curva suavizada)
+          if (histPts.length >= 2) {
+            const smXs = histSmooth.map(q => q.x.getTime());
+            const smYs = histSmooth.map(q => q.y);
+            const minX2 = Math.min(...smXs), maxX2 = Math.max(...smXs);
+            const minY2 = Math.min(...smYs)*0.94, maxY2 = Math.max(...smYs)*1.05;
+            const pad2 = {l:22,r:8,t:6,b:13};
+            const cx2=M+pad2.l, cy2=y+pad2.t, cw2=CW-pad2.l-pad2.r, ch2=ch1-pad2.t-pad2.b;
+            doc.setFillColor(...C.navy);
+            histPts.forEach(p => {
+              const tx = cx2 + ((p.x.getTime()-minX2)/(maxX2-minX2||1))*cw2;
+              const ty = cy2 + ch2 - ((p.y-minY2)/(maxY2-minY2||1))*ch2;
+              doc.circle(tx, ty, 0.9, 'F');
+            });
+          }
+          y += ch1 + 7;
 
           // ── Gráfico 2: Retorno Acumulado vs Benchmarks ───────
           y = sectionLabel('Retorno Acumulado vs Benchmarks', y);
@@ -7153,7 +7191,7 @@
             curR=new Date(curR.getFullYear(),curR.getMonth()+1,1);
           }
 
-          const ch2 = 52;
+          const ch2 = 54;
           drawChart(retIm, M, y, CW, ch2, {
             isPct: true,
             extras: [
