@@ -3,31 +3,73 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Praxes - Portal do Cliente</title>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&display=swap" rel="stylesheet" />
+  <title>Praxes — Family Office</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet" />
   <style>
+    /* ── SISTEMA DE DESIGN MERIDIAN WEALTH ─────────────────────
+       Navy profundo + Ouro preciso + Superfícies frias
+       Tipografia: DM Serif Display (display) + DM Sans (corpo)
+       Filosofia: Autoridade silenciosa. Nada decorativo.
+    ──────────────────────────────────────────────────────────── */
     :root {
-      --azul-principal: #0f3d57;
-      --azul-secundario: #2e6b8e;
-      --azul-terciario: #629ec1;
-      --branco: #FFFFFF;
-      --cinza-claro: #F5F5F5;
-      --text-dark: #0f3d57;
-      --text-light: #2e6b8e;
-    }
-    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Montserrat', sans-serif !important; }
-    body {
-      font-family: 'Montserrat', sans-serif !important;
-      background: var(--cinza-claro);
-      color: var(--text-dark);
-      line-height: 1.6;
-      min-height: 100vh;
+      /* Paleta principal */
+      --navy:          #0f3d57;
+      --navy-deep:     #081f2d;
+      --navy-mid:      #1a5570;
+      --navy-light:    #2e6b8e;
+      --navy-pale:     #e8f1f7;
+
+      --gold:          #b8924a;
+      --gold-light:    #d4aa6a;
+      --gold-pale:     #f5efe4;
+
+      --surface:       #f7f8fa;
+      --surface-2:     #ffffff;
+      --border:        rgba(15,61,87,0.08);
+      --border-strong: rgba(15,61,87,0.16);
+
+      --text-primary:  #0f3d57;
+      --text-secondary:#4a6474;
+      --text-muted:    #8a9fad;
+
+      /* Verde e vermelho de performance */
+      --verde:         #1a6645;
+      --verde-bg:      #e8f5ee;
+      --vermelho:      #8c2020;
+      --vermelho-bg:   #fceaea;
+
+      /* Aliases para compatibilidade com código existente */
+      --azul-principal:   #0f3d57;
+      --azul-secundario:  #2e6b8e;
+      --azul-terciario:   #629ec1;
+      --branco:           #ffffff;
+      --cinza-claro:      #f7f8fa;
+      --text-dark:        #0f3d57;
+      --text-light:       #4a6474;
+      --borda:            rgba(15,61,87,0.08);
+      --verde:            #1a6645;
     }
 
-    /* Força Montserrat em todos os elementos */
-    button, input, select, textarea, a, label, span, p, h1, h2, h3, h4, h5, h6, div {
-      font-family: 'Montserrat', sans-serif !important;
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'DM Sans', system-ui, sans-serif;
+      background: var(--surface);
+      color: var(--text-primary);
+      line-height: 1.55;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
     }
+
+    /* Hierarquia tipográfica */
+    h1, h2, h3 { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; letter-spacing: -0.02em; }
+    h4, h5, h6, button, input, select, textarea, label { font-family: 'DM Sans', sans-serif; }
+
+    /* Números importantes em display */
+    .stat-value, .db-kpi-val, .fmtK-display { font-family: 'DM Serif Display', Georgia, serif; }
+
+    /* Mono para dados financeiros */
+    .mono { font-family: 'DM Mono', 'Courier New', monospace; }
 
     /* LAYOUT PRINCIPAL */
     .app-container {
@@ -35,49 +77,122 @@
       min-height: 100vh;
     }
 
-    /* SIDEBAR */
+    /* ── SIDEBAR ────────────────────────────────────────────────── */
     .sidebar {
-      width: 260px;
-      background: var(--azul-principal);
-      color: var(--branco);
+      width: 240px;
+      background: var(--navy-deep);
+      color: #fff;
       position: fixed;
-      left: 0;
-      top: 0;
-      bottom: 0;
+      left: 0; top: 0; bottom: 0;
       overflow-y: auto;
       z-index: 1000;
-      box-shadow: 4px 0 20px rgba(0,0,0,0.1);
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid rgba(184,146,74,0.15);
     }
     .sidebar-header {
-      padding: 28px 20px 24px;
-      border-bottom: 1px solid rgba(255,255,255,0.1);
+      padding: 32px 24px 28px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      flex-shrink: 0;
     }
     .sidebar-logo {
-      font-size: 28px;
-      font-weight: 700;
-      letter-spacing: 2px;
-      color: var(--branco);
-      text-align: center;
+      font-family: 'DM Serif Display', Georgia, serif;
+      font-size: 22px;
+      font-weight: 400;
+      letter-spacing: 0.12em;
+      color: #fff;
+      text-align: left;
+    }
+    .sidebar-logo .logo-x {
+      color: var(--gold);
+    }
+    .sidebar-tagline {
+      font-size: 9px;
+      letter-spacing: 0.22em;
+      color: rgba(255,255,255,0.28);
+      text-transform: uppercase;
+      margin-top: 5px;
+      font-weight: 400;
     }
     .sidebar-nav {
       padding: 20px 0;
+      flex: 1;
     }
     .nav-item {
       display: flex;
       align-items: center;
-      padding: 14px 24px;
-      color: rgba(255,255,255,0.8);
+      padding: 11px 24px;
+      color: rgba(255,255,255,0.5);
       cursor: pointer;
-      transition: all 0.3s;
-      border-left: 4px solid transparent;
+      transition: all 0.15s;
+      border-left: 2px solid transparent;
       text-decoration: none;
+      font-size: 13px;
+      font-weight: 400;
+      letter-spacing: 0.01em;
+      gap: 12px;
     }
     .nav-item:hover {
-      background: rgba(255,255,255,0.05);
-      color: var(--branco);
-      border-left-color: var(--azul-terciario);
+      background: rgba(255,255,255,0.04);
+      color: rgba(255,255,255,0.85);
+      border-left-color: rgba(184,146,74,0.4);
     }
     .nav-item.active {
+      background: rgba(184,146,74,0.08);
+      color: #fff;
+      border-left-color: var(--gold);
+      font-weight: 500;
+    }
+    .nav-icon { opacity: 0.6; flex-shrink: 0; }
+    .nav-item.active .nav-icon,
+    .nav-item:hover .nav-icon { opacity: 1; }
+    .sidebar-footer {
+      padding: 20px 24px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      flex-shrink: 0;
+    }
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .user-avatar {
+      width: 34px; height: 34px;
+      border-radius: 50%;
+      background: rgba(184,146,74,0.2);
+      border: 1px solid rgba(184,146,74,0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 12px;
+      color: var(--gold-light);
+      flex-shrink: 0;
+    }
+    .user-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: rgba(255,255,255,0.8);
+      line-height: 1.3;
+    }
+    .btn-signout {
+      width: 100%;
+      padding: 8px;
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.1);
+      color: rgba(255,255,255,0.35);
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      font-family: 'DM Sans', sans-serif;
+      transition: all 0.15s;
+      letter-spacing: 0.03em;
+    }
+    .btn-signout:hover {
+      border-color: rgba(255,255,255,0.2);
+      color: rgba(255,255,255,0.6);
+    }
       background: rgba(255,255,255,0.1);
       color: var(--branco);
       border-left-color: var(--branco);
@@ -142,42 +257,42 @@
     /* ── SISTEMA DE BOTÕES CONSISTENTE ────────────────────────── */
     .btn-primary {
       padding: 10px 20px;
-      background: var(--azul-principal);
+      background: var(--navy);
       color: #fff;
       border: none;
       border-radius: 7px;
       cursor: pointer;
-      font-weight: 600;
+      font-weight: 500;
       font-size: 13px;
-      font-family: 'Montserrat', sans-serif;
+      font-family: 'DM Sans', sans-serif;
       letter-spacing: 0.01em;
-      transition: background 0.2s, box-shadow 0.2s;
+      transition: background 0.15s, box-shadow 0.15s;
     }
     .btn-primary:hover {
-      background: #0a2d42;
-      box-shadow: 0 4px 12px rgba(15,61,87,0.25);
+      background: var(--navy-deep);
+      box-shadow: 0 4px 14px rgba(15,61,87,0.2);
     }
     .btn-secondary {
       padding: 10px 18px;
       background: transparent;
-      color: var(--azul-principal);
-      border: 1.5px solid #c8d8e8;
+      color: var(--navy);
+      border: 1px solid var(--border-strong);
       border-radius: 7px;
       cursor: pointer;
-      font-weight: 600;
+      font-weight: 500;
       font-size: 13px;
-      font-family: 'Montserrat', sans-serif;
+      font-family: 'DM Sans', sans-serif;
       letter-spacing: 0.01em;
-      transition: border-color 0.2s, background 0.2s;
+      transition: border-color 0.15s, background 0.15s;
     }
     .btn-secondary:hover {
-      border-color: var(--azul-secundario);
-      background: #f0f6fb;
+      border-color: var(--navy-light);
+      background: var(--navy-pale);
     }
     .btn-danger {
       padding: 10px 18px;
       background: transparent;
-      color: #b91c1c;
+      color: var(--vermelho);
       border: 1.5px solid #fca5a5;
       border-radius: 7px;
       cursor: pointer;
@@ -207,105 +322,119 @@
 
     /* ── TOP BAR ───────────────────────────────────────────────── */
     .top-bar {
-      background: var(--branco);
-      padding: 18px 40px;
-      border-bottom: 1px solid #eef2f7;
+      background: var(--surface-2);
+      padding: 15px 40px;
+      border-bottom: 1px solid var(--border);
       display: flex;
       justify-content: space-between;
       align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
     }
     .page-title {
-      font-size: 22px;
-      font-weight: 700;
-      color: var(--azul-principal);
-      letter-spacing: -0.3px;
+      font-family: 'DM Serif Display', Georgia, serif;
+      font-size: 20px;
+      font-weight: 400;
+      color: var(--navy);
+      letter-spacing: -0.02em;
     }
 
-    /* ── PÁGINA DE BOAS-VINDAS DO DASHBOARD ────────────────────── */
+    /* ── BLOCO DE BOAS-VINDAS ──────────────────────────────────── */
     .dash-welcome {
-      background: linear-gradient(135deg, var(--azul-principal) 0%, #1a5a7a 100%);
+      background: var(--navy-deep);
       border-radius: 12px;
-      padding: 32px 36px;
-      margin-bottom: 24px;
+      padding: 32px 40px;
+      margin-bottom: 28px;
       color: #fff;
       position: relative;
       overflow: hidden;
+      border: 1px solid rgba(184,146,74,0.15);
     }
-    .dash-welcome::after {
+    .dash-welcome::before {
       content: '';
       position: absolute;
-      right: -20px; top: -40px;
-      width: 220px; height: 220px;
-      border-radius: 50%;
-      background: rgba(255,255,255,0.04);
+      right: 0; top: 0; bottom: 0;
+      width: 280px;
+      background: linear-gradient(90deg, transparent, rgba(184,146,74,0.04));
+      pointer-events: none;
+    }
+    .dash-welcome::after {
+      content: 'X';
+      font-family: 'DM Serif Display', Georgia, serif;
+      font-size: 200px;
+      font-weight: 400;
+      position: absolute;
+      right: 40px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: rgba(184,146,74,0.06);
+      letter-spacing: -0.05em;
+      pointer-events: none;
+      line-height: 1;
     }
     .dash-welcome-name {
-      font-size: 22px;
-      font-weight: 700;
+      font-family: 'DM Serif Display', Georgia, serif;
+      font-size: 26px;
+      font-weight: 400;
       margin-bottom: 4px;
-      letter-spacing: -0.2px;
+      letter-spacing: -0.02em;
+      color: #fff;
     }
     .dash-welcome-sub {
-      font-size: 13px;
-      color: rgba(255,255,255,0.65);
+      font-size: 12px;
+      color: rgba(255,255,255,0.4);
       font-weight: 400;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
     }
     .dash-welcome-kpis {
       display: flex;
-      gap: 32px;
-      margin-top: 24px;
+      gap: 0;
+      margin-top: 28px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      padding-top: 24px;
     }
     .dash-welcome-kpi {
       display: flex;
       flex-direction: column;
-      gap: 3px;
+      gap: 4px;
+      padding-right: 36px;
+      margin-right: 36px;
+      border-right: 1px solid rgba(255,255,255,0.08);
     }
+    .dash-welcome-kpi:last-child { border-right: none; }
     .dash-welcome-kpi-label {
-      font-size: 10px;
+      font-size: 9px;
       text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: rgba(255,255,255,0.5);
-      font-weight: 600;
+      letter-spacing: 0.12em;
+      color: rgba(255,255,255,0.35);
+      font-weight: 500;
     }
     .dash-welcome-kpi-val {
-      font-size: 20px;
-      font-weight: 700;
+      font-family: 'DM Serif Display', Georgia, serif;
+      font-size: 22px;
+      font-weight: 400;
       color: #fff;
-      letter-spacing: -0.3px;
+      letter-spacing: -0.02em;
+      line-height: 1.1;
     }
     .dash-welcome-kpi-sub {
       font-size: 11px;
-      color: rgba(255,255,255,0.45);
+      color: rgba(255,255,255,0.3);
     }
-    .dash-welcome-divider {
-      width: 1px;
-      background: rgba(255,255,255,0.15);
-      align-self: stretch;
-    }
+    .dash-welcome-divider { display: none; }
 
     /* ── MAIN CONTENT ─────────────────────────────────────────── */
     .main-content {
-      margin-left: 260px;
+      margin-left: 240px;
       flex: 1;
-      background: var(--cinza-claro);
+      background: var(--surface);
       min-width: 0;
       overflow-x: hidden;
     }
-    .top-bar {
-      background: var(--branco);
-      padding: 20px 40px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .page-title {
-      font-size: 28px;
-      font-weight: 700;
-      color: var(--azul-principal);
-    }
     .content-wrapper {
-      padding: 40px;
+      padding: 36px 40px;
       overflow: hidden;
       min-width: 0;
     }
@@ -386,100 +515,110 @@
       margin-bottom: 40px;
     }
     .stat-card {
-      background: white;
-      padding: 28px;
-      border-radius: 16px;
-      box-shadow: 0 4px 16px rgba(15, 61, 87, 0.08);
-      border-left: 4px solid var(--azul-secundario);
-      transition: transform 0.3s ease;
+      background: var(--surface-2);
+      padding: 24px 28px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      border-top: 2px solid var(--gold);
+      transition: box-shadow 0.15s;
     }
     .stat-card:hover {
-      transform: translateY(-4px);
+      box-shadow: 0 4px 20px rgba(15,61,87,0.08);
     }
     .stat-label {
-      font-size: 13px;
+      font-size: 10px;
       text-transform: uppercase;
-      letter-spacing: 1px;
-      color: var(--text-light);
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
       margin-bottom: 10px;
-      font-weight: 600;
+      font-weight: 500;
     }
     .stat-value {
-      font-size: 36px;
-      font-weight: 700;
-      color: var(--azul-principal);
-      margin-bottom: 8px;
+      font-family: 'DM Serif Display', Georgia, serif;
+      font-size: 32px;
+      font-weight: 400;
+      color: var(--navy);
+      margin-bottom: 6px;
+      letter-spacing: -0.02em;
+      line-height: 1.1;
     }
     .stat-change {
-      font-size: 14px;
-      color: var(--text-light);
+      font-size: 12px;
+      color: var(--text-muted);
     }
-    .stat-change.positive { color: #10b981; }
-    .stat-change.negative { color: #ef4444; }
+    .stat-change.positive { color: var(--verde); }
+    .stat-change.negative { color: var(--vermelho); }
 
     /* IMÓVEIS */
     .page-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 30px;
+      margin-bottom: 28px;
     }
     .btn-add {
-      padding: 12px 24px;
-      background: var(--azul-secundario);
-      color: var(--branco);
+      padding: 10px 20px;
+      background: var(--navy);
+      color: #fff;
       border: none;
-      border-radius: 8px;
+      border-radius: 7px;
       cursor: pointer;
-      font-weight: 600;
-      font-size: 14px;
-      transition: all 0.3s;
+      font-weight: 500;
+      font-size: 13px;
+      font-family: 'DM Sans', sans-serif;
+      transition: background 0.15s;
     }
-    .btn-add:hover {
-      background: var(--azul-terciario);
-    }
+    .btn-add:hover { background: var(--navy-deep); }
+
     .filters {
       display: flex;
-      gap: 12px;
-      margin-bottom: 30px;
+      gap: 6px;
+      margin-bottom: 28px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 4px;
+      width: fit-content;
     }
     .filter-btn {
-      padding: 8px 16px;
-      background: var(--branco);
-      border: 2px solid var(--cinza-claro);
-      border-radius: 20px;
+      padding: 7px 18px;
+      background: transparent;
+      border: none;
+      border-radius: 6px;
       cursor: pointer;
-      font-size: 14px;
-      transition: all 0.3s;
+      font-size: 13px;
+      font-family: 'DM Sans', sans-serif;
+      color: var(--text-muted);
+      font-weight: 400;
+      transition: all 0.15s;
     }
-    .filter-btn:hover {
-      border-color: var(--azul-secundario);
-    }
+    .filter-btn:hover { color: var(--navy); }
     .filter-btn.active {
-      background: var(--azul-secundario);
-      color: var(--branco);
-      border-color: var(--azul-secundario);
+      background: var(--navy);
+      color: #fff;
+      font-weight: 500;
     }
+
     .imoveis-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
-      gap: 24px;
+      grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+      gap: 20px;
     }
     .imovel-card {
-      background: var(--branco);
+      background: var(--surface-2);
       border-radius: 12px;
       overflow: hidden;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.08);
-      transition: all 0.3s;
+      border: 1px solid var(--border);
+      transition: box-shadow 0.15s, transform 0.15s;
     }
     .imovel-card:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+      box-shadow: 0 8px 28px rgba(15,61,87,0.1);
+      transform: translateY(-2px);
     }
     .imovel-image {
       width: 100%;
-      height: 160px;
-      background: linear-gradient(135deg, #0f3d57 0%, #1a5a7a 60%, #2e6b8e 100%);
+      height: 140px;
+      background: var(--navy-deep);
       display: flex;
       align-items: flex-end;
       justify-content: space-between;
@@ -488,50 +627,57 @@
       overflow: hidden;
     }
     .imovel-image::before {
-      content: '';
+      content: 'X';
+      font-family: 'DM Serif Display', Georgia, serif;
+      font-size: 160px;
       position: absolute;
-      top: -40px; right: -40px;
-      width: 160px; height: 160px;
-      border-radius: 50%;
-      background: rgba(255,255,255,0.04);
+      right: -10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: rgba(184,146,74,0.08);
+      line-height: 1;
+      pointer-events: none;
     }
     .imovel-image::after {
       content: '';
       position: absolute;
-      bottom: -20px; left: -20px;
-      width: 100px; height: 100px;
-      border-radius: 50%;
-      background: rgba(255,255,255,0.04);
+      bottom: 0; left: 0; right: 0;
+      height: 1px;
+      background: rgba(184,146,74,0.3);
     }
     .card-type-badge {
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 1px;
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
       text-transform: uppercase;
-      color: rgba(255,255,255,0.7);
-      background: rgba(255,255,255,0.1);
-      border-radius: 20px;
-      padding: 4px 10px;
+      color: var(--gold-light);
+      background: rgba(184,146,74,0.12);
+      border: 1px solid rgba(184,146,74,0.2);
+      border-radius: 4px;
+      padding: 3px 8px;
       position: relative;
       z-index: 1;
     }
     .card-type-icon {
       position: relative;
       z-index: 1;
-      opacity: 0.9;
+      opacity: 0.7;
     }
     .imovel-body {
-      padding: 20px;
+      padding: 20px 22px;
     }
     .imovel-title {
-      font-size: 20px;
-      font-weight: 700;
-      color: var(--azul-principal);
-      margin-bottom: 8px;
+      font-family: 'DM Serif Display', Georgia, serif;
+      font-size: 17px;
+      font-weight: 400;
+      color: var(--navy);
+      margin-bottom: 5px;
+      letter-spacing: -0.01em;
+      line-height: 1.3;
     }
     .imovel-meta {
-      font-size: 13px;
-      color: var(--text-light);
+      font-size: 12px;
+      color: var(--text-muted);
       margin-bottom: 16px;
     }
     .imovel-stats {
@@ -540,15 +686,15 @@
       gap: 12px;
       margin-bottom: 16px;
       padding-bottom: 16px;
-      border-bottom: 1px solid var(--cinza-claro);
+      border-bottom: 1px solid var(--border);
     }
     .imovel-stat-item {
       display: flex;
       flex-direction: column;
     }
     .imovel-stat-label {
-      font-size: 11px;
-      color: var(--text-light);
+      font-size: 10px;
+      color: var(--text-muted);
       margin-bottom: 4px;
     }
     .imovel-stat-value {
@@ -1600,7 +1746,8 @@
     <!-- SIDEBAR -->
     <aside class="sidebar">
       <div class="sidebar-header">
-        <img src="./logo.png" alt="Praxes" style="height:52px;width:auto;display:block;margin:0 auto;">
+        <div class="sidebar-logo">PRA<span class="logo-x">X</span>ES</div>
+        <div class="sidebar-tagline">Family Office</div>
       </div>
       <nav class="sidebar-nav">
         <div class="nav-item active" data-page="dashboard">
