@@ -6565,677 +6565,637 @@
       try {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-        const pageWidth  = doc.internal.pageSize.getWidth();
-        const pageHeight = doc.internal.pageSize.getHeight();
-        const margin = 18;
-        const contentW = pageWidth - 2 * margin;
-        let yPos = margin;
+        const PW = doc.internal.pageSize.getWidth();   // 210
+        const PH = doc.internal.pageSize.getHeight();  // 297
+        const M  = 16; // margem
+        const CW = PW - 2 * M;
+
+        // ── Paleta ──────────────────────────────────────────────
+        const C = {
+          navy:   [15,  61,  87],
+          gold:   [184,146,  74],
+          green:  [34, 110,  60],
+          red:    [185,  28,  28],
+          muted:  [100,120, 140],
+          border: [220,228, 236],
+          bg:     [248,250, 252],
+          white:  [255,255, 255],
+          dark:   [30,  40,  50],
+        };
 
         const filtered = currentFilter === 'todos' ? imoveisData
           : currentFilter === 'investimento' ? imoveisData.filter(r => r[2] === 'Investimento')
           : imoveisData.filter(r => r[2] === 'Bem Pessoal');
 
-        // ── Helpers ────────────────────────────────────────────────
-        const fmtR = v => v >= 1e6
-          ? 'R$ ' + (v/1e6).toFixed(2).replace('.', ',') + 'M'
-          : 'R$ ' + Math.round(v).toLocaleString('pt-BR');
+        // ── Formatos ────────────────────────────────────────────
+        const fmtR = v => {
+          if (!v || isNaN(v)) return '—';
+          return v >= 1e6
+            ? 'R$ ' + (v/1e6).toFixed(2).replace('.',',') + 'M'
+            : 'R$ ' + Math.round(v).toLocaleString('pt-BR');
+        };
+        const fmtPct = (v, digits=1) => {
+          if (v === null || v === undefined || isNaN(v)) return '—';
+          return (v >= 0 ? '+' : '') + v.toFixed(digits) + '%';
+        };
+        const fmtDate = s => {
+          if (!s) return '—';
+          try { return new Date(s+'T12:00:00').toLocaleDateString('pt-BR'); } catch { return s; }
+        };
 
-        function headerBar(title, subtitle) {
-          doc.setFillColor(15, 61, 87);
-          doc.rect(0, 0, pageWidth, 18, 'F');
-          doc.setFillColor(184, 146, 74);
-          doc.rect(0, 18, pageWidth, 1.2, 'F');
-          doc.setTextColor(255, 255, 255);
-          doc.setFontSize(11); doc.setFont('helvetica', 'bold');
-          doc.text('PRAXES', margin, 12);
-          doc.setFontSize(8); doc.setFont('helvetica', 'normal');
-          doc.text(title, margin + 22, 12);
-          if (subtitle) {
-            doc.setTextColor(180, 210, 235);
-            doc.text(subtitle, pageWidth - margin, 12, { align: 'right' });
+        // ── Logo (fetch → base64) ───────────────────────────────
+        let logoB64 = null;
+        try {
+          const resp = await fetch('./logo.png');
+          const blob = await resp.blob();
+          logoB64 = await new Promise(res => {
+            const r = new FileReader();
+            r.onload = () => res(r.result);
+            r.readAsDataURL(blob);
+          });
+        } catch(e) { console.warn('Logo não carregada', e); }
+
+        // ── Header de página ────────────────────────────────────
+        function pageHeader(imovelNome) {
+          // Barra azul topo
+          doc.setFillColor(...C.navy);
+          doc.rect(0, 0, PW, 14, 'F');
+          // Friso dourado
+          doc.setFillColor(...C.gold);
+          doc.rect(0, 14, PW, 0.8, 'F');
+
+          if (logoB64) {
+            try { doc.addImage(logoB64, 'PNG', M, 2, 18, 10); } catch(e) {}
+          } else {
+            doc.setTextColor(...C.white);
+            doc.setFontSize(10); doc.setFont('helvetica','bold');
+            doc.text('PRAXES', M, 10);
           }
-          doc.setTextColor(0, 0, 0);
+
+          doc.setTextColor(200, 220, 235);
+          doc.setFontSize(7); doc.setFont('helvetica','normal');
+          if (imovelNome) doc.text(imovelNome, M + 22, 9.5);
+
+          doc.setTextColor(180, 200, 220);
+          doc.text(new Date().toLocaleDateString('pt-BR'), PW - M, 9.5, { align: 'right' });
         }
 
-        function footerBar(pageNum, total) {
-          doc.setFillColor(240, 240, 240);
-          doc.rect(0, pageHeight - 10, pageWidth, 10, 'F');
-          doc.setFontSize(7); doc.setFont('helvetica', 'normal');
-          doc.setTextColor(130, 130, 130);
-          doc.text('Praxes Family Office  •  Relatório confidencial', margin, pageHeight - 4);
-          doc.text(`Página ${pageNum}`, pageWidth - margin, pageHeight - 4, { align: 'right' });
+        // ── Footer ──────────────────────────────────────────────
+        function pageFooter(num) {
+          doc.setDrawColor(...C.border);
+          doc.setLineWidth(0.2);
+          doc.line(M, PH - 9, PW - M, PH - 9);
+          doc.setFontSize(6.5); doc.setFont('helvetica','normal');
+          doc.setTextColor(...C.muted);
+          doc.text('Praxes Family Office  •  Documento confidencial', M, PH - 5);
+          doc.text(String(num), PW - M, PH - 5, { align: 'right' });
         }
 
-        function kpiBox(x, y, w, h, label, value, valueColor) {
-          doc.setFillColor(248, 250, 252);
-          doc.setDrawColor(220, 228, 236);
-          doc.roundedRect(x, y, w, h, 2, 2, 'FD');
-          doc.setFontSize(7); doc.setFont('helvetica', 'normal');
-          doc.setTextColor(120, 140, 160);
-          doc.text(label, x + 3, y + 5);
-          doc.setFontSize(10); doc.setFont('helvetica', 'bold');
-          doc.setTextColor(...(valueColor || [15, 61, 87]));
-          doc.text(value, x + 3, y + 12);
+        // ── Separador de seção ──────────────────────────────────
+        function sectionLabel(label, y) {
+          doc.setFontSize(7); doc.setFont('helvetica','bold');
+          doc.setTextColor(...C.muted);
+          doc.text(label.toUpperCase(), M, y);
+          doc.setDrawColor(...C.border);
+          doc.setLineWidth(0.2);
+          doc.line(M + doc.getTextWidth(label.toUpperCase()) + 2, y - 0.5, PW - M, y - 0.5);
+          return y + 4;
         }
 
-        // ── Desenha gráfico de linha no PDF ────────────────────────
-        // pts: [{x: Date, y: number}], área do gráfico em mm
-        function drawLineChart(pts, gx, gy, gw, gh, opts = {}) {
-          if (!pts || pts.length < 2) {
-            doc.setFillColor(245, 245, 245);
-            doc.rect(gx, gy, gw, gh, 'F');
-            doc.setFontSize(8); doc.setTextColor(160,160,160);
+        // ── KPI inline (sem box, estilo tabela financeira) ──────
+        // Renderiza uma linha de KPIs: label acima, valor abaixo, separados por linha vertical
+        function kpiRow(items, x, y, totalW, h) {
+          const colW = totalW / items.length;
+          // Fundo muito sutil
+          doc.setFillColor(251, 252, 254);
+          doc.setDrawColor(...C.border);
+          doc.setLineWidth(0.2);
+          doc.roundedRect(x, y, totalW, h, 1.5, 1.5, 'FD');
+
+          items.forEach((item, i) => {
+            const cx = x + i * colW;
+            // Separador vertical (não no primeiro)
+            if (i > 0) {
+              doc.setDrawColor(...C.border);
+              doc.setLineWidth(0.2);
+              doc.line(cx, y + 3, cx, y + h - 3);
+            }
+            // Label
+            doc.setFontSize(6.5); doc.setFont('helvetica','normal');
+            doc.setTextColor(...C.muted);
+            doc.text(item.label, cx + colW/2, y + 5.5, { align: 'center' });
+            // Valor
+            doc.setFontSize(item.size || 9.5); doc.setFont('helvetica','bold');
+            doc.setTextColor(...(item.color || C.navy));
+            doc.text(item.value, cx + colW/2, y + h - 4, { align: 'center' });
+          });
+        }
+
+        // ── Gráfico de linha com área preenchida ────────────────
+        function drawChart(pts, gx, gy, gw, gh, opts = {}) {
+          const hasPts = pts && pts.length >= 2;
+          doc.setFillColor(...C.bg);
+          doc.setDrawColor(...C.border);
+          doc.setLineWidth(0.25);
+          doc.roundedRect(gx, gy, gw, gh, 1.5, 1.5, 'FD');
+
+          if (!hasPts) {
+            doc.setFontSize(7); doc.setTextColor(...C.muted);
             doc.text('Dados insuficientes', gx + gw/2, gy + gh/2, { align: 'center' });
             return;
           }
 
-          // fundo
-          doc.setFillColor(250, 252, 254);
-          doc.setDrawColor(220, 228, 236);
-          doc.roundedRect(gx, gy, gw, gh, 2, 2, 'FD');
+          const pad = { l: 20, r: 6, t: 5, b: 12 };
+          const cx = gx+pad.l, cy = gy+pad.t, cw = gw-pad.l-pad.r, ch = gh-pad.t-pad.b;
 
-          const pad = { l: 22, r: 6, t: 6, b: 14 };
-          const cx = gx + pad.l, cy = gy + pad.t;
-          const cw = gw - pad.l - pad.r, ch = gh - pad.t - pad.b;
+          const allXs = pts.map(p => p.x.getTime());
+          const allYs = pts.map(p => p.y);
+          const minX = Math.min(...allXs), maxX = Math.max(...allXs);
+          const rawMinY = opts.forceZero ? 0 : Math.min(...allYs) * (Math.min(...allYs) < 0 ? 1.08 : 0.93);
+          const rawMaxY = Math.max(...allYs) * 1.07;
+          const minY = rawMinY, maxY = rawMaxY;
+          const rX = maxX - minX || 1, rY = maxY - minY || 1;
 
-          const xs = pts.map(p => p.x.getTime());
-          const ys = pts.map(p => p.y);
-          const minX = Math.min(...xs), maxX = Math.max(...xs);
-          const minY = Math.min(...ys) * 0.95;
-          const maxY = Math.max(...ys) * 1.05;
-          const rangeX = maxX - minX || 1, rangeY = maxY - minY || 1;
+          const toX = t => cx + ((t-minX)/rX)*cw;
+          const toY = v => cy + ch - ((v-minY)/rY)*ch;
 
-          const toSvgX = t => cx + ((t - minX) / rangeX) * cw;
-          const toSvgY = v => cy + ch - ((v - minY) / rangeY) * ch;
-
-          // Grid linhas horizontais (4)
-          doc.setDrawColor(230, 235, 240);
-          doc.setLineWidth(0.2);
-          for (let i = 0; i <= 4; i++) {
-            const v = minY + (rangeY * i / 4);
-            const yy = toSvgY(v);
-            doc.line(cx, yy, cx + cw, yy);
-            // label eixo Y
-            doc.setFontSize(5.5); doc.setTextColor(150, 150, 150);
-            doc.setFont('helvetica', 'normal');
-            const label = v >= 1e6 ? (v/1e6).toFixed(1)+'M' : (v/1000).toFixed(0)+'k';
-            doc.text('R$'+label, cx - 2, yy + 1.5, { align: 'right' });
+          // Grid Y (4 linhas)
+          doc.setLineWidth(0.15);
+          for (let i=0; i<=4; i++) {
+            const v = minY + rY*i/4;
+            const yy = toY(v);
+            doc.setDrawColor(235,240,245);
+            doc.line(cx, yy, cx+cw, yy);
+            doc.setFontSize(5); doc.setFont('helvetica','normal');
+            doc.setTextColor(...C.muted);
+            const lbl = opts.isPct
+              ? (v>=0?'+':'')+v.toFixed(0)+'%'
+              : (v>=1e6?(v/1e6).toFixed(1)+'M':(v/1000).toFixed(0)+'k');
+            doc.text(opts.isPct ? lbl : 'R$'+lbl, cx-1, yy+1.5, { align:'right' });
           }
 
-          // Área preenchida (polígono)
-          const polyPts = [];
-          polyPts.push([toSvgX(xs[0]), cy + ch]);
-          pts.forEach((p, i) => polyPts.push([toSvgX(xs[i]), toSvgY(p.y)]));
-          polyPts.push([toSvgX(xs[xs.length-1]), cy + ch]);
+          // Linha zero (só em gráficos %)
+          if (opts.isPct && minY < 0) {
+            const y0 = toY(0);
+            doc.setDrawColor(180,180,180); doc.setLineWidth(0.3);
+            doc.line(cx, y0, cx+cw, y0);
+          }
 
-          // fill com cor suave
-          doc.setFillColor(46, 107, 142, 0.12);
-          doc.setDrawColor(46, 107, 142, 0);
-          // jsPDF não suporta fill de polyline nativamente — usa rect aproximado
-          // Desenhamos segmentos individuais para o fill de forma simples:
-          doc.setFillColor(210, 228, 242);
-          for (let i = 0; i < pts.length - 1; i++) {
-            const x1 = toSvgX(xs[i]),   y1 = toSvgY(ys[i]);
-            const x2 = toSvgX(xs[i+1]), y2 = toSvgY(ys[i+1]);
-            const baseY = cy + ch;
-            // Trapézio aproximado
-            doc.triangle(x1, y1, x2, y2, x1, baseY, 'F');
-            doc.triangle(x2, y2, x2, baseY, x1, baseY, 'F');
+          // Benchmarks (séries extras, tracejadas)
+          if (opts.extras) {
+            opts.extras.forEach(ex => {
+              doc.setDrawColor(...ex.color); doc.setLineWidth(0.45);
+              for (let i=0; i<ex.pts.length-1; i++) {
+                const x1=toX(ex.pts[i].x.getTime()), y1=toY(ex.pts[i].y);
+                const x2=toX(ex.pts[i+1].x.getTime()), y2=toY(ex.pts[i+1].y);
+                const dx=x2-x1, dy=y2-y1, d=Math.sqrt(dx*dx+dy*dy);
+                const steps=Math.max(1,Math.round(d/1.8));
+                for (let j=0;j<steps;j+=2){
+                  const t1=j/steps, t2=Math.min((j+1)/steps,1);
+                  doc.line(x1+dx*t1,y1+dy*t1,x1+dx*t2,y1+dy*t2);
+                }
+              }
+            });
+          }
+
+          // Área preenchida (série principal)
+          doc.setFillColor(188, 218, 238);
+          for (let i=0; i<pts.length-1; i++) {
+            const x1=toX(allXs[i]),   y1=toY(allYs[i]);
+            const x2=toX(allXs[i+1]), y2=toY(allYs[i+1]);
+            const base = toY(opts.forceZero || opts.isPct ? Math.max(0,minY) : minY);
+            doc.triangle(x1,y1,x2,y2,x1,base,'F');
+            doc.triangle(x2,y2,x2,base,x1,base,'F');
           }
 
           // Linha principal
-          doc.setDrawColor(15, 61, 87);
-          doc.setLineWidth(0.7);
-          for (let i = 0; i < pts.length - 1; i++) {
-            doc.line(toSvgX(xs[i]), toSvgY(ys[i]), toSvgX(xs[i+1]), toSvgY(ys[i+1]));
+          doc.setDrawColor(...C.navy); doc.setLineWidth(0.7);
+          for (let i=0; i<pts.length-1; i++) {
+            doc.line(toX(allXs[i]),toY(allYs[i]),toX(allXs[i+1]),toY(allYs[i+1]));
           }
 
-          // Pontos de reavaliação
-          doc.setFillColor(15, 61, 87);
-          pts.forEach((p, i) => {
-            doc.circle(toSvgX(xs[i]), toSvgY(ys[i]), 0.9, 'F');
+          // Linha horizontal de compra (gráfico de preço)
+          if (opts.valorCompra) {
+            const yc = toY(opts.valorCompra);
+            doc.setDrawColor(200,70,70); doc.setLineWidth(0.3);
+            let xd=cx; while(xd<cx+cw){ doc.line(xd,yc,Math.min(xd+2.5,cx+cw),yc); xd+=4.5; }
+            doc.setFontSize(5); doc.setTextColor(200,70,70);
+            doc.text('compra', cx+cw+1, yc+1.5);
+          }
+
+          // Eixo X
+          doc.setFontSize(5); doc.setTextColor(...C.muted);
+          const nTicks = Math.min(pts.length, 6);
+          const step = Math.max(1, Math.floor((pts.length-1)/(nTicks-1)));
+          for (let i=0; i<pts.length; i+=step) {
+            doc.text(String(pts[i].x.getFullYear()), toX(allXs[i]), cy+ch+5.5, { align:'center' });
+          }
+          // Último ponto sempre
+          const last = pts[pts.length-1];
+          doc.text(String(last.x.getFullYear()), toX(last.x.getTime()), cy+ch+5.5, { align:'center' });
+
+          // Pontos de marco
+          doc.setFillColor(...C.navy);
+          pts.forEach((p,i) => {
+            if (opts.marcoPts || !opts.extras) doc.circle(toX(allXs[i]),toY(p.y),0.8,'F');
           });
-
-          // Labels eixo X (max 5 ticks)
-          doc.setFontSize(5.5); doc.setTextColor(150, 150, 150);
-          const tickCount = Math.min(pts.length, 5);
-          const step = Math.floor((pts.length - 1) / (tickCount - 1)) || 1;
-          for (let i = 0; i < pts.length; i += step) {
-            const d = pts[i].x;
-            const label = d.getFullYear() + (i === 0 || d.getMonth() === 0 ? '' : '');
-            doc.text(String(d.getFullYear()), toSvgX(xs[i]), cy + ch + 6, { align: 'center' });
-          }
-
-          // Linha de compra (horizontal tracejada)
-          if (opts.valorCompra && opts.valorCompra > minY) {
-            const yComp = toSvgY(opts.valorCompra);
-            doc.setDrawColor(200, 80, 80);
-            doc.setLineWidth(0.3);
-            // Tracejado manual
-            let xd = cx;
-            while (xd < cx + cw) {
-              doc.line(xd, yComp, Math.min(xd + 3, cx + cw), yComp);
-              xd += 5;
-            }
-            doc.setFontSize(5.5); doc.setTextColor(200, 80, 80);
-            doc.text('Compra', cx + cw + 1, yComp + 1);
-          }
         }
 
-        // ══════════════════════════════════════════════════════
-        // PÁGINA 1 — CAPA
-        // ══════════════════════════════════════════════════════
-        doc.setFillColor(15, 61, 87);
-        doc.rect(0, 0, pageWidth, pageHeight * 0.38, 'F');
-        doc.setFillColor(184, 146, 74);
-        doc.rect(0, pageHeight * 0.38, pageWidth, 1.5, 'F');
+        // ── Legenda de benchmarks ───────────────────────────────
+        function benchLegend(x, y) {
+          const items = [
+            { label:'Imóvel',   color: C.navy   },
+            { label:'CDI',      color: [245,158,11] },
+            { label:'IPCA',     color: [239,68,68]  },
+            { label:'IPCA+6%',  color: [139,92,246] },
+          ];
+          items.forEach((it, i) => {
+            const lx = x + i * 32;
+            doc.setFillColor(...it.color);
+            doc.rect(lx, y-2, 5, 1.5, 'F');
+            doc.setFontSize(6); doc.setFont('helvetica','normal');
+            doc.setTextColor(...C.muted);
+            doc.text(it.label, lx+6.5, y-0.8);
+          });
+        }
 
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(32); doc.setFont('helvetica', 'bold');
-        doc.text('PRAXES', margin, 35);
-        doc.setFontSize(13); doc.setFont('helvetica', 'normal');
-        doc.setTextColor(180, 210, 235);
-        doc.text('Family Office', margin, 45);
+        // ── Helpers de interpolação / benchmark ─────────────────
+        function interpolarMensal(pts) {
+          if (!pts || pts.length < 2) return pts || [];
+          const out = [];
+          for (let i=0; i<pts.length-1; i++) {
+            const p1=pts[i], p2=pts[i+1];
+            const anos=(p2.x-p1.x)/(365.25*864e5);
+            if (anos<=0){ out.push(p1); continue; }
+            const cagr=Math.pow(p2.y/p1.y,1/anos)-1;
+            let cur=new Date(p1.x.getFullYear(),p1.x.getMonth(),1);
+            const fim=new Date(p2.x.getFullYear(),p2.x.getMonth(),1);
+            while(cur<=fim){
+              const t=(cur-p1.x)/(365.25*864e5);
+              out.push({x:new Date(cur),y:p1.y*Math.pow(1+cagr,t)});
+              cur=new Date(cur.getFullYear(),cur.getMonth()+1,1);
+            }
+          }
+          out.push(pts[pts.length-1]);
+          return out;
+        }
 
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(22); doc.setFont('helvetica', 'bold');
-        doc.text('Relatório de Imóveis', margin, 68);
-        doc.setFontSize(10); doc.setFont('helvetica', 'normal');
-        doc.setTextColor(180, 210, 235);
-        doc.text(`Gerado em ${new Date().toLocaleDateString('pt-BR', { day:'2-digit', month:'long', year:'numeric' })}`, margin, 78);
+        const tCDI = [
+          {ate:new Date('2003-01-01'),taxa:.235},{ate:new Date('2006-01-01'),taxa:.185},
+          {ate:new Date('2010-01-01'),taxa:.135},{ate:new Date('2013-01-01'),taxa:.105},
+          {ate:new Date('2016-01-01'),taxa:.115},{ate:new Date('2018-01-01'),taxa:.110},
+          {ate:new Date('2021-01-01'),taxa:.045},{ate:new Date('2023-01-01'),taxa:.125},
+          {ate:new Date('2025-01-01'),taxa:.107},{ate:new Date('2099-01-01'),taxa:.135},
+        ];
+        const tIPCA = [
+          {ate:new Date('2003-01-01'),taxa:.125},{ate:new Date('2006-01-01'),taxa:.075},
+          {ate:new Date('2010-01-01'),taxa:.055},{ate:new Date('2016-01-01'),taxa:.065},
+          {ate:new Date('2020-01-01'),taxa:.040},{ate:new Date('2022-01-01'),taxa:.088},
+          {ate:new Date('2023-01-01'),taxa:.057},{ate:new Date('2099-01-01'),taxa:.048},
+        ];
+        const tIPCA6 = tIPCA.map(p=>({ate:p.ate,taxa:p.taxa+.06}));
+
+        function benchMult(d0, d1, tab) {
+          if(d1<=d0) return 1;
+          let mult=1, cur=new Date(d0);
+          while(cur<d1){
+            const p=tab.find(t=>cur<t.ate);
+            const taxa=p?p.taxa:tab[tab.length-1].taxa;
+            const ate=(p&&p.ate<d1)?p.ate:d1;
+            mult*=Math.pow(1+taxa,(ate-cur)/(365.25*864e5));
+            cur=new Date(ate);
+          }
+          return mult;
+        }
+
+        // ══════════════════════════════════════════════════════════
+        // CAPA
+        // ══════════════════════════════════════════════════════════
+        // Bloco azul superior (60% da página)
+        doc.setFillColor(...C.navy);
+        doc.rect(0, 0, PW, PH * 0.55, 'F');
+        doc.setFillColor(...C.gold);
+        doc.rect(0, PH * 0.55, PW, 1.2, 'F');
+
+        // Logo na capa
+        if (logoB64) {
+          try { doc.addImage(logoB64,'PNG', M, 22, 48, 26); } catch(e) {}
+        } else {
+          doc.setTextColor(...C.white);
+          doc.setFontSize(28); doc.setFont('helvetica','bold');
+          doc.text('PRAXES', M, 42);
+        }
+
+        doc.setTextColor(160, 200, 230);
+        doc.setFontSize(9); doc.setFont('helvetica','normal');
+        doc.text('Family Office', M, 54);
+
+        doc.setTextColor(...C.white);
+        doc.setFontSize(20); doc.setFont('helvetica','bold');
+        doc.text('Relatório de Imóveis', M, 80);
+
+        doc.setTextColor(160,200,230);
+        doc.setFontSize(8.5); doc.setFont('helvetica','normal');
+        const dataGerada = new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});
+        doc.text(`Gerado em ${dataGerada}`, M, 90);
+
+        // Linha divisória dourada
+        doc.setDrawColor(...C.gold); doc.setLineWidth(0.3);
+        doc.line(M, 96, M+50, 96);
 
         // Métricas da capa
-        let totalValorAtual = 0, totalValorCompra = 0, totalInvestido = 0;
-        let totalAluguel = 0, countOcupados = 0;
+        let totVM=0, totVC=0, totInv=0, totAlug=0, nOcup=0;
         for (const row of filtered) {
           if (!row[0]) continue;
           const nome = row[0];
-          const vc   = parseFloat(String(row[5]||'0').replace(/[^\d.-]/g,'')) || 0;
+          const vc   = parseFloat(String(row[5]||'0').replace(/[^\d.-]/g,''))||0;
           const va   = getValorAtualImovel(nome, row[7]);
-          totalValorAtual  += va;
-          totalValorCompra += vc;
-          const despExt = await loadDespesasExtraordinarias(nome);
-          totalInvestido += vc + despExt.reduce((s,d) => s+d.valor, 0);
-          const ocup = await loadOcupacao(nome);
-          const ocAtual = ocup.find(o => o.status === 'Ocupado');
-          if (ocAtual) { totalAluguel += ocAtual.valorAluguel; countOcupados++; }
+          totVM  += va; totVC += vc;
+          const de = await loadDespesasExtraordinarias(nome);
+          totInv += vc + de.reduce((s,d)=>s+d.valor,0);
+          const oc = await loadOcupacao(nome);
+          const ocA= oc.find(o=>o.status==='Ocupado');
+          if (ocA){ totAlug+=ocA.valorAluguel; nOcup++; }
         }
-        const valorizacaoGeral = totalValorCompra > 0
-          ? ((totalValorAtual - totalValorCompra) / totalValorCompra * 100).toFixed(1) : '0.0';
+        const valPct = totVC>0?((totVM-totVC)/totVC*100):0;
 
-        yPos = pageHeight * 0.42;
-        const kw = (contentW - 9) / 4;
-        [
-          ['Imóveis na Carteira', String(filtered.length), null],
-          ['Patrimônio Total',    fmtR(totalValorAtual),   null],
-          ['Total Investido',     fmtR(totalInvestido),    null],
-          ['Valorização Geral',   `${valorizacaoGeral >= 0 ? '+' : ''}${valorizacaoGeral}%`,
-           valorizacaoGeral >= 0 ? [39, 125, 82] : [192, 57, 43]]
-        ].forEach((item, i) => kpiBox(margin + i*(kw+3), yPos, kw, 20, item[0], item[1], item[2]));
+        // Cards da capa (sobre fundo branco)
+        const cardY = PH*0.55 + 8;
+        const cardH = 22, gapC = 4;
+        const cardW = (CW - gapC*3)/4;
 
-        yPos += 26;
-        [
-          ['Renda Mensal Total',  fmtR(totalAluguel),                       null],
-          ['Imóveis Ocupados',    `${countOcupados} / ${filtered.length}`,  null],
-          ['Taxa de Ocupação',    `${filtered.length > 0 ? ((countOcupados/filtered.length)*100).toFixed(0) : 0}%`, null],
-          ['Custo Médio',         fmtR(totalInvestido / Math.max(filtered.length,1)), null]
-        ].forEach((item, i) => kpiBox(margin + i*(kw+3), yPos, kw, 20, item[0], item[1], item[2]));
+        const capaCards = [
+          { label:'Imóveis na Carteira', value: String(filtered.length),   sub: null },
+          { label:'Patrimônio Total',    value: fmtR(totVM),               sub: null },
+          { label:'Total Investido',     value: fmtR(totInv),              sub: null },
+          { label:'Valorização',         value: fmtPct(valPct),
+            color: valPct>=0?C.green:C.red },
+          { label:'Renda Mensal',        value: totAlug>0?fmtR(totAlug):'—', sub:null},
+          { label:'Imóveis Ocupados',    value: `${nOcup}/${filtered.length}`, sub:null},
+          { label:'Taxa de Ocupação',    value: filtered.length>0?((nOcup/filtered.length*100).toFixed(0)+'%'):'—', sub:null},
+          { label:'Ticket Médio',        value: fmtR(totInv/Math.max(filtered.length,1)), sub:null},
+        ];
 
-        footerBar(1, '');
+        capaCards.forEach((c, i) => {
+          const row2 = Math.floor(i/4), col2 = i%4;
+          const cx2  = M + col2*(cardW+gapC);
+          const cy2  = cardY + row2*(cardH+gapC);
+          doc.setFillColor(...C.bg);
+          doc.setDrawColor(...C.border);
+          doc.setLineWidth(0.25);
+          doc.roundedRect(cx2, cy2, cardW, cardH, 2, 2, 'FD');
+          // Friso colorido no topo do card
+          doc.setFillColor(...(c.color || C.navy));
+          doc.roundedRect(cx2, cy2, cardW, 1.5, 1, 1, 'F');
+          doc.setFontSize(6.5); doc.setFont('helvetica','normal');
+          doc.setTextColor(...C.muted);
+          doc.text(c.label, cx2+cardW/2, cy2+7, {align:'center'});
+          doc.setFontSize(10); doc.setFont('helvetica','bold');
+          doc.setTextColor(...(c.color||C.navy));
+          doc.text(c.value, cx2+cardW/2, cy2+17, {align:'center'});
+        });
 
-        // ══════════════════════════════════════════════════════
-        // PÁGINAS POR IMÓVEL
-        // ══════════════════════════════════════════════════════
-        let pageNum = 2;
+        pageFooter(1);
+
+        // ══════════════════════════════════════════════════════════
+        // PÁGINA POR IMÓVEL
+        // ══════════════════════════════════════════════════════════
+        let pgNum = 2;
 
         for (const row of filtered) {
           if (!row[0]) continue;
-
           doc.addPage();
-          const nome        = row[0];
-          const tipo        = row[1] || '';
-          const grupo       = row[2] || '';
-          const subgrupo    = row[3] || '';
-          const endereco    = row[4] || '';
-          const valorCompra = parseFloat(String(row[5]||'0').replace(/[^\d.-]/g,'')) || 0;
-          const dataCompra  = row[6] || '';
-          const valorAtual  = getValorAtualImovel(nome, row[7]);
-          const areaTotal   = row[11] || '—';
-          const areaUtil    = row[12] || '—';
-          const quartos     = row[13] || '—';
-          const vagas       = row[15] || '—';
 
-          // Dados financeiros avançados
-          const despExt     = await loadDespesasExtraordinarias(nome);
-          const despRec     = await loadDespesasRecorrentes(nome);
-          const investim    = await loadInvestimentos(nome);
-          const ocupacao    = await loadOcupacao(nome);
+          const nome       = row[0];
+          const tipo       = row[1]||'';
+          const grupo      = row[2]||'';
+          const subgrupo   = row[3]||'';
+          const endereco   = row[4]||'';
+          const valorCompra= parseFloat(String(row[5]||'0').replace(/[^\d.-]/g,''))||0;
+          const dataCompra = row[6]||'';
+          const valorAtual = getValorAtualImovel(nome, row[7]);
+          const areaTotal  = row[11]||'—';
+          const areaUtil   = row[12]||'—';
+          const quartos    = row[13]||'—';
+          const vagas      = row[15]||'—';
 
-          const despExtTotal = despExt.reduce((s,d) => s+d.valor, 0);
-          const invTotal     = investim.reduce((s,d) => s+d.valor, 0);
-          const despMensal   = despRec.reduce((s,d) => s+d.valorMensal, 0);
+          const despExt   = await loadDespesasExtraordinarias(nome);
+          const despRec   = await loadDespesasRecorrentes(nome);
+          const investim  = await loadInvestimentos(nome);
+          const ocupacao  = await loadOcupacao(nome);
+          const receitas  = await loadReceitas(nome);
+
+          const despExtTotal = despExt.reduce((s,d)=>s+d.valor,0);
+          const invTotal     = investim.reduce((s,d)=>s+d.valor,0);
+          const despMensal   = despRec.reduce((s,d)=>s+d.valorMensal,0);
           const custoTotal   = valorCompra + despExtTotal + invTotal;
 
-          const ocAtual = ocupacao.find(o => {
-            const hoje = new Date();
-            const ini  = new Date(o.dataInicio);
-            const fim  = o.dataFim ? new Date(o.dataFim) : new Date('2099-12-31');
-            return hoje >= ini && hoje <= fim;
-          }) || ocupacao.find(o => o.status === 'Ocupado');
-          const aluguel = ocAtual ? ocAtual.valorAluguel : 0;
+          const hoje = new Date();
+          const ocAtual = ocupacao.find(o=>{
+            const ini=new Date(o.dataInicio);
+            const fim=o.dataFim?new Date(o.dataFim):new Date('2099-12-31');
+            return hoje>=ini&&hoje<=fim;
+          }) || ocupacao.find(o=>o.status==='Ocupado');
+          const aluguel = ocAtual?ocAtual.valorAluguel:0;
 
-          const anos = dataCompra ? (new Date() - new Date(dataCompra)) / (365.25*864e5) : 0;
-          const varPercent  = valorCompra > 0 ? ((valorAtual - valorCompra) / valorCompra * 100) : 0;
-          const varReal     = custoTotal  > 0 ? ((valorAtual - custoTotal)  / custoTotal  * 100) : 0;
-          const cagrVal     = anos > 0 && valorCompra > 0
-            ? ((Math.pow(valorAtual/valorCompra, 1/anos) - 1)*100) : 0;
-          const yieldBruto  = valorAtual > 0 && aluguel > 0
-            ? ((aluguel*12)/valorAtual*100) : 0;
-          const cashFlow    = aluguel - despMensal;
+          const anos = dataCompra?(hoje-new Date(dataCompra+'T12:00:00'))/(365.25*864e5):0;
+          const varVC  = valorCompra>0?((valorAtual-valorCompra)/valorCompra*100):null;
+          const varReal= custoTotal>0?((valorAtual-custoTotal)/custoTotal*100):null;
+          const cagr   = anos>0&&valorCompra>0?((Math.pow(valorAtual/valorCompra,1/anos)-1)*100):null;
+          const yBruto = valorAtual>0&&aluguel>0?((aluguel*12)/valorAtual*100):null;
+          const cashFlow= aluguel>0?(aluguel-despMensal):null;
 
-          const varColor    = varPercent >= 0 ? [39,125,82] : [192,57,43];
-          const varRealColor= varReal    >= 0 ? [39,125,82] : [192,57,43];
+          pageHeader(nome);
+          let y = 20;
 
-          // Header da página
-          headerBar('Relatório de Imóveis', new Date().toLocaleDateString('pt-BR'));
-          yPos = 26;
+          // ── Título do imóvel ─────────────────────────────────
+          doc.setFontSize(13); doc.setFont('helvetica','bold');
+          doc.setTextColor(...C.navy);
+          doc.text(nome, M, y);
+          y += 5.5;
 
-          // Nome e subtítulo
-          doc.setFontSize(14); doc.setFont('helvetica', 'bold');
-          doc.setTextColor(15, 61, 87);
-          doc.text(nome, margin, yPos);
-          yPos += 6;
-          doc.setFontSize(8); doc.setFont('helvetica', 'normal');
-          doc.setTextColor(100, 120, 140);
-          const meta = [tipo, grupo, subgrupo].filter(Boolean).join(' • ');
-          doc.text(meta, margin, yPos);
+          // Subtítulo: tipo • grupo • subgrupo
+          doc.setFontSize(7.5); doc.setFont('helvetica','normal');
+          doc.setTextColor(...C.muted);
+          const meta = [tipo, grupo, subgrupo].filter(Boolean).join('  ·  ');
+          doc.text(meta, M, y);
           if (endereco) {
-            doc.setTextColor(130, 130, 130);
-            doc.text(endereco, pageWidth - margin, yPos, { align: 'right' });
+            doc.setTextColor(160,160,160);
+            doc.text(endereco, PW-M, y, {align:'right'});
           }
+          y += 5;
 
-          // Linha decorativa
-          yPos += 4;
-          doc.setDrawColor(184, 146, 74);
-          doc.setLineWidth(0.4);
-          doc.line(margin, yPos, pageWidth - margin, yPos);
-          yPos += 5;
+          // Friso dourado fino
+          doc.setDrawColor(...C.gold); doc.setLineWidth(0.35);
+          doc.line(M, y, PW-M, y);
+          y += 6;
 
-          // ── KPIs principais (2 linhas × 4 colunas) ─────────────
-          const kw2 = (contentW - 9) / 4;
-          const kh  = 18;
-
-          const kpis1 = [
-            ['Preço de Compra',  fmtR(valorCompra), null],
-            ['Custo Total',      fmtR(custoTotal),  null],
-            ['Valor Atual',      fmtR(valorAtual),  null],
-            ['Variação (compra)',`${varPercent >= 0 ? '+' : ''}${varPercent.toFixed(1)}%`, varColor],
-          ];
-          kpis1.forEach((k, i) => kpiBox(margin + i*(kw2+3), yPos, kw2, kh, k[0], k[1], k[2]));
-          yPos += kh + 3;
-
-          const kpis2 = [
-            ['Valoriz. Real',   `${varReal >= 0 ? '+' : ''}${varReal.toFixed(1)}%`, varRealColor],
-            ['CAGR (compra)',   `${cagrVal >= 0 ? '+' : ''}${cagrVal.toFixed(2)}% a.a.`, null],
-            ['Yield Bruto',     yieldBruto > 0 ? `${yieldBruto.toFixed(2)}% a.a.` : '—', null],
-            ['Cash Flow Mensal',cashFlow !== 0 ? fmtR(cashFlow) : '—',
-             cashFlow > 0 ? [39,125,82] : cashFlow < 0 ? [192,57,43] : null],
-          ];
-          kpis2.forEach((k, i) => kpiBox(margin + i*(kw2+3), yPos, kw2, kh, k[0], k[1], k[2]));
-          yPos += kh + 5;
-
-          // ── Características (linha compacta) ──────────────────────
-          doc.setFillColor(240, 244, 248);
-          doc.roundedRect(margin, yPos, contentW, 10, 1.5, 1.5, 'F');
-          doc.setFontSize(7.5); doc.setFont('helvetica', 'normal');
-          doc.setTextColor(80, 100, 120);
+          // ── Linha de características (discreta, sem box) ─────
+          doc.setFontSize(7); doc.setFont('helvetica','normal');
           const chars = [
-            `Área total: ${areaTotal} m²`,
-            `Área útil: ${areaUtil} m²`,
-            `Quartos: ${quartos}`,
-            `Vagas: ${vagas}`,
-            `Data de compra: ${dataCompra ? new Date(dataCompra+'T12:00:00').toLocaleDateString('pt-BR') : '—'}`,
-            `Posse: ${anos > 0 ? anos.toFixed(1) + ' anos' : '—'}`,
+            {k:'Compra', v: fmtDate(dataCompra)},
+            {k:'Posse',  v: anos>0?anos.toFixed(1)+' anos':'—'},
+            {k:'Área total', v: areaTotal!=='—'?areaTotal+' m²':'—'},
+            {k:'Área útil',  v: areaUtil!=='—'?areaUtil+' m²':'—'},
+            {k:'Quartos', v: String(quartos)},
+            {k:'Vagas',   v: String(vagas)},
           ];
-          const colW = contentW / chars.length;
-          chars.forEach((c, i) => doc.text(c, margin + i*colW + colW/2, yPos + 6.5, { align: 'center' }));
-          yPos += 14;
+          const cColW = CW/chars.length;
+          chars.forEach((c,i)=>{
+            const cx2 = M+i*cColW+cColW/2;
+            doc.setTextColor(...C.muted);
+            doc.text(c.k, cx2, y, {align:'center'});
+            doc.setFontSize(8); doc.setFont('helvetica','bold');
+            doc.setTextColor(...C.dark);
+            doc.text(c.v, cx2, y+5, {align:'center'});
+            doc.setFontSize(7); doc.setFont('helvetica','normal');
+          });
+          y += 12;
 
-          // ── Gráficos: lado a lado ─────────────────────────────────
-          const chartH  = 58;
-          const halfW   = (contentW - 4) / 2;
+          // ── KPI Row 1: valores ───────────────────────────────
+          y = sectionLabel('Desempenho Financeiro', y);
+          kpiRow([
+            {label:'Preço de Compra', value: fmtR(valorCompra)},
+            {label:'Custo Total',     value: fmtR(custoTotal)},
+            {label:'Valor Atual',     value: fmtR(valorAtual), size:10.5},
+            {label:'Variação vs Compra', value: fmtPct(varVC),
+             color: varVC!=null?(varVC>=0?C.green:C.red):C.muted},
+            {label:'Valoriz. Real',   value: fmtPct(varReal),
+             color: varReal!=null?(varReal>=0?C.green:C.red):C.muted},
+            {label:'CAGR',            value: cagr!=null?fmtPct(cagr,2)+' a.a.':'—'},
+            {label:'Yield Bruto',     value: yBruto!=null?fmtPct(yBruto,2)+' a.a.':'—'},
+            {label:'Cash Flow/mês',   value: cashFlow!=null?fmtR(cashFlow):'—',
+             color: cashFlow!=null?(cashFlow>=0?C.green:C.red):C.muted},
+          ], M, y, CW, 18);
+          y += 22;
 
-          // Monta histórico de preços (com interpolação mensal para suavizar)
-          const histPts = (dataCache.historico || [])
-            .filter(r => r[0] === nome && r[1])
-            .map(r => ({
-              x: new Date(r[1] + 'T12:00:00'),
-              y: parseFloat(String(r[2]||'0').replace(/[^\d.-]/g,'')) || 0
+          // ── Gráfico 1: Evolução do Valor de Mercado ──────────
+          y = sectionLabel('Evolução do Valor de Mercado', y);
+
+          const histPts = (dataCache.historico||[])
+            .filter(r=>r[0]===nome&&r[1])
+            .map(r=>({
+              x: new Date(r[1]+'T12:00:00'),
+              y: parseFloat(String(r[2]||'0').replace(/[^\d.-]/g,''))||0
             }))
-            .filter(p => !isNaN(p.x) && p.y > 0)
-            .sort((a,b) => a.x - b.x);
-          if (valorAtual > 0) {
-            const last = histPts[histPts.length - 1];
-            if (!last || Math.abs(last.y - valorAtual) > 1)
-              histPts.push({ x: new Date(), y: valorAtual });
-          }
+            .filter(p=>!isNaN(p.x)&&p.y>0)
+            .sort((a,b)=>a.x-b.x);
 
-          // Interpola mensalmente entre reavaliações (para curva suave no gráfico de preço)
-          function interpolarMensal(pts) {
-            if (!pts || pts.length < 2) return pts;
-            const out = [];
-            for (let i = 0; i < pts.length - 1; i++) {
-              const p1 = pts[i], p2 = pts[i+1];
-              const anos = (p2.x - p1.x) / (365.25 * 864e5);
-              if (anos <= 0) { out.push(p1); continue; }
-              const cagr = Math.pow(p2.y / p1.y, 1/anos) - 1;
-              let cur = new Date(p1.x.getFullYear(), p1.x.getMonth(), 1);
-              const fim = new Date(p2.x.getFullYear(), p2.x.getMonth(), 1);
-              while (cur <= fim) {
-                const t = (cur - p1.x) / (365.25 * 864e5);
-                out.push({ x: new Date(cur), y: p1.y * Math.pow(1 + cagr, t) });
-                cur = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
-              }
-            }
-            out.push(pts[pts.length-1]);
-            return out;
+          if(valorAtual>0){
+            const last=histPts[histPts.length-1];
+            if(!last||Math.abs(last.y-valorAtual)>1) histPts.push({x:new Date(),y:valorAtual});
           }
           const histSmooth = interpolarMensal(histPts);
 
-          // ── Gráfico 1: Evolução do Valor de Mercado ───────────────
-          doc.setFontSize(8); doc.setFont('helvetica', 'bold');
-          doc.setTextColor(15, 61, 87);
-          doc.text('Evolução do Valor de Mercado', margin, yPos);
-
-          // Legenda gráfico 1
-          doc.setFillColor(15, 61, 87);
-          doc.rect(margin + halfW - 40, yPos - 3, 3, 3, 'F');
-          doc.setFontSize(6); doc.setFont('helvetica', 'normal');
-          doc.setTextColor(80, 80, 80);
-          doc.text('Valor mercado', margin + halfW - 36, yPos);
-          doc.setDrawColor(200, 80, 80); doc.setLineWidth(0.3);
-          doc.line(margin + halfW - 15, yPos - 1.5, margin + halfW - 9, yPos - 1.5);
-          doc.text('Compra', margin + halfW - 8, yPos);
-
-          yPos += 2;
-          drawLineChart(histSmooth, margin, yPos, halfW, chartH, { valorCompra });
-
-          // ── Gráfico 2: Rentabilidade vs Benchmarks ────────────────
-          doc.setFontSize(8); doc.setFont('helvetica', 'bold');
-          doc.setTextColor(15, 61, 87);
-          doc.text('Retorno Acumulado vs Benchmarks', margin + halfW + 4, yPos - 2);
-
-          // Legenda gráfico 2
-          const leg2X = margin + halfW + 4;
-          const legItems = [
-            ['Imóvel', [15,61,87]], ['CDI', [245,158,11]], ['IPCA', [239,68,68]], ['IPCA+6%', [139,92,246]]
-          ];
-          let legX = leg2X;
-          legItems.forEach(([lbl, cor]) => {
-            doc.setFillColor(...cor);
-            doc.rect(legX, yPos - 5, 3, 2, 'F');
-            doc.setFontSize(5.5); doc.setFont('helvetica', 'normal');
-            doc.setTextColor(80, 80, 80);
-            doc.text(lbl, legX + 4, yPos - 3.5);
-            legX += 16;
+          const ch1 = 52;
+          drawChart(histSmooth, M, y, CW, ch1, {valorCompra, marcoPts:false});
+          // Pontinhos nos marcos reais
+          doc.setFillColor(...C.navy);
+          histPts.forEach(p => {
+            const xs2=histSmooth.map(q=>q.x.getTime());
+            const ys2=histSmooth.map(q=>q.y);
+            const minX2=Math.min(...xs2),maxX2=Math.max(...xs2);
+            const minY2=Math.min(...ys2)*0.93,maxY2=Math.max(...ys2)*1.07;
+            const pad2={l:20,r:6,t:5,b:12};
+            const cx2=M+pad2.l,cy2=y+pad2.t,cw2=CW-pad2.l-pad2.r,ch2=ch1-pad2.t-pad2.b;
+            const tx=(p.x.getTime()-minX2)/(maxX2-minX2||1)*cw2+cx2;
+            const ty=cy2+ch2-((p.y-minY2)/(maxY2-minY2||1)*ch2);
+            doc.circle(tx,ty,1,'F');
           });
+          y += ch1 + 6;
 
-          // Calcula séries de retorno acumulado % mês a mês
-          function benchMult(dataInicio, dataFim, tabela) {
-            if (dataFim <= dataInicio) return 1;
-            let mult = 1, cur = new Date(dataInicio);
-            while (cur < dataFim) {
-              const p = tabela.find(t => cur < t.ate);
-              const taxa = p ? p.taxa : tabela[tabela.length-1].taxa;
-              const ate  = (p && p.ate < dataFim) ? p.ate : dataFim;
-              mult *= Math.pow(1 + taxa, (ate - cur) / (365.25 * 864e5));
-              cur = new Date(ate);
-            }
-            return mult;
-          }
-          const tCDI  = [
-            {ate:new Date('2003-01-01'),taxa:0.235},{ate:new Date('2006-01-01'),taxa:0.185},
-            {ate:new Date('2010-01-01'),taxa:0.135},{ate:new Date('2013-01-01'),taxa:0.105},
-            {ate:new Date('2016-01-01'),taxa:0.115},{ate:new Date('2018-01-01'),taxa:0.110},
-            {ate:new Date('2021-01-01'),taxa:0.045},{ate:new Date('2023-01-01'),taxa:0.125},
-            {ate:new Date('2025-01-01'),taxa:0.107},{ate:new Date('2099-01-01'),taxa:0.135}
-          ];
-          const tIPCA = [
-            {ate:new Date('2003-01-01'),taxa:0.125},{ate:new Date('2006-01-01'),taxa:0.075},
-            {ate:new Date('2010-01-01'),taxa:0.055},{ate:new Date('2016-01-01'),taxa:0.065},
-            {ate:new Date('2020-01-01'),taxa:0.040},{ate:new Date('2022-01-01'),taxa:0.088},
-            {ate:new Date('2023-01-01'),taxa:0.057},{ate:new Date('2099-01-01'),taxa:0.048}
-          ];
-          const tIPCA6 = tIPCA.map(p => ({ ate: p.ate, taxa: p.taxa + 0.06 }));
+          // ── Gráfico 2: Retorno Acumulado vs Benchmarks ───────
+          y = sectionLabel('Retorno Acumulado vs Benchmarks', y);
+          benchLegend(M, y);
+          y += 3;
 
-          const dataRef = histPts.length > 0 ? histPts[0].x : new Date();
-          const despExtOrd = despExt.filter(d => d.data);
-          const receitasIm = await loadReceitas(nome);
+          const dataRef = histPts.length>0?histPts[0].x:new Date(dataCompra+'T12:00:00')||new Date();
+          const retIm=[],retCDI=[],retIPCA=[],retIPCA6=[];
+          let curR=new Date(dataRef.getFullYear(),dataRef.getMonth(),1);
+          const fimR=new Date();
+          let alugAcum=0;
 
-          // Série mensal de retorno acumulado %
-          const retImovel = [], retCDI = [], retIPCA = [], retIPCA6 = [], retLabels = [];
-          let curR = new Date(dataRef.getFullYear(), dataRef.getMonth(), 1);
-          const fimR = new Date();
-          let alugAcumR = 0;
-
-          function vmNaData(d) {
-            if (!histPts.length) return 0;
-            if (d <= histPts[0].x) return histPts[0].y;
-            if (d >= histPts[histPts.length-1].x) return histPts[histPts.length-1].y;
-            for (let i = 0; i < histPts.length-1; i++) {
-              const p1=histPts[i], p2=histPts[i+1];
-              if (d >= p1.x && d <= p2.x) {
-                const anos = (p2.x-p1.x)/(365.25*864e5);
-                if (anos<=0) return p1.y;
-                return p1.y * Math.pow(p2.y/p1.y, (d-p1.x)/(p2.x-p1.x));
+          function vmNaData2(d){
+            if(!histPts.length) return 0;
+            if(d<=histPts[0].x) return histPts[0].y;
+            if(d>=histPts[histPts.length-1].x) return histPts[histPts.length-1].y;
+            for(let i=0;i<histPts.length-1;i++){
+              const p1=histPts[i],p2=histPts[i+1];
+              if(d>=p1.x&&d<=p2.x){
+                const anos2=(p2.x-p1.x)/(365.25*864e5);
+                if(anos2<=0) return p1.y;
+                return p1.y*Math.pow(p2.y/p1.y,(d-p1.x)/(p2.x-p1.x));
               }
             }
             return histPts[histPts.length-1].y;
           }
-          function alugNaData(d) {
-            for (const o of ocupacao) {
-              const ini = new Date(o.dataInicio);
-              const fim2 = o.dataFim ? new Date(o.dataFim) : new Date('2099-12-31');
-              if (d >= ini && d <= fim2) return o.valorAluguel || 0;
+          function alugNaData2(d){
+            for(const o of ocupacao){
+              const ini=new Date(o.dataInicio);
+              const fim=o.dataFim?new Date(o.dataFim):new Date('2099-12-31');
+              if(d>=ini&&d<=fim) return o.valorAluguel||0;
             }
             return 0;
           }
 
-          while (curR <= fimR) {
-            alugAcumR += alugNaData(curR);
-            const recAcum = receitasIm.filter(r => r.data && new Date(r.data) <= curR)
-              .reduce((s,r) => s+r.valor, 0);
-            const meses = Math.max(0, (curR - dataRef) / (30.44 * 864e5));
-            const despRecAcum = despMensal * meses;
-            const custoAcum = custoTotal + despRecAcum;
-            const vm = vmNaData(curR);
-            const ret = custoTotal > 0
-              ? ((vm + alugAcumR + recAcum - custoAcum) / custoTotal * 100) : 0;
-
-            retImovel.push({ x: new Date(curR), y: parseFloat(ret.toFixed(2)) });
-            retCDI.push({  x: new Date(curR), y: parseFloat(((benchMult(dataRef, curR, tCDI)  - 1)*100).toFixed(2)) });
-            retIPCA.push({ x: new Date(curR), y: parseFloat(((benchMult(dataRef, curR, tIPCA) - 1)*100).toFixed(2)) });
-            retIPCA6.push({x: new Date(curR), y: parseFloat(((benchMult(dataRef, curR, tIPCA6)- 1)*100).toFixed(2)) });
-
-            curR = new Date(curR.getFullYear(), curR.getMonth()+1, 1);
+          while(curR<=fimR){
+            alugAcum+=alugNaData2(curR);
+            const recAcum=receitas.filter(r=>r.data&&new Date(r.data)<=curR).reduce((s,r)=>s+r.valor,0);
+            const meses=Math.max(0,(curR-dataRef)/(30.44*864e5));
+            const despRecAcum=despMensal*meses;
+            const custoAcum=custoTotal+despRecAcum;
+            const vm=vmNaData2(curR);
+            const ret=custoTotal>0?((vm+alugAcum+recAcum-custoAcum)/custoTotal*100):0;
+            retIm.push({x:new Date(curR),y:parseFloat(ret.toFixed(2))});
+            retCDI.push({x:new Date(curR),y:parseFloat(((benchMult(dataRef,curR,tCDI)-1)*100).toFixed(2))});
+            retIPCA.push({x:new Date(curR),y:parseFloat(((benchMult(dataRef,curR,tIPCA)-1)*100).toFixed(2))});
+            retIPCA6.push({x:new Date(curR),y:parseFloat(((benchMult(dataRef,curR,tIPCA6)-1)*100).toFixed(2))});
+            curR=new Date(curR.getFullYear(),curR.getMonth()+1,1);
           }
 
-          // Desenha gráfico de rentabilidade com múltiplas séries
-          function drawReturnChart(series, gx, gy, gw, gh) {
-            const allYs = series.flatMap(s => s.pts.map(p => p.y));
-            const allXs = series[0].pts.map(p => p.x.getTime());
-            if (!allXs.length) return;
+          const ch2 = 52;
+          drawChart(retIm, M, y, CW, ch2, {
+            isPct: true,
+            extras: [
+              {pts:retCDI,  color:[245,158,11]},
+              {pts:retIPCA, color:[239,68,68]},
+              {pts:retIPCA6,color:[139,92,246]},
+            ]
+          });
+          y += ch2 + 6;
 
-            const minX = Math.min(...allXs), maxX = Math.max(...allXs);
-            const minY = Math.min(0, Math.min(...allYs)) * 1.05;
-            const maxY = Math.max(...allYs) * 1.08;
-            const rangeX = maxX - minX || 1, rangeY = maxY - minY || 1;
-
-            // fundo
-            doc.setFillColor(250, 252, 254);
-            doc.setDrawColor(220, 228, 236);
-            doc.roundedRect(gx, gy, gw, gh, 2, 2, 'FD');
-
-            const pad = { l: 22, r: 4, t: 5, b: 13 };
-            const cx = gx + pad.l, cy = gy + pad.t;
-            const cw = gw - pad.l - pad.r, ch = gh - pad.t - pad.b;
-
-            const toX = t => cx + ((t - minX) / rangeX) * cw;
-            const toY = v => cy + ch - ((v - minY) / rangeY) * ch;
-
-            // Grid + labels Y
-            doc.setDrawColor(230, 235, 240); doc.setLineWidth(0.2);
-            for (let i = 0; i <= 4; i++) {
-              const v = minY + rangeY * i / 4;
-              const yy = toY(v);
-              doc.line(cx, yy, cx + cw, yy);
-              doc.setFontSize(5.5); doc.setTextColor(150,150,150);
-              doc.setFont('helvetica','normal');
-              doc.text((v >= 0 ? '+' : '') + v.toFixed(0) + '%', cx - 2, yy + 1.5, { align: 'right' });
-            }
-
-            // Linha zero
-            if (minY < 0 && maxY > 0) {
-              const y0 = toY(0);
-              doc.setDrawColor(180,180,180); doc.setLineWidth(0.3);
-              doc.line(cx, y0, cx + cw, y0);
-            }
-
-            // Área preenchida do imóvel (série 0)
-            const s0 = series[0].pts;
-            doc.setFillColor(210, 228, 242);
-            for (let i = 0; i < s0.length - 1; i++) {
-              const x1=toX(s0[i].x.getTime()), y1=toY(s0[i].y);
-              const x2=toX(s0[i+1].x.getTime()), y2=toY(s0[i+1].y);
-              const baseY = toY(0);
-              doc.triangle(x1, y1, x2, y2, x1, baseY, 'F');
-              doc.triangle(x2, y2, x2, baseY, x1, baseY, 'F');
-            }
-
-            // Linhas de cada série
-            series.forEach(s => {
-              doc.setDrawColor(...s.color);
-              doc.setLineWidth(s.width || 0.5);
-              if (s.dash) {
-                // tracejado manual
-                for (let i = 0; i < s.pts.length - 1; i++) {
-                  const x1=toX(s.pts[i].x.getTime()), y1=toY(s.pts[i].y);
-                  const x2=toX(s.pts[i+1].x.getTime()), y2=toY(s.pts[i+1].y);
-                  const dx=x2-x1, dy=y2-y1, dist=Math.sqrt(dx*dx+dy*dy);
-                  const steps = Math.max(1, Math.round(dist/2));
-                  for (let j=0; j<steps; j+=2) {
-                    const t1=j/steps, t2=Math.min((j+1)/steps,1);
-                    doc.line(x1+dx*t1, y1+dy*t1, x1+dx*t2, y1+dy*t2);
-                  }
-                }
-              } else {
-                for (let i = 0; i < s.pts.length - 1; i++) {
-                  doc.line(toX(s.pts[i].x.getTime()), toY(s.pts[i].y),
-                           toX(s.pts[i+1].x.getTime()), toY(s.pts[i+1].y));
-                }
-              }
-            });
-
-            // Labels eixo X — a cada ~3 anos
-            doc.setFontSize(5.5); doc.setTextColor(150,150,150);
-            const totalMeses = series[0].pts.length;
-            const passoAnos = totalMeses > 120 ? 5 : totalMeses > 60 ? 3 : 2;
-            const passoMeses = passoAnos * 12;
-            series[0].pts.forEach((p, i) => {
-              if (i % passoMeses === 0 || i === series[0].pts.length - 1) {
-                doc.text(String(p.x.getFullYear()), toX(p.x.getTime()), cy + ch + 5.5, { align: 'center' });
-              }
-            });
+          // ── Ocupação atual (se existir) ───────────────────────
+          if (ocAtual && y < PH - 35) {
+            y = sectionLabel('Ocupação Atual', y);
+            kpiRow([
+              {label:'Inquilino',    value: ocAtual.inquilino||'—', size:8},
+              {label:'Aluguel/mês',  value: fmtR(aluguel)},
+              {label:'Desde',        value: fmtDate(ocAtual.dataInicio)},
+              {label:'Yield Bruto',  value: yBruto!=null?fmtPct(yBruto,2)+' a.a.':'—',
+               color: C.green},
+            ], M, y, CW, 16);
+            y += 20;
           }
 
-          drawReturnChart([
-            { pts: retImovel, color: [15, 61, 87],   width: 0.9, dash: false },
-            { pts: retCDI,   color: [245,158, 11],   width: 0.5, dash: true  },
-            { pts: retIPCA,  color: [239, 68, 68],   width: 0.5, dash: true  },
-            { pts: retIPCA6, color: [139, 92,246],   width: 0.4, dash: true  },
-          ], margin + halfW + 4, yPos, halfW, chartH);
-
-          yPos += chartH + 5;
-
-          // ── Ocupação atual ────────────────────────────────────────
-          if (ocAtual) {
-            doc.setFontSize(9); doc.setFont('helvetica', 'bold');
-            doc.setTextColor(15, 61, 87);
-            doc.text('Ocupação Atual', margin, yPos);
-            yPos += 3;
-            doc.setFillColor(240, 252, 244);
-            doc.setDrawColor(134, 200, 160);
-            doc.roundedRect(margin, yPos, contentW, 16, 2, 2, 'FD');
-            doc.setFontSize(8); doc.setFont('helvetica', 'normal');
-            doc.setTextColor(30, 90, 50);
-            const ocInfo = [
-              `Inquilino: ${ocAtual.inquilino || '—'}`,
-              `Aluguel: ${fmtR(aluguel)}/mês`,
-              `Desde: ${ocAtual.dataInicio ? new Date(ocAtual.dataInicio+'T12:00:00').toLocaleDateString('pt-BR') : '—'}`,
-              `Yield: ${yieldBruto > 0 ? yieldBruto.toFixed(2)+'% a.a.' : '—'}`,
-            ];
-            const oc4W = contentW / 4;
-            ocInfo.forEach((t, i) => doc.text(t, margin + i*oc4W + 4, yPos + 10));
-            yPos += 20;
-          }
-
-          // ── Composição do custo ───────────────────────────────────
-          if (custoTotal > valorCompra) {
-            doc.setFontSize(9); doc.setFont('helvetica', 'bold');
-            doc.setTextColor(15, 61, 87);
-            doc.text('Composição do Custo Total', margin, yPos);
-            yPos += 3;
-            const custoItems = [
-              ['Valor de Compra',          valorCompra,     [15,61,87]],
-              ['Despesas Extraordinárias', despExtTotal,    [184,100,50]],
-              ['Investimentos no Imóvel',  invTotal,        [100,60,160]],
-            ].filter(c => c[1] > 0);
-
-            const bw = contentW, bh = 8;
-            doc.setFillColor(235, 240, 245);
-            doc.roundedRect(margin, yPos, bw, bh, 1, 1, 'F');
-            let bx = margin;
-            custoItems.forEach(c => {
-              const pct = c[1] / custoTotal;
-              doc.setFillColor(...c[2]);
-              doc.rect(bx, yPos, bw * pct, bh, 'F');
-              bx += bw * pct;
-            });
-
-            yPos += bh + 3;
-            doc.setFontSize(7); doc.setFont('helvetica', 'normal');
-            custoItems.forEach((c, i) => {
-              const lx = margin + i * (contentW/3);
-              doc.setFillColor(...c[2]);
-              doc.rect(lx, yPos, 3, 3, 'F');
-              doc.setTextColor(60, 70, 80);
-              doc.text(`${c[0]}: ${fmtR(c[1])} (${(c[1]/custoTotal*100).toFixed(0)}%)`, lx + 5, yPos + 2.5);
-            });
-            yPos += 8;
-          }
-
-          footerBar(pageNum, '');
-          pageNum++;
+          pageFooter(pgNum);
+          pgNum++;
         }
 
         // Numeração final
-        const total = doc.internal.pages.length - 1;
-        for (let i = 1; i <= total; i++) {
+        const totalPgs = doc.internal.pages.length - 1;
+        for(let i=1;i<=totalPgs;i++){
           doc.setPage(i);
-          doc.setFontSize(7); doc.setTextColor(130, 130, 130);
-          doc.text(`${i} / ${total}`, pageWidth - margin, pageHeight - 4, { align: 'right' });
+          doc.setFontSize(6.5); doc.setTextColor(...C.muted);
+          doc.text(`${i} / ${totalPgs}`, PW-M, PH-5, {align:'right'});
         }
 
-        const fileName = `Praxes_Imoveis_${new Date().toISOString().split('T')[0]}.pdf`;
-        doc.save(fileName);
+        doc.save(`Praxes_Imoveis_${new Date().toISOString().split('T')[0]}.pdf`);
 
-      } catch (e) {
+      } catch(e) {
         console.error('❌ Erro ao gerar PDF:', e);
         alert('Erro ao gerar relatório PDF: ' + e.message);
       }
     }
-
-    // ========== FIM RELATÓRIO PDF ==========
     function openModalReavaliacao() {
       const form = document.getElementById('form-reavaliacao');
       form.reset();
