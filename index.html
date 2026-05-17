@@ -139,8 +139,149 @@
       background: rgba(255,255,255,0.15);
     }
 
-    /* MAIN CONTENT */
-    .main-content {
+    /* ── SISTEMA DE BOTÕES CONSISTENTE ────────────────────────── */
+    .btn-primary {
+      padding: 10px 20px;
+      background: var(--azul-principal);
+      color: #fff;
+      border: none;
+      border-radius: 7px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 13px;
+      font-family: 'Montserrat', sans-serif;
+      letter-spacing: 0.01em;
+      transition: background 0.2s, box-shadow 0.2s;
+    }
+    .btn-primary:hover {
+      background: #0a2d42;
+      box-shadow: 0 4px 12px rgba(15,61,87,0.25);
+    }
+    .btn-secondary {
+      padding: 10px 18px;
+      background: transparent;
+      color: var(--azul-principal);
+      border: 1.5px solid #c8d8e8;
+      border-radius: 7px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 13px;
+      font-family: 'Montserrat', sans-serif;
+      letter-spacing: 0.01em;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .btn-secondary:hover {
+      border-color: var(--azul-secundario);
+      background: #f0f6fb;
+    }
+    .btn-danger {
+      padding: 10px 18px;
+      background: transparent;
+      color: #b91c1c;
+      border: 1.5px solid #fca5a5;
+      border-radius: 7px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 13px;
+      font-family: 'Montserrat', sans-serif;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .btn-danger:hover {
+      border-color: #b91c1c;
+      background: #fef2f2;
+    }
+    /* Mantém .btn-add funcionando onde ainda é usado */
+    .btn-add {
+      padding: 10px 20px;
+      background: var(--azul-principal);
+      color: #fff;
+      border: none;
+      border-radius: 7px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 13px;
+      transition: background 0.2s;
+      font-family: 'Montserrat', sans-serif;
+    }
+    .btn-add:hover { background: #0a2d42; }
+
+    /* ── TOP BAR ───────────────────────────────────────────────── */
+    .top-bar {
+      background: var(--branco);
+      padding: 18px 40px;
+      border-bottom: 1px solid #eef2f7;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .page-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--azul-principal);
+      letter-spacing: -0.3px;
+    }
+
+    /* ── PÁGINA DE BOAS-VINDAS DO DASHBOARD ────────────────────── */
+    .dash-welcome {
+      background: linear-gradient(135deg, var(--azul-principal) 0%, #1a5a7a 100%);
+      border-radius: 12px;
+      padding: 32px 36px;
+      margin-bottom: 24px;
+      color: #fff;
+      position: relative;
+      overflow: hidden;
+    }
+    .dash-welcome::after {
+      content: '';
+      position: absolute;
+      right: -20px; top: -40px;
+      width: 220px; height: 220px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.04);
+    }
+    .dash-welcome-name {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 4px;
+      letter-spacing: -0.2px;
+    }
+    .dash-welcome-sub {
+      font-size: 13px;
+      color: rgba(255,255,255,0.65);
+      font-weight: 400;
+    }
+    .dash-welcome-kpis {
+      display: flex;
+      gap: 32px;
+      margin-top: 24px;
+    }
+    .dash-welcome-kpi {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .dash-welcome-kpi-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: rgba(255,255,255,0.5);
+      font-weight: 600;
+    }
+    .dash-welcome-kpi-val {
+      font-size: 20px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.3px;
+    }
+    .dash-welcome-kpi-sub {
+      font-size: 11px;
+      color: rgba(255,255,255,0.45);
+    }
+    .dash-welcome-divider {
+      width: 1px;
+      background: rgba(255,255,255,0.15);
+      align-self: stretch;
+    }
       margin-left: 260px;
       flex: 1;
       background: var(--cinza-claro);
@@ -1501,11 +1642,24 @@
     <main class="main-content">
       <div class="top-bar">
         <h1 class="page-title" id="top-title">Dashboard</h1>
+        <div style="display:flex;align-items:center;gap:20px;">
+          <span id="top-bar-date" style="font-size:13px;color:#8a9ab0;font-weight:500;letter-spacing:0.02em;"></span>
+          <div style="width:1px;height:20px;background:#e2e8f0;"></div>
+          <span id="top-bar-greeting" style="font-size:13px;color:var(--azul-secundario);font-weight:600;"></span>
+        </div>
       </div>
       <div class="content-wrapper">
 
         <!-- DASHBOARD PAGE -->
         <div class="page active" id="page-dashboard">
+          <!-- Bloco de boas-vindas — preenchido pelo JS -->
+          <div class="dash-welcome" id="dash-welcome-block" style="display:none;">
+            <div class="dash-welcome-name" id="dash-welcome-name">Bem-vindo</div>
+            <div class="dash-welcome-sub" id="dash-welcome-sub">Posição consolidada · Praxes Family Office</div>
+            <div class="dash-welcome-kpis" id="dash-welcome-kpis">
+              <!-- preenchido dinamicamente -->
+            </div>
+          </div>
           <div id="dash-balanco-root">
             <div style="display:flex;align-items:center;justify-content:center;padding:60px 0;color:#999;font-size:14px;">
               <div class="spinner" style="margin-right:12px;"></div> Carregando balanço patrimonial...
@@ -1516,21 +1670,21 @@
         <!-- IMOVEIS PAGE -->
         <div class="page" id="page-imoveis">
           <div class="page-header">
-            <h2 style="font-size: 24px; color: var(--text-dark);">Meus Imóveis</h2>
-            <div style="display: flex; gap: 12px;">
-              <button class="btn-add" onclick="gerarRelatorioPDF()" style="background: var(--azul-secundario);">📊 Relatório PDF</button>
-              <button class="btn-add" onclick="abrirModalImportarImoveis()" style="background: var(--azul-secundario);">📥 Importar</button>
-              <button class="btn-add" id="btn-add-imovel">+ Adicionar Imóvel</button>
+            <h2 style="font-size: 24px; color: var(--text-dark); font-weight: 700; letter-spacing: -0.3px;">Portfólio Imobiliário</h2>
+            <div style="display: flex; gap: 10px;">
+              <button class="btn-secondary" onclick="abrirModalImportarImoveis()">Importar</button>
+              <button class="btn-secondary" onclick="gerarRelatorioPDF()">Relatório PDF</button>
+              <button class="btn-primary" id="btn-add-imovel">+ Novo Imóvel</button>
             </div>
           </div>
 
           <!-- RESUMO CONSOLIDADO -->
           <div class="carteira-resumo" id="carteira-resumo">
-            <div class="carteira-titulo">💰 Visão Consolidada da Carteira</div>
+            <div class="carteira-titulo">Visão Consolidada</div>
             
             <!-- GRÁFICO DE EVOLUÇÃO -->
             <div class="carteira-grafico">
-              <div class="carteira-grafico-titulo">📊 Evolução do Patrimônio</div>
+              <div class="carteira-grafico-titulo">Evolução do Patrimônio</div>
               <div class="carteira-chart-container" style="height: 300px;">
                 <canvas id="chart-carteira"></canvas>
               </div>
@@ -1538,7 +1692,7 @@
 
             <!-- GRÁFICO DE TITULARIDADE -->
             <div class="carteira-grafico" style="margin-top: 20px;">
-              <div class="carteira-grafico-titulo">🥧 Distribuição por Titularidade</div>
+              <div class="carteira-grafico-titulo">Distribuição por Titularidade</div>
               <div style="height: 300px; max-width: 400px; margin: 0 auto;">
                 <canvas id="chart-titularidade"></canvas>
               </div>
@@ -1573,9 +1727,9 @@
                 <p class="detalhes-subtitle" id="detalhes-meta">Tipo • Grupo • Subgrupo</p>
               </div>
               <div class="detalhes-actions">
-                <button class="btn-detalhes" onclick="openModalReavaliacao()">📈 Reavaliar</button>
-                <button class="btn-detalhes" onclick="editImovelFromDetalhes()">✏️ Editar</button>
-                <button class="btn-detalhes" onclick="confirmDeleteImovelFromDetalhes()">🗑️ Excluir</button>
+                <button class="btn-secondary" onclick="openModalReavaliacao()">Reavaliar</button>
+                <button class="btn-secondary" onclick="editImovelFromDetalhes()">Editar</button>
+                <button class="btn-danger" onclick="confirmDeleteImovelFromDetalhes()">Excluir</button>
               </div>
             </div>
             <div class="detalhes-grid" id="detalhes-stats"></div>
@@ -1615,7 +1769,7 @@
                   </div>
 
                   <div class="detalhes-section">
-                    <h3 class="detalhes-section-title">📊 Evolução de Valorização</h3>
+                    <h3 class="detalhes-section-title">Evolução de Valor</h3>
                     <div class="chart-container">
                       <canvas id="chart-valorizacao"></canvas>
                     </div>
@@ -1623,7 +1777,7 @@
 
                   <div class="detalhes-section" style="margin-top: 24px;">
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-                      <h3 class="detalhes-section-title" style="margin-bottom:0;">📈 Rentabilidade</h3>
+                      <h3 class="detalhes-section-title" style="margin-bottom:0;">Rentabilidade</h3>
                       <div style="display:flex;gap:4px;background:#f0f4f8;border-radius:8px;padding:3px;">
                         <button id="btn-rent-acum" onclick="rentToggle('acumulado')"
                           style="padding:5px 12px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;background:#0f3d57;color:#fff;font-family:inherit;">
@@ -1661,7 +1815,7 @@
                   </div>
 
                   <div class="detalhes-section" style="margin-top: 24px;">
-                    <h3 class="detalhes-section-title">📋 Análise Completa</h3>
+                    <h3 class="detalhes-section-title">Análise Completa</h3>
                     <div id="detalhes-info"></div>
                   </div>
                 </div>
@@ -1680,7 +1834,7 @@
               <div class="gestao-section">
                 <div class="gestao-header">
                   <h3 class="gestao-title">Características do Imóvel</h3>
-                  <button class="btn-add-small" onclick="openModalCaracteristicas()">✏️ Editar</button>
+                  <button class="btn-add-small" onclick="openModalCaracteristicas()">Editar</button>
                 </div>
                 <div id="carac-content" style="padding:8px 0;">
                   <p style="color:#999;text-align:center;padding:40px;font-size:13px;">Nenhuma característica cadastrada. Clique em Editar para adicionar.</p>
@@ -2005,9 +2159,9 @@
 
           <!-- Abas internas -->
           <div class="fin-tabs-header">
-            <button class="fin-tab-btn active" onclick="finSwitchTab('dashboard', this)">📊 Dashboard</button>
-            <button class="fin-tab-btn" onclick="finSwitchTab('dre', this)">📋 DRE Gerencial</button>
-            <button class="fin-tab-btn" onclick="finSwitchTab('lancamentos', this)">📝 Lançamentos</button>
+            <button class="fin-tab-btn active" onclick="finSwitchTab('dashboard', this)">Dashboard</button>
+            <button class="fin-tab-btn" onclick="finSwitchTab('dre', this)">DRE Gerencial</button>
+            <button class="fin-tab-btn" onclick="finSwitchTab('lancamentos', this)">Lançamentos</button>
           </div>
 
           <!-- ABA: DASHBOARD -->
@@ -2017,11 +2171,11 @@
             </div>
             <div class="fin-chart-row">
               <div class="fin-chart-box">
-                <div class="fin-chart-title">📊 Rendas vs Despesas — Evolução Anual</div>
+                <div class="fin-chart-title">Receitas vs. Despesas — Evolução Anual</div>
                 <div style="height: 280px;"><canvas id="fin-chart-anual"></canvas></div>
               </div>
               <div class="fin-chart-box">
-                <div class="fin-chart-title">🥧 Despesas por Grupo</div>
+                <div class="fin-chart-title">Despesas por Grupo</div>
                 <div style="height: 280px;"><canvas id="fin-chart-pizza"></canvas></div>
               </div>
             </div>
@@ -2035,7 +2189,7 @@
           <div class="fin-tab-content" id="fin-tab-dre">
             <div class="fin-dre-wrap">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:12px;">
-                <div style="font-size:16px; font-weight:700; color:var(--azul-principal);">📋 DRE Gerencial</div>
+                <div style="font-size:16px; font-weight:700; color:var(--azul-principal);">DRE Gerencial</div>
                 <div style="display:flex; gap:8px;">
                   <button class="btn-add-small" onclick="finDreExpandAll()">Expandir tudo</button>
                   <button class="btn-add-small" onclick="finDreCollapseAll()">Recolher tudo</button>
@@ -2051,7 +2205,7 @@
           <div class="fin-tab-content" id="fin-tab-lancamentos">
             <div class="fin-lancamentos-wrap">
               <div class="fin-filtros">
-                <input type="text" class="fin-filtro-input" id="fin-busca" placeholder="🔍 Buscar extrato, origem..." oninput="finFiltrar()">
+                <input type="text" class="fin-filtro-input" id="fin-busca" placeholder="Buscar extrato, origem..." oninput="finFiltrar()">
                 <select class="fin-filtro-select" id="fin-filtro-origem" onchange="finFiltrar()">
                   <option value="">Todas as origens</option>
                 </select>
@@ -2105,8 +2259,8 @@
         <!-- VEÍCULOS PAGE -->
         <div class="page" id="page-veiculos">
           <div class="page-header">
-            <h2 style="font-size:24px;color:var(--text-dark);">Veículos & Embarcações</h2>
-            <button class="btn-add" id="btn-add-veiculo">+ Adicionar</button>
+            <h2 style="font-size:24px;color:var(--text-dark);font-weight:700;letter-spacing:-0.3px;">Veículos & Embarcações</h2>
+            <button class="btn-primary" id="btn-add-veiculo">+ Novo Veículo</button>
           </div>
           <div id="veiculos-grid" class="imoveis-grid">
             <div class="loading"><div class="spinner"></div><p>Carregando...</p></div>
@@ -2123,19 +2277,19 @@
                 <p class="detalhes-subtitle" id="vei-detalhes-meta">Tipo • Placa</p>
               </div>
               <div class="detalhes-actions">
-                <button class="btn-detalhes" onclick="veiAbrirDocs()">📁 Documentos</button>
-                <button class="btn-detalhes" onclick="veiEditarAtual()">✏️ Editar</button>
-                <button class="btn-detalhes" onclick="veiExcluirAtual()">🗑️ Excluir</button>
+                <button class="btn-secondary" onclick="veiAbrirDocs()">Documentos</button>
+                <button class="btn-secondary" onclick="veiEditarAtual()">Editar</button>
+                <button class="btn-danger" onclick="veiExcluirAtual()">Excluir</button>
               </div>
             </div>
             <div class="detalhes-grid" id="vei-detalhes-stats"></div>
           </div>
           <div class="tabs-container">
             <div class="tabs-header">
-              <button class="tab-btn active" onclick="veiSwitchTab('info',this)">📋 Informações</button>
-              <button class="tab-btn" onclick="veiSwitchTab('alertas',this)">🔔 Alertas</button>
-              <button class="tab-btn" onclick="veiSwitchTab('manutencao',this)">🔧 Manutenção</button>
-              <button class="tab-btn" onclick="veiSwitchTab('documentos',this)">📁 Documentos</button>
+              <button class="tab-btn active" onclick="veiSwitchTab('info',this)">Informações</button>
+              <button class="tab-btn" onclick="veiSwitchTab('alertas',this)">Alertas</button>
+              <button class="tab-btn" onclick="veiSwitchTab('manutencao',this)">Manutenção</button>
+              <button class="tab-btn" onclick="veiSwitchTab('documentos',this)">Documentos</button>
             </div>
             <div class="tab-content active" id="vei-tab-info">
               <div class="detalhes-section" id="vei-info-body"></div>
@@ -2143,7 +2297,7 @@
             <div class="tab-content" id="vei-tab-alertas">
               <div class="gestao-section">
                 <div class="gestao-header">
-                  <h3 class="gestao-title">🔔 Alertas de Vencimento</h3>
+                  <h3 class="gestao-title">Alertas de Vencimento</h3>
                 </div>
                 <div id="vei-alertas-body"></div>
               </div>
@@ -2151,7 +2305,7 @@
             <div class="tab-content" id="vei-tab-manutencao">
               <div class="gestao-section">
                 <div class="gestao-header">
-                  <h3 class="gestao-title">🔧 Histórico de Manutenções</h3>
+                  <h3 class="gestao-title">Histórico de Manutenções</h3>
                   <button class="btn-add-small" onclick="veiAbrirModalManutencao()">+ Adicionar</button>
                 </div>
                 <table class="gestao-table">
@@ -2163,7 +2317,7 @@
             <div class="tab-content" id="vei-tab-documentos">
               <div class="gestao-section">
                 <div class="gestao-header">
-                  <h3 class="gestao-title">📁 Documentos do Veículo</h3>
+                  <h3 class="gestao-title">Documentos do Veículo</h3>
                   <button class="btn-add-small" onclick="veiAbrirDocs()">Gerenciar</button>
                 </div>
                 <p style="color:var(--text-light);padding:20px;">Clique em "Gerenciar" para fazer upload e visualizar documentos.</p>
@@ -2175,8 +2329,8 @@
         <!-- DOCUMENTOS PAGE -->
         <div class="page" id="page-documentos">
           <div class="page-header">
-            <h2 style="font-size:24px;color:var(--text-dark);">Documentos Pessoais</h2>
-            <button class="btn-add" onclick="docsAbrirModal()">+ Adicionar</button>
+            <h2 style="font-size:24px;color:var(--text-dark);font-weight:700;letter-spacing:-0.3px;">Documentos Pessoais</h2>
+            <button class="btn-primary" onclick="docsAbrirModal()">+ Adicionar</button>
           </div>
           <!-- Seções de documentos -->
           <div id="docs-sections"></div>
@@ -3383,13 +3537,13 @@
       document.querySelector(`.nav-item[data-page="${pageName}"]`).classList.add('active');
       
       const titles = {
-        dashboard: 'Dashboard',
-        investimentos: 'Investimentos',
-        imoveis: 'Imóveis',
-        financeiro: 'Controle Financeiro',
-        veiculos: 'Veículos & Embarcações',
-        documentos: 'Documentos',
-        perfil: 'Perfil & Família'
+        dashboard:      'Visão Geral',
+        investimentos:  'Investimentos',
+        imoveis:        'Portfólio Imobiliário',
+        financeiro:     'Controle Financeiro',
+        veiculos:       'Veículos & Embarcações',
+        documentos:     'Documentos',
+        perfil:         'Perfil & Família'
       };
       document.getElementById('top-title').textContent = titles[pageName] || 'Praxes';
       
@@ -3676,6 +3830,29 @@
     function _dashRender(d) {
       const { itensAtivo, itensPassivo, totalAtivo, totalPassivo, pl, endividamento, rendaMes, despMes, resultadoMes, alertas, hoje, mesAtual, anoAtual } = d;
       const fmtK = v => v >= 1000000 ? 'R$ ' + (v/1000000).toFixed(2).replace('.',',') + 'M' : fmt(v);
+
+      // ── Popular KPIs do bloco de boas-vindas ─────────────────
+      const wKpis = document.getElementById('dash-welcome-kpis');
+      if (wKpis) {
+        const valPct = totalAtivo > 0 ? ((pl / totalAtivo) * 100).toFixed(1) : '—';
+        const kpiItems = [
+          { label: 'Patrimônio Líquido', val: fmtK(pl), sub: 'Ativos − Passivos' },
+          null, // divider
+          { label: 'Total de Ativos', val: fmtK(totalAtivo), sub: itensAtivo.length + ' ativo(s)' },
+          null,
+          { label: 'Passivos', val: fmtK(totalPassivo), sub: 'Financiamentos' },
+          null,
+          { label: 'Índice de Solidez', val: (totalAtivo > 0 ? valPct : '—') + '%', sub: 'PL / Ativos' },
+        ];
+        wKpis.innerHTML = kpiItems.map(k => k === null
+          ? `<div class="dash-welcome-divider"></div>`
+          : `<div class="dash-welcome-kpi">
+               <span class="dash-welcome-kpi-label">${k.label}</span>
+               <span class="dash-welcome-kpi-val">${k.val}</span>
+               <span class="dash-welcome-kpi-sub">${k.sub}</span>
+             </div>`
+        ).join('');
+      }
 
       // Composição para pizza: só imóveis por tipo/grupo
       const composMap = {};
@@ -4384,7 +4561,7 @@
                          currentFilter === 'investimento' ? 'Carteira de Investimento' : 
                          'Bens Pessoais';
       
-      document.querySelector('.carteira-titulo').textContent = `💰 Visão Consolidada - ${filterText}`;
+      document.querySelector('.carteira-titulo').textContent = `Visão Consolidada — ${filterText}`;
       
       document.getElementById('carteira-stats').innerHTML = `
         <div class="carteira-card">
@@ -10331,6 +10508,27 @@ Esta ação não pode ser desfeita.`)) return;
       document.getElementById('app-container').style.display = 'flex';
       document.getElementById('sidebar-name').textContent = client.name;
       document.getElementById('sidebar-avatar').textContent = client.name.substring(0,2).toUpperCase();
+
+      // ── Top bar: data e saudação ──────────────────────────────
+      const agora = new Date();
+      const hora = agora.getHours();
+      const saudacao = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite';
+      const primeiroNome = client.name.split(' ')[0];
+      const dataFormatada = agora.toLocaleDateString('pt-BR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+      const dataEl = document.getElementById('top-bar-date');
+      const greetEl = document.getElementById('top-bar-greeting');
+      if (dataEl) dataEl.textContent = dataFormatada.charAt(0).toUpperCase() + dataFormatada.slice(1);
+      if (greetEl) greetEl.textContent = `${saudacao}, ${primeiroNome}`;
+
+      // ── Bloco de boas-vindas do dashboard ─────────────────────
+      const wb = document.getElementById('dash-welcome-block');
+      const wn = document.getElementById('dash-welcome-name');
+      const ws = document.getElementById('dash-welcome-sub');
+      if (wb && wn && ws) {
+        wn.textContent = `${saudacao}, ${primeiroNome}`;
+        ws.textContent = `Posição consolidada de ${agora.toLocaleDateString('pt-BR', { day:'numeric', month:'long', year:'numeric' })} · Praxes Family Office`;
+        wb.style.display = 'block';
+      }
 
       // Destaca quando admin está vendo outro cliente
       const backBtn = document.getElementById('admin-back-btn');
