@@ -3776,11 +3776,6 @@
             <div class="db-kpi-val neg">${fmtK(totalPassivo)}</div>
             <div class="db-kpi-sub">Financiamentos</div>
           </div>
-          <div class="db-kpi">
-            <div class="db-kpi-label">Resultado ${MESES_PT[mesAtual-1]}</div>
-            <div class="db-kpi-val ${resultadoMes>=0?'pos':'neg'}">${resultadoMes>=0?'+':''}${fmtK(resultadoMes)}</div>
-            <div class="db-kpi-sub">Renda − Despesas</div>
-          </div>
         </div>
 
         <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:14px;margin-bottom:14px;">
@@ -3836,10 +3831,10 @@
             </div>
             <div style="display:flex;gap:16px;margin-top:10px;">
               <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-light);">
-                <span style="width:9px;height:9px;border-radius:2px;background:#B5D4F4;"></span>Total de ativos
+                <span style="width:9px;height:9px;border-radius:2px;background:#B5D4F4;"></span>Total de ativos (acumulado)
               </span>
               <span style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-light);">
-                <span style="display:inline-block;width:18px;height:2px;background:#1D9E75;"></span>Patrimônio líquido
+                <span style="display:inline-block;width:18px;height:2px;background:#1D9E75;"></span>Nº de ativos
               </span>
             </div>
           </div>
@@ -3915,32 +3910,92 @@
         });
       }
 
-      // Gráfico histórico — constrói com histórico real do cache
+      // ── Gráfico de evolução patrimonial acumulada ─────────────
+      // Barra: valor de mercado acumulado de todos os imóveis (interpolado por CAGR)
+      // Linha: quantidade de ativos em cada data
       const hist = dataCache.historico || [];
-      const histPorMes = {};
-      hist.forEach(r => {
-        if (!r[1]) return;
-        const d = new Date(r[1]);
-        if (isNaN(d)) return;
-        const key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
-        const val = parseFloat(String(r[2]||'0').replace(/[^\d.-]/g,'')) || 0;
-        if (!histPorMes[key] || d > new Date(histPorMes[key].data)) {
-          histPorMes[key] = { data: r[1], ativo: val };
-        }
-      });
-      // Adiciona ponto atual
-      const hoje = new Date();
-      const keyAtual = hoje.getFullYear() + '-' + String(hoje.getMonth()+1).padStart(2,'0');
-      histPorMes[keyAtual] = { ativo: totalAtivo };
+      const imoveis = imoveisData.filter(r => r[0]);
 
-      const mesesOrdem = Object.keys(histPorMes).sort().slice(-10);
-      const ativosHist = mesesOrdem.map(k => histPorMes[k].ativo);
-      // PL histórico: ativo − passivo (passivo atual aplicado uniformemente se não há histórico de passivo)
-      const plHist = ativosHist.map(a => Math.max(0, a - totalPassivo));
-      const labelsHist = mesesOrdem.map(k => {
-        const [ano, mes] = k.split('-');
-        return MESES_PT[parseInt(mes)-1].substring(0,3) + '/' + ano.substring(2);
+      // 1. Para cada imóvel, monta série de pontos históricos reais
+      const seriesPorImovel = {};
+      imoveis.forEach(row => {
+        const nome = row[0];
+        const dataCompra = row[6] || null;
+        const valorCompra = parseFloat(String(row[5]||'0').replace(/[^\d.-]/g,'')) || 0;
+        const pts = hist
+          .filter(r => r[0] === nome && r[1])
+          .map(r => ({
+            data: new Date(r[1] + 'T12:00:00'),
+            valor: parseFloat(String(r[2]||'0').replace(/[^\d.-]/g,'')) || 0
+          }))
+          .filter(p => !isNaN(p.data) && p.valor > 0)
+          .sort((a, b) => a.data - b.data);
+        // Garante ponto inicial de compra se não tem histórico antes
+        if (dataCompra && valorCompra > 0) {
+          const dc = new Date(dataCompra + 'T12:00:00');
+          if (!pts.length || dc < pts[0].data) pts.unshift({ data: dc, valor: valorCompra });
+        }
+        // Garante ponto atual
+        const va = getValorAtualImovel(nome, row[7]);
+        if (va > 0) {
+          const last = pts[pts.length - 1];
+          if (!last || Math.abs(last.valor - va) > 100) pts.push({ data: new Date(), valor: va });
+        }
+        if (pts.length > 0) seriesPorImovel[nome] = { pts, dataCompra };
       });
+
+      // 2. Determina janela temporal total
+      let dataMin = new Date();
+      Object.values(seriesPorImovel).forEach(s => {
+        if (s.pts[0].data < dataMin) dataMin = s.pts[0].data;
+      });
+      dataMin = new Date(dataMin.getFullYear(), dataMin.getMonth(), 1);
+      const dataMax = new Date();
+
+      // 3. Gera eixo semestral
+      const eixoDash = [];
+      const cur = new Date(dataMin);
+      while (cur <= dataMax) {
+        eixoDash.push(new Date(cur));
+        cur.setMonth(cur.getMonth() + 6);
+      }
+      if (eixoDash[eixoDash.length - 1] < dataMax) eixoDash.push(new Date(dataMax));
+
+      // 4. Função de interpolação CAGR
+      function interpDash(pts, d) {
+        if (!pts.length) return 0;
+        if (d < pts[0].data) return 0;
+        if (d >= pts[pts.length-1].data) {
+          if (pts.length === 1) return pts[0].valor;
+          const p1 = pts[pts.length-2], p2 = pts[pts.length-1];
+          const anos = (p2.data - p1.data) / (365.25 * 864e5);
+          if (anos <= 0) return p2.valor;
+          return p2.valor * Math.pow(p2.valor/p1.valor, (d - p2.data)/(p2.data - p1.data));
+        }
+        for (let i = 0; i < pts.length-1; i++) {
+          const p1=pts[i], p2=pts[i+1];
+          if (d >= p1.data && d <= p2.data) {
+            const anos = (p2.data - p1.data) / (365.25 * 864e5);
+            if (anos <= 0) return p1.valor;
+            const cagr = Math.pow(p2.valor/p1.valor, 1/anos) - 1;
+            return p1.valor * Math.pow(1+cagr, (d-p1.data)/(365.25*864e5));
+          }
+        }
+        return pts[pts.length-1].valor;
+      }
+
+      // 5. Para cada ponto do eixo: soma acumulada + conta imóveis ativos
+      const ativosAcum = eixoDash.map(d => {
+        return Object.values(seriesPorImovel).reduce((soma, s) => {
+          return soma + interpDash(s.pts, d);
+        }, 0);
+      });
+      const qtdAtivos = eixoDash.map(d => {
+        return Object.values(seriesPorImovel).filter(s => s.pts[0].data <= d).length;
+      });
+      const labelsHist = eixoDash.map(d =>
+        MESES_PT[d.getMonth()].substring(0,3) + '/' + String(d.getFullYear()).substring(2)
+      );
 
       const chartEl = document.getElementById('db-pl-chart');
       if (chartEl) {
@@ -3951,15 +4006,16 @@
             datasets: [
               {
                 label: 'Total de ativos',
-                data: ativosHist,
+                data: ativosAcum,
                 backgroundColor: isDark ? 'rgba(24,95,165,0.3)' : 'rgba(181,212,244,0.7)',
-                borderColor: '#185FA5',
+                borderColor: 'rgba(24,95,165,0.4)',
                 borderWidth: 1,
-                order: 2
+                order: 2,
+                yAxisID: 'yVal'
               },
               {
-                label: 'Patrimônio líquido',
-                data: plHist,
+                label: 'Nº de ativos',
+                data: qtdAtivos,
                 type: 'line',
                 borderColor: '#1D9E75',
                 backgroundColor: 'transparent',
@@ -3967,7 +4023,8 @@
                 pointRadius: 3,
                 pointBackgroundColor: '#1D9E75',
                 tension: 0.3,
-                order: 1
+                order: 1,
+                yAxisID: 'yQtd'
               }
             ]
           },
@@ -3975,13 +4032,27 @@
             responsive: true, maintainAspectRatio: false,
             plugins: {
               legend: { display: false },
-              tooltip: { callbacks: { label: ctx => ' ' + fmt(ctx.raw) } }
+              tooltip: {
+                callbacks: {
+                  label: ctx => ctx.datasetIndex === 0
+                    ? ' ' + fmt(ctx.raw)
+                    : ' ' + ctx.raw + ' ativo(s)'
+                }
+              }
             },
             scales: {
-              x: { ticks: { color: textClr, font: { size: 11 }, maxRotation: 0, autoSkip: true }, grid: { display: false } },
-              y: {
-                ticks: { color: textClr, font: { size: 11 }, callback: v => 'R$' + (v>=1000000?(v/1000000).toFixed(1)+'M':(v/1000).toFixed(0)+'k') },
+              x: { ticks: { color: textClr, font: { size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 8 }, grid: { display: false } },
+              yVal: {
+                position: 'left',
+                ticks: { color: textClr, font: { size: 10 }, callback: v => 'R$' + (v>=1e6?(v/1e6).toFixed(1)+'M':(v/1000).toFixed(0)+'k') },
                 grid: { color: gridClr }
+              },
+              yQtd: {
+                position: 'right',
+                min: 0,
+                max: Math.max(...qtdAtivos) + 1,
+                ticks: { color: '#1D9E75', font: { size: 10 }, stepSize: 1, callback: v => Number.isInteger(v) ? v : '' },
+                grid: { display: false }
               }
             }
           }
@@ -4161,7 +4232,7 @@
       if (currentFilter === 'investimento') {
         filtered = imoveisData.filter(row => row[2] === 'Investimento');
       } else if (currentFilter === 'pessoal') {
-        filtered = imoveisData.filter(row => row[2] === 'Bem Pessoal');
+        filtered = imoveisData.filter(row => row[2] === 'Uso Pessoal');
       }
       
       if (filtered.length === 0) {
@@ -6585,7 +6656,7 @@
 
         const filtered = currentFilter === 'todos' ? imoveisData
           : currentFilter === 'investimento' ? imoveisData.filter(r => r[2] === 'Investimento')
-          : imoveisData.filter(r => r[2] === 'Bem Pessoal');
+          : imoveisData.filter(r => r[2] === 'Uso Pessoal');
 
         // ── Formatos ────────────────────────────────────────────
         const fmtR = v => {
