@@ -7054,7 +7054,7 @@
         function pageFooter(num) {
           doc.setDrawColor(...C.border);
           doc.setLineWidth(0.15);
-          doc.line(M, PH - 8, PW - M, PH - 8);
+          if(isFinite(PH)) doc.line(M, PH - 8, PW - M, PH - 8);
           doc.setFontSize(6); doc.setFont('helvetica','normal');
           doc.setTextColor(170, 180, 190);
           doc.text('Praxes Family Office  ·  Confidencial', M, PH - 4);
@@ -7068,7 +7068,8 @@
           doc.text(label.toUpperCase(), M, y);
           doc.setDrawColor(...C.gold);
           doc.setLineWidth(0.15);
-          doc.line(M + doc.getTextWidth(label.toUpperCase()) + 3, y - 0.8, PW - M, y - 0.8);
+          const lx = M + doc.getTextWidth(label.toUpperCase()) + 3;
+          if(isFinite(lx) && isFinite(y)) doc.line(lx, y - 0.8, PW - M, y - 0.8);
           return y + 5;
         }
 
@@ -7089,7 +7090,8 @@
             if (i > 0) {
               doc.setDrawColor(...C.border);
               doc.setLineWidth(0.15);
-              doc.line(x + i * colW, y + 2, x + i * colW, y + h - 2);
+              const lx2 = x + i * colW;
+              if(isFinite(lx2)&&isFinite(y)) doc.line(lx2, y + 2, lx2, y + h - 2);
             }
           });
         }
@@ -7130,26 +7132,36 @@
           const toX = t => cx + ((t - minX) / rX) * cw;
           const toY = v => cy + ch - ((v - minY) / rY) * ch;
 
+          // Helper: só desenha se todos os coords forem números finitos
+          const safeLine = (x1,y1,x2,y2) => {
+            if([x1,y1,x2,y2].every(n=>typeof n==='number'&&isFinite(n)))
+              doc.line(x1,y1,x2,y2);
+          };
+          const safeTriangle = (x1,y1,x2,y2,x3,y3,s) => {
+            if([x1,y1,x2,y2,x3,y3].every(n=>typeof n==='number'&&isFinite(n)))
+              doc.triangle(x1,y1,x2,y2,x3,y3,s);
+          };
+
           // Grid horizontal — linhas muito sutis
           doc.setLineWidth(0.1);
           for (let i = 0; i <= 4; i++) {
             const v = minY + rY * i / 4;
             const yy = toY(v);
             doc.setDrawColor(240, 243, 246);
-            doc.line(cx, yy, cx + cw, yy);
+            safeLine(cx, yy, cx + cw, yy);
             doc.setFontSize(5); doc.setFont('helvetica','normal');
             doc.setTextColor(170, 180, 190);
             const lbl = opts.isPct
               ? (v >= 0 ? '+' : '') + v.toFixed(0) + '%'
               : (v >= 1e6 ? (v/1e6).toFixed(1)+'M' : (v/1000).toFixed(0)+'k');
-            doc.text(opts.isPct ? lbl : 'R$'+lbl, cx - 2, yy + 1.5, { align: 'right' });
+            if(isFinite(yy)) doc.text(opts.isPct ? lbl : 'R$'+lbl, cx - 2, yy + 1.5, { align: 'right' });
           }
 
           // Linha zero
           if (opts.isPct) {
             const y0 = toY(0);
             doc.setDrawColor(200, 208, 216); doc.setLineWidth(0.2);
-            doc.line(cx, y0, cx + cw, y0);
+            safeLine(cx, y0, cx + cw, y0);
           }
 
           // Benchmarks PRIMEIRO (atrás da linha principal)
@@ -7160,12 +7172,13 @@
               for (let i = 0; i < ex.pts.length - 1; i++) {
                 const x1 = toX(exXs[i]),   y1 = toY(ex.pts[i].y);
                 const x2 = toX(exXs[i+1]), y2 = toY(ex.pts[i+1].y);
+                if(![x1,y1,x2,y2].every(n=>isFinite(n))) continue;
                 // Tracejado a cada ~3mm
                 const dx = x2-x1, dy = y2-y1, dist = Math.sqrt(dx*dx+dy*dy);
                 const steps = Math.max(1, Math.round(dist / 1.5));
                 for (let j = 0; j < steps; j += 2) {
                   const t1 = j/steps, t2 = Math.min((j+1)/steps, 1);
-                  doc.line(x1+dx*t1, y1+dy*t1, x1+dx*t2, y1+dy*t2);
+                  safeLine(x1+dx*t1, y1+dy*t1, x1+dx*t2, y1+dy*t2);
                 }
               }
             });
@@ -7178,25 +7191,27 @@
               const x1=toX(allXs[i]),   y1=toY(pts[i].y);
               const x2=toX(allXs[i+1]), y2=toY(pts[i+1].y);
               const base = cy + ch;
-              doc.triangle(x1, y1, x2, y2, x1, base, 'F');
-              doc.triangle(x2, y2, x2, base, x1, base, 'F');
+              safeTriangle(x1, y1, x2, y2, x1, base, 'F');
+              safeTriangle(x2, y2, x2, base, x1, base, 'F');
             }
           }
 
           // Linha principal — navy, fina
           doc.setDrawColor(...C.navy); doc.setLineWidth(0.5);
           for (let i = 0; i < pts.length - 1; i++) {
-            doc.line(toX(allXs[i]), toY(pts[i].y), toX(allXs[i+1]), toY(pts[i+1].y));
+            safeLine(toX(allXs[i]), toY(pts[i].y), toX(allXs[i+1]), toY(pts[i+1].y));
           }
 
           // Linha de compra tracejada (só gráfico de preço)
           if (opts.valorCompra) {
             const yc = toY(opts.valorCompra);
-            doc.setDrawColor(...C.gold); doc.setLineWidth(0.25);
-            let xd = cx;
-            while (xd < cx + cw) { doc.line(xd, yc, Math.min(xd+2, cx+cw), yc); xd += 3.5; }
-            doc.setFontSize(4.5); doc.setTextColor(...C.gold);
-            doc.text('preço de compra', cx + cw + 1.5, yc + 1.2);
+            if(isFinite(yc)) {
+              doc.setDrawColor(...C.gold); doc.setLineWidth(0.25);
+              let xd = cx;
+              while (xd < cx + cw) { safeLine(xd, yc, Math.min(xd+2, cx+cw), yc); xd += 3.5; }
+              doc.setFontSize(4.5); doc.setTextColor(...C.gold);
+              doc.text('preço de compra', cx + cw + 1.5, yc + 1.2);
+            }
           }
 
           // Eixo X — anos
@@ -7335,7 +7350,7 @@
 
         // Linha divisória dourada
         doc.setDrawColor(...C.gold); doc.setLineWidth(0.3);
-        doc.line(M, 96, M+50, 96);
+        if(isFinite(M)) doc.line(M, 96, M+50, 96);
 
         // Métricas da capa
         let totVM=0, totVC=0, totInv=0, totAlug=0, nOcup=0;
@@ -7461,7 +7476,7 @@
 
           // Friso dourado fino
           doc.setDrawColor(...C.gold); doc.setLineWidth(0.35);
-          doc.line(M, y, PW-M, y);
+          if(isFinite(y)) doc.line(M, y, PW-M, y);
           y += 6;
 
           // ── Linha de características (discreta, sem box) ─────
