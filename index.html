@@ -2142,7 +2142,7 @@
               <div style="display:flex;align-items:center;gap:8px;">
                 <span id="inv-data-ref" style="font-size:12px;color:var(--text-light);"></span>
               </div>
-              <div style="display:flex;align-items:center;gap:12px;">
+              <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
                 <!-- Toggle Mercado/Curva — oculto (planilha não separa curva) -->
                 <div style="display:none;">
                   <button class="inv-mark-btn active" data-mark="mercado" onclick="invSetMarcacao('mercado',this)"
@@ -2154,12 +2154,24 @@
                     Na Curva
                   </button>
                 </div>
-                <!-- Período -->
+                <!-- Período rápido -->
                 <div style="display:flex;background:var(--branco);border-radius:8px;padding:3px;border:1px solid var(--borda);">
                   <button class="inv-period-btn active" data-period="ytd" onclick="invSetPeriod('ytd',this)">YTD</button>
                   <button class="inv-period-btn" data-period="6m"  onclick="invSetPeriod('6m',this)">6M</button>
                   <button class="inv-period-btn" data-period="12m" onclick="invSetPeriod('12m',this)">12M</button>
                   <button class="inv-period-btn" data-period="all" onclick="invSetPeriod('all',this)">Início</button>
+                  <button class="inv-period-btn" data-period="custom" onclick="invSetPeriod('custom',this)">Personalizado</button>
+                </div>
+                <!-- Seletor de datas personalizado -->
+                <div id="inv-date-range" style="display:none;align-items:center;gap:8px;background:var(--branco);border:1px solid var(--borda);border-radius:8px;padding:5px 12px;">
+                  <label style="font-size:11px;color:var(--text-light);white-space:nowrap;">De</label>
+                  <input type="date" id="inv-date-from" style="border:none;outline:none;font-size:12px;font-family:inherit;color:var(--text-primary);background:transparent;cursor:pointer;" onchange="invOnDateChange()">
+                  <span style="color:var(--text-light);font-size:11px;">até</span>
+                  <input type="date" id="inv-date-to" style="border:none;outline:none;font-size:12px;font-family:inherit;color:var(--text-primary);background:transparent;cursor:pointer;" onchange="invOnDateChange()">
+                  <button onclick="invAtualizarComdinheiro()" id="inv-btn-atualizar"
+                    style="padding:4px 12px;font-size:11px;font-weight:600;border:none;border-radius:5px;cursor:pointer;background:var(--azul-principal);color:#fff;font-family:inherit;white-space:nowrap;transition:all .2s;display:flex;align-items:center;gap:5px;">
+                    <span id="inv-btn-atualizar-txt">↻ Atualizar planilha</span>
+                  </button>
                 </div>
                 <!-- PDF -->
                 <button class="btn-secondary" onclick="invGerarPDF()" style="padding:8px 16px;font-size:12px;">Relatório PDF</button>
@@ -2225,10 +2237,11 @@
             <!-- Gráfico de performance -->
             <div class="gestao-section" style="margin-bottom:20px;">
               <div class="gestao-header">
-                <h3 class="gestao-title" id="inv-chart-title">Performance acumulada — A Mercado</h3>
+                <h3 class="gestao-title" id="inv-chart-title">Performance acumulada</h3>
                 <div style="display:flex;gap:16px;font-size:12px;color:var(--text-light);">
-                  <span style="display:flex;align-items:center;gap:5px;"><span id="inv-leg-carteira" style="width:10px;height:3px;background:#0F3D57;border-radius:2px;display:inline-block;"></span><span id="inv-leg-carteira-txt">Mercado</span></span>
-                  <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:3px;background:#B4B2A9;border-radius:2px;display:inline-block;"></span>CDI</span>
+                  <span style="display:flex;align-items:center;gap:5px;"><span id="inv-leg-carteira" style="width:10px;height:3px;background:#0F3D57;border-radius:2px;display:inline-block;"></span><span id="inv-leg-carteira-txt">Carteira</span></span>
+                  <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:3px;background:#B4B2A9;border-radius:2px;display:inline-block;border-top:2px dashed #B4B2A9;height:0;"></span>CDI</span>
+                  <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:0;border-top:2px dashed #E2A84B;display:inline-block;"></span>IPCAdp</span>
                 </div>
               </div>
               <div style="position:relative;width:100%;height:260px;">
@@ -10431,6 +10444,25 @@ Esta ação não pode ser desfeita.`)) return;
       invPeriod = period;
       document.querySelectorAll('.inv-period-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
+      const dateRange = document.getElementById('inv-date-range');
+      if (period === 'custom') {
+        dateRange.style.display = 'flex';
+        // Pré-preenche com o intervalo atual da série se ainda não tiver valor
+        const fromEl = document.getElementById('inv-date-from');
+        const toEl   = document.getElementById('inv-date-to');
+        if (!fromEl.value && invData.serie && invData.serie.length) {
+          fromEl.value = invData.serie[0].data;
+          toEl.value   = invData.serie[invData.serie.length-1].data;
+        }
+      } else {
+        dateRange.style.display = 'none';
+        invRender();
+      }
+    }
+
+    function invOnDateChange() {
+      // Ao mudar datas, apenas re-renderiza o gráfico com o sub-range
+      // (não busca a planilha ainda — isso é só no botão "Atualizar")
       invRender();
     }
 
@@ -10439,7 +10471,13 @@ Esta ação não pode ser desfeita.`)) return;
       const all = invData.serie;
       const last = all[all.length-1].data;
       const lastDt = new Date(last+'T12:00:00');
-      let startISO;
+      let startISO, endISO;
+
+      if (invPeriod === 'custom') {
+        startISO = document.getElementById('inv-date-from')?.value || all[0].data;
+        endISO   = document.getElementById('inv-date-to')?.value   || last;
+        return all.filter(r => r.data >= startISO && r.data <= endISO);
+      }
       if (invPeriod === 'ytd') {
         startISO = `${lastDt.getFullYear()}-01-01`;
       } else if (invPeriod === '6m') {
@@ -10447,7 +10485,64 @@ Esta ação não pode ser desfeita.`)) return;
       } else if (invPeriod === '12m') {
         const d = new Date(lastDt); d.setFullYear(d.getFullYear()-1); startISO = d.toISOString().split('T')[0];
       } else return all;
-      return all.filter(r=>r.data >= startISO);
+      return all.filter(r => r.data >= startISO);
+    }
+
+    // Converte ISO date (YYYY-MM-DD) para número serial do Google Sheets
+    function isoToSheetSerial(iso) {
+      const d = new Date(iso + 'T12:00:00Z');
+      // Serial = dias desde 30/12/1899
+      return Math.round((d.getTime() / 86400000) + 25569);
+    }
+
+    async function invAtualizarComdinheiro() {
+      const fromVal = document.getElementById('inv-date-from').value;
+      const toVal   = document.getElementById('inv-date-to').value;
+      if (!fromVal || !toVal) { alert('Defina as duas datas antes de atualizar.'); return; }
+      if (fromVal > toVal)    { alert('A data inicial não pode ser maior que a data final.'); return; }
+
+      const sheetId = window.invSheetId;
+      if (!sheetId) { alert('ID da planilha não configurado.'); return; }
+
+      const btn  = document.getElementById('inv-btn-atualizar');
+      const txt  = document.getElementById('inv-btn-atualizar-txt');
+      btn.disabled = true;
+      txt.textContent = '⏳ Gravando...';
+
+      try {
+        // Grava datas nas células C10 e C11 da aba Configuração
+        // A planilha espera número serial (formato de data do Sheets)
+        const serialFrom = isoToSheetSerial(fromVal);
+        const serialTo   = isoToSheetSerial(toVal);
+
+        await gapi.client.sheets.spreadsheets.values.batchUpdate({
+          spreadsheetId: sheetId,
+          resource: {
+            valueInputOption: 'USER_ENTERED',
+            data: [
+              { range: 'Configuração!C10', values: [[fromVal.split('-').reverse().join('/')]] }, // DD/MM/AAAA
+              { range: 'Configuração!C11', values: [[toVal.split('-').reverse().join('/')]] },
+            ]
+          }
+        });
+
+        txt.textContent = '✅ Salvo! Atualizando...';
+
+        // Força reload dos dados (limpa cache)
+        invData = { loaded: false };
+        await invLoad(sheetId);
+        setTimeout(() => {
+          invRender();
+          btn.disabled = false;
+          txt.textContent = '↻ Atualizar planilha';
+        }, 200);
+
+      } catch(e) {
+        console.error('Erro ao atualizar datas:', e);
+        alert('Erro ao gravar datas na planilha: ' + (e.message || e.result?.error?.message || 'Verifique as permissões.'));
+        btn.disabled = false;
+        txt.textContent = '↻ Atualizar planilha';
+      }
     }
 
     function invRender() {
@@ -10555,27 +10650,126 @@ Esta ação não pode ser desfeita.`)) return;
         </div>`;
       }).join('');
 
-      // Gráfico performance
-      const step = Math.max(1, Math.floor(serie.length/50));
+      // Gráfico performance — tooltip interativo com crosshair
+      const step = Math.max(1, Math.floor(serie.length/120));
       const filtered = serie.filter((_,i)=>i%step===0||i===serie.length-1);
       if (_invChartPerf) { _invChartPerf.destroy(); _invChartPerf = null; }
       const ctxP = document.getElementById('inv-chart-perf');
       if (!ctxP) { console.warn('Canvas inv-chart-perf not found'); return; }
-      if (ctxP) _invChartPerf = new Chart(ctxP, {
-        type:'line',
-        data:{ labels: filtered.map(r=>{ const d=new Date(r.data+'T12:00:00'); return `${d.getDate()}/${d.getMonth()+1}`; }),
-          datasets:[
-            { label:'Carteira', data: filtered.map(r=>parseFloat(r.mercado.toFixed(4))),
-              borderColor:'#0F3D57', borderWidth:2.5, pointRadius:0, tension:0.3, fill:false },
-            { label:'CDI', data: filtered.map(r=>parseFloat(r.cdi.toFixed(4))),
-              borderColor:'#B4B2A9', borderWidth:1.5, pointRadius:0, tension:0.3, fill:false, borderDash:[3,3] },
-            { label:'IPCAdp', data: filtered.map(r=>parseFloat((r.ipca||0).toFixed(4))),
-              borderColor:'#E2A84B', borderWidth:1.5, pointRadius:0, tension:0.3, fill:false, borderDash:[5,4] }
-          ]},
-        options:{ responsive:true, maintainAspectRatio:false,
-          plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)}%` }}},
-          scales:{ x:{ grid:{display:false}, ticks:{font:{size:10},maxTicksLimit:8,color:'#999'}},
-            y:{ grid:{color:'rgba(0,0,0,0.04)'}, ticks:{font:{size:10},color:'#999',callback:v=>v.toFixed(1)+'%'} } } }
+
+      // Plugin de crosshair vertical
+      const crosshairPlugin = {
+        id: 'crosshair',
+        afterDraw(chart) {
+          if (chart._crosshairX == null) return;
+          const { ctx, chartArea: { top, bottom } } = chart;
+          ctx.save();
+          ctx.beginPath();
+          ctx.moveTo(chart._crosshairX, top);
+          ctx.lineTo(chart._crosshairX, bottom);
+          ctx.lineWidth = 1;
+          ctx.strokeStyle = 'rgba(15,61,87,0.25)';
+          ctx.setLineDash([4, 3]);
+          ctx.stroke();
+          ctx.restore();
+        }
+      };
+
+      _invChartPerf = new Chart(ctxP, {
+        type: 'line',
+        plugins: [crosshairPlugin],
+        data: {
+          labels: filtered.map(r => {
+            const d = new Date(r.data+'T12:00:00');
+            return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+          }),
+          datasets: [
+            {
+              label: 'Carteira',
+              data: filtered.map(r => parseFloat(r.mercado.toFixed(4))),
+              borderColor: '#0F3D57', borderWidth: 2.5, pointRadius: 0,
+              tension: 0.3, fill: false, pointHoverRadius: 5,
+              pointHoverBackgroundColor: '#0F3D57', pointHoverBorderColor: '#fff', pointHoverBorderWidth: 2,
+            },
+            {
+              label: 'CDI',
+              data: filtered.map(r => parseFloat(r.cdi.toFixed(4))),
+              borderColor: '#B4B2A9', borderWidth: 1.5, pointRadius: 0,
+              tension: 0.3, fill: false, borderDash: [3,3], pointHoverRadius: 4,
+              pointHoverBackgroundColor: '#B4B2A9', pointHoverBorderColor: '#fff', pointHoverBorderWidth: 2,
+            },
+            {
+              label: 'IPCAdp',
+              data: filtered.map(r => parseFloat((r.ipca||0).toFixed(4))),
+              borderColor: '#E2A84B', borderWidth: 1.5, pointRadius: 0,
+              tension: 0.3, fill: false, borderDash: [5,4], pointHoverRadius: 4,
+              pointHoverBackgroundColor: '#E2A84B', pointHoverBorderColor: '#fff', pointHoverBorderWidth: 2,
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          onHover(e, els, chart) {
+            if (els.length) {
+              const x = els[0].element.x;
+              chart._crosshairX = x;
+            } else {
+              chart._crosshairX = null;
+            }
+            chart.draw();
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              enabled: true,
+              backgroundColor: 'rgba(8,31,45,0.92)',
+              titleColor: '#fff',
+              titleFont: { size: 11, weight: '600', family: "'DM Sans', sans-serif" },
+              bodyColor: 'rgba(255,255,255,0.82)',
+              bodyFont: { size: 12, family: "'DM Sans', sans-serif" },
+              padding: 12,
+              cornerRadius: 8,
+              displayColors: true,
+              boxWidth: 8, boxHeight: 8,
+              callbacks: {
+                title: ctx => ctx[0]?.label || '',
+                label: ctx => {
+                  const raw = ctx.parsed.y;
+                  // Converte base-100 para variação acumulada
+                  const inicio = ctx.chart.data.datasets[ctx.datasetIndex].data[0];
+                  const variacao = inicio > 0 ? ((raw - inicio) / inicio * 100).toFixed(2) : '—';
+                  return ` ${ctx.dataset.label}: ${raw.toFixed(2)}  (${variacao >= 0 ? '+' : ''}${variacao}%)`;
+                },
+                afterBody: ctx => {
+                  if (!ctx.length) return;
+                  // Diferença Carteira vs CDI no ponto
+                  const cart = ctx.find(c => c.dataset.label === 'Carteira');
+                  const cdi  = ctx.find(c => c.dataset.label === 'CDI');
+                  if (cart && cdi) {
+                    const diff = (cart.parsed.y - cdi.parsed.y).toFixed(2);
+                    return [``, `  Alpha vs CDI: ${diff >= 0 ? '+' : ''}${diff}`];
+                  }
+                  return [];
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: { font: { size: 10 }, maxTicksLimit: 8, color: '#999' }
+            },
+            y: {
+              grid: { color: 'rgba(0,0,0,0.04)' },
+              ticks: {
+                font: { size: 10 }, color: '#999',
+                callback: v => v.toFixed(1) + '%'
+              }
+            }
+          }
+        }
       });
 
       // Gráfico por classe
