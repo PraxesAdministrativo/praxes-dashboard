@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Praxes Gestão Patrimonial</title>
+  <title>Praxes — Family Office</title>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet" />
   <style>
     /* ── SISTEMA DE DESIGN MERIDIAN WEALTH ─────────────────────
@@ -1747,7 +1747,7 @@
     <aside class="sidebar">
       <div class="sidebar-header">
         <div class="sidebar-logo">PRA<span class="logo-x">X</span>ES</div>
-        <div class="sidebar-tagline">Gestão Patrimonial</div>
+        <div class="sidebar-tagline">Family Office</div>
       </div>
       <nav class="sidebar-nav">
         <div class="nav-item active" data-page="dashboard">
@@ -1805,7 +1805,7 @@
           <!-- Bloco de boas-vindas — preenchido pelo JS -->
           <div class="dash-welcome" id="dash-welcome-block" style="display:none;">
             <div class="dash-welcome-name" id="dash-welcome-name">Bem-vindo</div>
-            <div class="dash-welcome-sub" id="dash-welcome-sub">Posição consolidada · Praxes Gestão Patrimonial</div>
+            <div class="dash-welcome-sub" id="dash-welcome-sub">Posição consolidada · Praxes Family Office</div>
             <div class="dash-welcome-kpis" id="dash-welcome-kpis">
               <!-- preenchido dinamicamente -->
             </div>
@@ -4031,38 +4031,60 @@
       });
       const _grupos = [..._grupoOrdem, ...Object.keys(_grupoMap).filter(g => !_grupoOrdem.includes(g))].filter(g => _grupoMap[g]);
 
-      const _rowItem = (i, bg) => {
-        const idx = imoveisData.findIndex(r => r[0] === i.nome);
-        const ok = idx >= 0;
-        return `<tr style="cursor:${ok?'pointer':'default'};" ${ok?`onclick="_dashIrParaImovel(${idx})"`:''} onmouseenter="this.style.background='${bg}'" onmouseleave="this.style.background=''">
-          <td style="padding:6px 0 6px 20px;font-size:12.5px;color:${ok?'#185FA5':'var(--text-dark)'};text-decoration:${ok?'underline':'none'};text-underline-offset:2px;">
-            ${esc(i.nome)}${ok?'<span style="font-size:10px;margin-left:5px;opacity:.5;">↗</span>':''}
-          </td>
-          <td style="padding:6px 0;font-size:12.5px;text-align:right;font-variant-numeric:tabular-nums;color:var(--text-dark);">${fmt(i.valor)}</td>
-        </tr>`;
+      // Toggle accordion — função global para evitar template literals aninhados
+      window._balToggleGrupo = function(groupId, btn) {
+        var open = btn.getAttribute('data-open') === '1';
+        document.querySelectorAll('[data-group="' + groupId + '"]').forEach(function(r) {
+          r.style.display = open ? 'none' : 'table-row';
+        });
+        var chevron = btn.querySelector('.bal-chevron');
+        if (chevron) chevron.style.transform = open ? 'rotate(0deg)' : 'rotate(90deg)';
+        btn.setAttribute('data-open', open ? '0' : '1');
       };
 
-      const rowsAtivo = _grupos.map(g => {
-        const items = _grupoMap[g];
-        const subtotal = items.reduce((s,i) => s+i.valor, 0);
-        const isInv = g === 'Investimento';
-        const dotColor = isInv ? '#185FA5' : '#1D9E75';
-        const hoverBg  = isInv ? '#f0f7ff' : '#f0fbf6';
-        const rows = items.map(i => _rowItem(i, hoverBg)).join('');
-        return `
-          <tr>
-            <td colspan="2" style="padding:10px 0 4px;border-bottom:none;">
-              <span style="display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:.05em;">
-                <span style="display:inline-block;width:7px;height:7px;border-radius:2px;background:${dotColor};flex-shrink:0;"></span>
-                ${esc(g)}
-              </span>
-            </td>
-          </tr>
-          ${rows}
-          <tr>
-            <td style="padding:5px 0 10px 20px;font-size:11.5px;font-weight:600;color:var(--text-light);">Subtotal ${esc(g)}</td>
-            <td style="padding:5px 0 10px;text-align:right;font-size:11.5px;font-weight:600;color:${dotColor};font-variant-numeric:tabular-nums;">${fmt(subtotal)}</td>
-          </tr>`;
+      function _mkDetailRow(nome, valor, idx, groupId, hoverBg) {
+        var ok = idx >= 0;
+        var click = ok ? ' onclick="_dashIrParaImovel(' + idx + ')"' : '';
+        var color = ok ? '#185FA5' : 'var(--text-dark)';
+        var deco  = ok ? 'underline' : 'none';
+        var arrow = ok ? '<span style="font-size:10px;margin-left:5px;opacity:.5;">\u2197</span>' : '';
+        return '<tr class="bal-detail-row" data-group="' + groupId + '" style="cursor:' + (ok?'pointer':'default') + ';display:none;"'
+          + click
+          + ' onmouseenter="this.style.background=\'' + hoverBg + '\'" onmouseleave="this.style.background=\'\'">'
+          + '<td style="padding:5px 0 5px 24px;font-size:12px;color:' + color + ';text-decoration:' + deco + ';text-underline-offset:2px;">'
+          + esc(nome) + arrow + '</td>'
+          + '<td style="padding:5px 0;font-size:12px;text-align:right;font-variant-numeric:tabular-nums;color:var(--text-dark);">' + fmt(valor) + '</td>'
+          + '</tr>';
+      }
+
+      const rowsAtivo = _grupos.map(function(g, gi) {
+        var items    = _grupoMap[g];
+        var subtotal = items.reduce(function(s,i){ return s+i.valor; }, 0);
+        var isInv    = g === 'Investimento';
+        var dotColor = isInv ? '#185FA5' : '#1D9E75';
+        var hoverBg  = isInv ? '#f0f7ff' : '#f0fbf6';
+        var groupId  = 'bal-grp-' + gi;
+        var rows = items.map(function(i) {
+          var idx = imoveisData.findIndex(function(r){ return r[0] === i.nome; });
+          return _mkDetailRow(i.nome, i.valor, idx, groupId, hoverBg);
+        }).join('');
+
+        return '<tr class="bal-group-row" data-open="0"'
+          + ' onclick="_balToggleGrupo(\'' + groupId + '\',this)"'
+          + ' style="cursor:pointer;user-select:none;"'
+          + ' onmouseenter="this.style.background=\'#fafafa\'" onmouseleave="this.style.background=\'\'">'
+          + '<td colspan="2" style="padding:10px 0;border-bottom:1px solid #f0f0f0;">'
+          + '<span style="display:flex;align-items:center;justify-content:space-between;">'
+          + '<span style="display:inline-flex;align-items:center;gap:7px;font-size:11.5px;font-weight:700;color:#444;text-transform:uppercase;letter-spacing:.05em;">'
+          + '<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:' + dotColor + ';flex-shrink:0;"></span>'
+          + esc(g)
+          + ' <span style="font-weight:400;font-size:10.5px;color:#aaa;text-transform:none;letter-spacing:0;">' + items.length + ' im\u00f3vel(is)</span>'
+          + '</span>'
+          + '<span style="display:inline-flex;align-items:center;gap:10px;">'
+          + '<span style="font-size:13px;font-weight:700;color:' + dotColor + ';font-variant-numeric:tabular-nums;">' + fmt(subtotal) + '</span>'
+          + '<span class="bal-chevron" style="font-size:10px;color:#bbb;transition:transform .2s;">\u25ba</span>'
+          + '</span></span></td></tr>'
+          + rows;
       }).join('');
 
       const rowsPassivo = itensPassivo.length ? itensPassivo.map(i => {
@@ -7091,7 +7113,7 @@
           if(isFinite(PH)) doc.line(M, PH - 8, PW - M, PH - 8);
           doc.setFontSize(6); doc.setFont('helvetica','normal');
           doc.setTextColor(170, 180, 190);
-          doc.text('Praxes Gestão Patrimonial  ·  Confidencial', M, PH - 4);
+          doc.text('Praxes Family Office  ·  Confidencial', M, PH - 4);
           doc.text(String(num), PW - M, PH - 4, { align: 'right' });
         }
 
@@ -7371,7 +7393,7 @@
 
         doc.setTextColor(160, 200, 230);
         doc.setFontSize(9); doc.setFont('helvetica','normal');
-        doc.text('Gestão Patrimonial', M, 54);
+        doc.text('Family Office', M, 54);
 
         doc.setTextColor(...C.white);
         doc.setFontSize(20); doc.setFont('helvetica','bold');
@@ -9101,7 +9123,7 @@ Esta ação não pode ser desfeita.`)) return;
         for (var i=1; i<=totalPags; i++) {
           doc.setPage(i);
           doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(160,160,160);
-          doc.text('Praxes Gestão Patrimonial - Relatorio Confidencial', 14, ph-8);
+          doc.text('Praxes Family Office - Relatorio Confidencial', 14, ph-8);
           doc.text(i+' / '+totalPags, pw-14, ph-8, { align:'right' });
         }
       }
@@ -10729,7 +10751,7 @@ Esta ação não pode ser desfeita.`)) return;
       const ws = document.getElementById('dash-welcome-sub');
       if (wb && wn && ws) {
         wn.textContent = `${saudacao}, ${primeiroNome}`;
-        ws.textContent = `Posição consolidada de ${agora.toLocaleDateString('pt-BR', { day:'numeric', month:'long', year:'numeric' })} · Praxes Gestão Patrimonial`;
+        ws.textContent = `Posição consolidada de ${agora.toLocaleDateString('pt-BR', { day:'numeric', month:'long', year:'numeric' })} · Praxes Family Office`;
         wb.style.display = 'block';
       }
 
@@ -11687,11 +11709,12 @@ Esta ação não pode ser desfeita.`)) return;
     document.getElementById('import-preview').style.display = 'none';
     const resDiv = document.getElementById('import-resultado');
     resDiv.style.display = 'block';
+    const erroHtml = erros.length ? '<div style="font-size:12px;color:#ef4444;margin-top:8px;">' + erros.join('<br>') + '</div>' : '';
     resDiv.innerHTML = `
       <div style="text-align:center;padding:20px 0;">
         <div style="font-size:40px;margin-bottom:12px;">${ok > 0 ? '✅' : '❌'}</div>
         <div style="font-size:15px;font-weight:600;color:#0f3d57;margin-bottom:6px;">${ok} imóvel(is) importado(s) com sucesso</div>
-        ${erros.length ? `<div style="font-size:12px;color:#ef4444;margin-top:8px;">${erros.join('<br>')}</div>` : ''}
+        ${erroHtml}
         <button onclick="closeModal('modal-importar-imoveis');loadImoveis();"
           style="margin-top:16px;background:#0f3d57;color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:13px;font-weight:500;cursor:pointer;">
           Ver imóveis
