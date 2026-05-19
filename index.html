@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Praxes — Family Office</title>
+  <title>Praxes Gestão Patrimonial</title>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet" />
   <style>
     /* ── SISTEMA DE DESIGN MERIDIAN WEALTH ─────────────────────
@@ -1747,7 +1747,7 @@
     <aside class="sidebar">
       <div class="sidebar-header">
         <div class="sidebar-logo">PRA<span class="logo-x">X</span>ES</div>
-        <div class="sidebar-tagline">Family Office</div>
+        <div class="sidebar-tagline">Gestão Patrimonial</div>
       </div>
       <nav class="sidebar-nav">
         <div class="nav-item active" data-page="dashboard">
@@ -1805,7 +1805,7 @@
           <!-- Bloco de boas-vindas — preenchido pelo JS -->
           <div class="dash-welcome" id="dash-welcome-block" style="display:none;">
             <div class="dash-welcome-name" id="dash-welcome-name">Bem-vindo</div>
-            <div class="dash-welcome-sub" id="dash-welcome-sub">Posição consolidada · Praxes Family Office</div>
+            <div class="dash-welcome-sub" id="dash-welcome-sub">Posição consolidada · Praxes Gestão Patrimonial</div>
             <div class="dash-welcome-kpis" id="dash-welcome-kpis">
               <!-- preenchido dinamicamente -->
             </div>
@@ -4019,15 +4019,50 @@
       window._dashComposMap  = composMap;
 
       // Linhas do balanço — clicáveis para navegar ao imóvel
-      const rowsAtivo = itensAtivo.map(i => {
+      // Agrupa itens por Investimento / Uso Pessoal / Outros
+      const _grupoOrdem = ['Investimento', 'Uso Pessoal'];
+      const _grupoMap   = {};
+      itensAtivo.forEach(i => {
+        const g = (i.grupo === 'Investimento') ? 'Investimento'
+                : (i.grupo === 'Uso Pessoal')  ? 'Uso Pessoal'
+                : 'Outros';
+        if (!_grupoMap[g]) _grupoMap[g] = [];
+        _grupoMap[g].push(i);
+      });
+      const _grupos = [..._grupoOrdem, ...Object.keys(_grupoMap).filter(g => !_grupoOrdem.includes(g))].filter(g => _grupoMap[g]);
+
+      const _rowItem = (i, bg) => {
         const idx = imoveisData.findIndex(r => r[0] === i.nome);
         const ok = idx >= 0;
-        return `<tr style="cursor:${ok?'pointer':'default'};" ${ok?`onclick="_dashIrParaImovel(${idx})"`:''} onmouseenter="this.style.background='#f0f7ff'" onmouseleave="this.style.background=''">
-          <td style="padding:7px 0 7px 12px;font-size:13px;color:${ok?'#185FA5':'var(--text-dark)'};text-decoration:${ok?'underline':'none'};text-underline-offset:2px;">
+        return `<tr style="cursor:${ok?'pointer':'default'};" ${ok?`onclick="_dashIrParaImovel(${idx})"`:''} onmouseenter="this.style.background='${bg}'" onmouseleave="this.style.background=''">
+          <td style="padding:6px 0 6px 20px;font-size:12.5px;color:${ok?'#185FA5':'var(--text-dark)'};text-decoration:${ok?'underline':'none'};text-underline-offset:2px;">
             ${esc(i.nome)}${ok?'<span style="font-size:10px;margin-left:5px;opacity:.5;">↗</span>':''}
           </td>
-          <td style="padding:7px 0;font-size:13px;text-align:right;font-variant-numeric:tabular-nums;color:var(--text-dark);">${fmt(i.valor)}</td>
+          <td style="padding:6px 0;font-size:12.5px;text-align:right;font-variant-numeric:tabular-nums;color:var(--text-dark);">${fmt(i.valor)}</td>
         </tr>`;
+      };
+
+      const rowsAtivo = _grupos.map(g => {
+        const items = _grupoMap[g];
+        const subtotal = items.reduce((s,i) => s+i.valor, 0);
+        const isInv = g === 'Investimento';
+        const dotColor = isInv ? '#185FA5' : '#1D9E75';
+        const hoverBg  = isInv ? '#f0f7ff' : '#f0fbf6';
+        const rows = items.map(i => _rowItem(i, hoverBg)).join('');
+        return `
+          <tr>
+            <td colspan="2" style="padding:10px 0 4px;border-bottom:none;">
+              <span style="display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:.05em;">
+                <span style="display:inline-block;width:7px;height:7px;border-radius:2px;background:${dotColor};flex-shrink:0;"></span>
+                ${esc(g)}
+              </span>
+            </td>
+          </tr>
+          ${rows}
+          <tr>
+            <td style="padding:5px 0 10px 20px;font-size:11.5px;font-weight:600;color:var(--text-light);">Subtotal ${esc(g)}</td>
+            <td style="padding:5px 0 10px;text-align:right;font-size:11.5px;font-weight:600;color:${dotColor};font-variant-numeric:tabular-nums;">${fmt(subtotal)}</td>
+          </tr>`;
       }).join('');
 
       const rowsPassivo = itensPassivo.length ? itensPassivo.map(i => {
@@ -4111,7 +4146,6 @@
             <div class="db-panel-title">Balanço patrimonial — imóveis</div>
             <table class="db-bal-table">
               <tr><th>Ativo</th><th style="text-align:right;">Valor</th></tr>
-              <tr class="group"><td colspan="2">Imóveis (último valor registrado)</td></tr>
               ${rowsAtivo}
               <tr class="subtotal"><td>Total de ativos</td><td style="text-align:right;">${fmt(totalAtivo)}</td></tr>
             </table>
@@ -7057,7 +7091,7 @@
           if(isFinite(PH)) doc.line(M, PH - 8, PW - M, PH - 8);
           doc.setFontSize(6); doc.setFont('helvetica','normal');
           doc.setTextColor(170, 180, 190);
-          doc.text('Praxes Family Office  ·  Confidencial', M, PH - 4);
+          doc.text('Praxes Gestão Patrimonial  ·  Confidencial', M, PH - 4);
           doc.text(String(num), PW - M, PH - 4, { align: 'right' });
         }
 
@@ -7337,7 +7371,7 @@
 
         doc.setTextColor(160, 200, 230);
         doc.setFontSize(9); doc.setFont('helvetica','normal');
-        doc.text('Family Office', M, 54);
+        doc.text('Gestão Patrimonial', M, 54);
 
         doc.setTextColor(...C.white);
         doc.setFontSize(20); doc.setFont('helvetica','bold');
@@ -9067,7 +9101,7 @@ Esta ação não pode ser desfeita.`)) return;
         for (var i=1; i<=totalPags; i++) {
           doc.setPage(i);
           doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(160,160,160);
-          doc.text('Praxes Family Office - Relatorio Confidencial', 14, ph-8);
+          doc.text('Praxes Gestão Patrimonial - Relatorio Confidencial', 14, ph-8);
           doc.text(i+' / '+totalPags, pw-14, ph-8, { align:'right' });
         }
       }
@@ -10695,7 +10729,7 @@ Esta ação não pode ser desfeita.`)) return;
       const ws = document.getElementById('dash-welcome-sub');
       if (wb && wn && ws) {
         wn.textContent = `${saudacao}, ${primeiroNome}`;
-        ws.textContent = `Posição consolidada de ${agora.toLocaleDateString('pt-BR', { day:'numeric', month:'long', year:'numeric' })} · Praxes Family Office`;
+        ws.textContent = `Posição consolidada de ${agora.toLocaleDateString('pt-BR', { day:'numeric', month:'long', year:'numeric' })} · Praxes Gestão Patrimonial`;
         wb.style.display = 'block';
       }
 
