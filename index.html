@@ -2142,9 +2142,9 @@
               <div style="display:flex;align-items:center;gap:8px;">
                 <span id="inv-data-ref" style="font-size:12px;color:var(--text-light);"></span>
               </div>
-              <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-                <!-- Toggle Mercado/Curva — oculto (planilha não separa curva) -->
-                <div style="display:none;">
+              <div style="display:flex;align-items:center;gap:12px;">
+                <!-- Toggle Mercado/Curva -->
+                <div style="display:flex;background:var(--branco);border-radius:8px;padding:3px;border:1px solid var(--borda);">
                   <button class="inv-mark-btn active" data-mark="mercado" onclick="invSetMarcacao('mercado',this)"
                     style="padding:5px 14px;font-size:12px;font-weight:600;border:none;border-radius:6px;cursor:pointer;background:var(--azul-principal);color:#fff;font-family:'Montserrat',sans-serif;transition:all .2s;">
                     A Mercado
@@ -2154,24 +2154,12 @@
                     Na Curva
                   </button>
                 </div>
-                <!-- Período rápido -->
+                <!-- Período -->
                 <div style="display:flex;background:var(--branco);border-radius:8px;padding:3px;border:1px solid var(--borda);">
                   <button class="inv-period-btn active" data-period="ytd" onclick="invSetPeriod('ytd',this)">YTD</button>
                   <button class="inv-period-btn" data-period="6m"  onclick="invSetPeriod('6m',this)">6M</button>
                   <button class="inv-period-btn" data-period="12m" onclick="invSetPeriod('12m',this)">12M</button>
                   <button class="inv-period-btn" data-period="all" onclick="invSetPeriod('all',this)">Início</button>
-                  <button class="inv-period-btn" data-period="custom" onclick="invSetPeriod('custom',this)">Personalizado</button>
-                </div>
-                <!-- Seletor de datas personalizado -->
-                <div id="inv-date-range" style="display:none;align-items:center;gap:8px;background:var(--branco);border:1px solid var(--borda);border-radius:8px;padding:5px 12px;">
-                  <label style="font-size:11px;color:var(--text-light);white-space:nowrap;">De</label>
-                  <input type="date" id="inv-date-from" style="border:none;outline:none;font-size:12px;font-family:inherit;color:var(--text-primary);background:transparent;cursor:pointer;" onchange="invOnDateChange()">
-                  <span style="color:var(--text-light);font-size:11px;">até</span>
-                  <input type="date" id="inv-date-to" style="border:none;outline:none;font-size:12px;font-family:inherit;color:var(--text-primary);background:transparent;cursor:pointer;" onchange="invOnDateChange()">
-                  <button onclick="invAtualizarComdinheiro()" id="inv-btn-atualizar"
-                    style="padding:4px 12px;font-size:11px;font-weight:600;border:none;border-radius:5px;cursor:pointer;background:var(--azul-principal);color:#fff;font-family:inherit;white-space:nowrap;transition:all .2s;display:flex;align-items:center;gap:5px;">
-                    <span id="inv-btn-atualizar-txt">↻ Atualizar planilha</span>
-                  </button>
                 </div>
                 <!-- PDF -->
                 <button class="btn-secondary" onclick="invGerarPDF()" style="padding:8px 16px;font-size:12px;">Relatório PDF</button>
@@ -2237,11 +2225,10 @@
             <!-- Gráfico de performance -->
             <div class="gestao-section" style="margin-bottom:20px;">
               <div class="gestao-header">
-                <h3 class="gestao-title" id="inv-chart-title">Performance acumulada</h3>
+                <h3 class="gestao-title" id="inv-chart-title">Performance acumulada — A Mercado</h3>
                 <div style="display:flex;gap:16px;font-size:12px;color:var(--text-light);">
-                  <span style="display:flex;align-items:center;gap:5px;"><span id="inv-leg-carteira" style="width:10px;height:3px;background:#0F3D57;border-radius:2px;display:inline-block;"></span><span id="inv-leg-carteira-txt">Carteira</span></span>
-                  <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:3px;background:#B4B2A9;border-radius:2px;display:inline-block;border-top:2px dashed #B4B2A9;height:0;"></span>CDI</span>
-                  <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:0;border-top:2px dashed #E2A84B;display:inline-block;"></span>IPCAdp</span>
+                  <span style="display:flex;align-items:center;gap:5px;"><span id="inv-leg-carteira" style="width:10px;height:3px;background:#0F3D57;border-radius:2px;display:inline-block;"></span><span id="inv-leg-carteira-txt">Mercado</span></span>
+                  <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:3px;background:#B4B2A9;border-radius:2px;display:inline-block;"></span>CDI</span>
                 </div>
               </div>
               <div style="position:relative;width:100%;height:260px;">
@@ -10203,194 +10190,145 @@ Esta ação não pode ser desfeita.`)) return;
 
     async function invLoad(sheetId) {
       try {
-        // Nova estrutura: planilha COMDINHEIRO com abas nomeadas
         const resp = await gapi.client.sheets.spreadsheets.values.batchGet({
           spreadsheetId: sheetId,
-          ranges: [
-            'Gráfico Acumulado!A1:E500',   // [0] série histórica: Período, Carteira%, CDI%, IPCAdp%, PL(R$)
-            'Rent. Mensal!A1:O200',         // [1] rentabilidade mensal: Ano, Ativo, Jan..Dez, Ano
-            'Extrato Mensal!A1:H200',       // [2] extrato: Mês/Ano, SaldoIni, Aplicações, Resgates, Impostos, SaldoMov, RendNom, SaldoFinal
-            'Alocação!A1:G50',             // [3] alocação por classe: Ativo, SaldoBruto31/12, Mov, RendBruto, SaldoBruto, %
-            'Pos. Consolidada!A1:J200',    // [4] posição detalhada por ativo
-            'Retornos Gerais!A1:F20',      // [5] retornos: período, mês, ano, 12m, 24m, no período
-            'Estatísticas!A1:C20'          // [6] volatilidade, sharpe etc.
-          ],
+          ranges: ['Página14!A1:D500','carteira!A1:R3000','curva_smart!A1:H500','rentabilidade_curva!A1:H500'],
           valueRenderOption: 'UNFORMATTED_VALUE'
         });
 
-        // ─── [0] Gráfico Acumulado → série histórica (base 100 + PL) ───────────
-        // Colunas: Período | Carteira | CDI | IPCAdp | PL (R$)
-        const grafAcum = resp.result.valueRanges[0].values || [];
+        // ---- Página14: série histórica mercado/curva/CDI ----
+        const p14 = resp.result.valueRanges[0].values || [];
         invData.serie = [];
-        for (let i = 1; i < grafAcum.length; i++) {
-          const r = grafAcum[i];
+        for (let i = 1; i < p14.length; i++) {
+          const r = p14[i];
           if (!r || !r[0]) continue;
-          const dt      = parseSheetDate(r[0]); if (!dt) continue;
-          const mercado = parseFloat(r[1]);   // valor base-100 da carteira (= "mercado")
-          const cdi     = parseFloat(r[2]);
-          const ipca    = parseFloat(r[3]);
-          const pl      = parseFloat(r[4]);
-          if (isNaN(mercado) && isNaN(cdi)) continue;
-          invData.serie.push({
-            data:    dt,
-            mercado: isNaN(mercado) ? 0 : mercado,
-            curva:   isNaN(mercado) ? 0 : mercado, // planilha nova não tem curva separada — usa o mesmo
-            cdi:     isNaN(cdi)     ? 0 : cdi,
-            ipca:    isNaN(ipca)    ? 0 : ipca,
-            pl:      isNaN(pl)      ? 0 : pl,
-          });
+          const dt = parseSheetDate(r[0]); if (!dt) continue;
+          const mercado = parseFloat(r[1]); const cdi = parseFloat(r[2]); const curva = parseFloat(r[3]);
+          if (isNaN(mercado) && isNaN(cdi)) continue; // linha inválida
+          invData.serie.push({ data:dt, mercado:isNaN(mercado)?0:mercado, cdi:isNaN(cdi)?0:cdi, curva:isNaN(curva)?0:curva });
         }
-        invData.serie.sort((a,b) => a.data.localeCompare(b.data));
+        invData.serie.sort((a,b)=>a.data.localeCompare(b.data));
 
-        // Patrimônio e data de referência vêm do último ponto com PL
-        const lastPonto = [...invData.serie].reverse().find(r => r.pl > 0);
-        invData.patrimonio = lastPonto ? lastPonto.pl : 0;
-        invData.dataRef    = lastPonto ? lastPonto.data : (invData.serie.length ? invData.serie[invData.serie.length-1].data : '');
+        // ---- curva_smart: patrimônio e rentab mensal ----
+        const cs = resp.result.valueRanges[2].values || [];
+        invData.csRows = cs;
+        const lastCS = cs.filter(r=>r[4]).pop();
+        invData.patrimonio = lastCS ? parseFloat(lastCS[4]) : 0;
+        invData.dataRef = lastCS ? parseSheetDate(lastCS[0]) : '';
 
-        // ─── [1] Rent. Mensal → tabela de rentabilidade por mês ─────────────────
-        // Colunas: Ano | Ativo | Jan | Fev | Mar | Abr | Mai | Jun | Jul | Ago | Set | Out | Nov | Dez | Ano
-        const rentMensalRaw = resp.result.valueRanges[1].values || [];
+        // Rentabilidade mensal (curva_smart: col 0=data, col 5=rent_dia, col 7=rent_acumulada)
+        invData.rentMensal = {}; // { '2025': {1: 1.22, 2: 1.04, ...}, '2026': {...} }
+        let prevAcum = null; let prevMes = null;
+        cs.slice(1).forEach(r => {
+          const dt = parseSheetDate(r[0]); if (!dt) return;
+          const d = new Date(dt+'T12:00:00');
+          const ano = d.getFullYear(); const mes = d.getMonth()+1;
+          const acum = parseFloat(r[7])||0;
+          if (prevMes && (d.getMonth()+1 !== prevMes || d.getFullYear() !== parseInt(Object.keys(invData.rentMensal).pop()||ano))) {
+            // virou o mês
+          }
+          if (!invData.rentMensal[ano]) invData.rentMensal[ano] = {};
+          invData.rentMensal[ano][mes] = acum; // guardamos acumulado do último dia do mês
+        });
+
+        // Calcula retorno mensal de fato (acum_fim - acum_inicio) / (1 + acum_inicio)
         const rentMensalCalc = {};
-        const cdiMensal = {};
-        rentMensalRaw.slice(1).forEach(r => {
-          const ano   = parseInt(r[0]); if (isNaN(ano)) return;
-          const ativo = String(r[1]||'').trim().toLowerCase();
-          if (ativo === 'carteira') {
-            if (!rentMensalCalc[ano]) rentMensalCalc[ano] = {};
-            for (let m = 1; m <= 12; m++) {
-              const v = parseFloat(r[m+1]);
-              if (!isNaN(v)) rentMensalCalc[ano][m] = v * 100; // planilha em decimal → %
-            }
-          }
-          if (ativo === 'cdi') {
-            if (!cdiMensal[ano]) cdiMensal[ano] = {};
-            for (let m = 1; m <= 12; m++) {
-              const v = parseFloat(r[m+1]);
-              if (!isNaN(v)) cdiMensal[ano][m] = v * 100;
-            }
-          }
+        const allMonths = [];
+        cs.slice(1).forEach(r => {
+          const dt = parseSheetDate(r[0]); if (!dt || !r[5]) return;
+          const d = new Date(dt+'T12:00:00');
+          allMonths.push({ ano:d.getFullYear(), mes:d.getMonth()+1, rentDia: parseFloat(r[5])||0 });
+        });
+        // agrupa por mês e soma rent diária composta
+        const monthMap = {};
+        allMonths.forEach(m => {
+          const k = `${m.ano}-${m.mes}`;
+          if (!monthMap[k]) monthMap[k] = { ano:m.ano, mes:m.mes, acum:1 };
+          monthMap[k].acum *= (1 + m.rentDia);
+        });
+        Object.values(monthMap).forEach(m => {
+          if (!rentMensalCalc[m.ano]) rentMensalCalc[m.ano] = {};
+          rentMensalCalc[m.ano][m.mes] = (m.acum - 1) * 100;
         });
         invData.rentMensalCalc = rentMensalCalc;
-        invData.cdiMensal      = cdiMensal;
 
-        // ─── [2] Extrato Mensal → fluxo de caixa mensal ──────────────────────────
-        // Colunas: Mês/Ano | SaldoIni | Aplicações | Resgates | Impostos | SaldoMov | RendNom | SaldoFinal
-        const extrato = resp.result.valueRanges[2].values || [];
-        invData.extrato = [];
-        extrato.slice(1).forEach(r => {
-          if (!r || !r[0]) return;
-          const dt = parseSheetDate(r[0]);
-          const saldoIni  = parseFloat(r[1]) || 0;
-          const aport     = parseFloat(r[2]) || 0;
-          const resgates  = parseFloat(r[3]) || 0;
-          const impostos  = parseFloat(r[4]) || 0;
-          const rendNom   = parseFloat(r[6]) || 0;
-          const saldoFim  = parseFloat(r[7]) || 0;
-          if (saldoFim > 0) invData.extrato.push({ data:dt, saldoIni, aport, resgates, impostos, rendNom, saldoFim });
+        // CDI mensal (da Página14, diferença diária somada por mês)
+        const cdiMensal = {};
+        invData.serie.forEach(s => {
+          const d = new Date(s.data+'T12:00:00');
+          const ano = d.getFullYear(); const mes = d.getMonth()+1;
+          if (!cdiMensal[ano]) cdiMensal[ano] = {};
+          if (!cdiMensal[ano][mes]) cdiMensal[ano][mes] = { vals:[] };
+          cdiMensal[ano][mes].vals.push(s.cdi);
+        });
+        invData.cdiMensal = {};
+        Object.entries(cdiMensal).forEach(([ano, meses]) => {
+          invData.cdiMensal[ano] = {};
+          const anosArr = Object.keys(cdiMensal).sort();
+          Object.entries(meses).forEach(([mes, obj]) => {
+            const vals = obj.vals.sort((a,b)=>a-b);
+            // diferença entre último e primeiro dia do mês
+            invData.cdiMensal[ano][mes] = vals.length > 1 ? vals[vals.length-1] - vals[0] : null;
+          });
         });
 
-        // ─── [3] Alocação → composição por classe ────────────────────────────────
-        // Colunas: (espaço) | Ativo | SaldoBruto31/12 | Mov | RendBruto | SaldoBruto | %
-        const alocRaw = resp.result.valueRanges[3].values || [];
+        // ---- carteira: posições consolidadas ----
+        const cart = resp.result.valueRanges[1].values || [];
+        const hdr = cart[0]||[];
+        const ci = {}; hdr.forEach((h,i)=>ci[String(h||'').trim()]=i);
+
+        const datas = cart.slice(1).map(r=>parseSheetDate(r[0])).filter(Boolean).sort();
+        const ultimaData = datas[datas.length-1];
+        invData.posData = ultimaData;
+
+        const posMap = {};
+        cart.slice(1).forEach(r => {
+          if (parseSheetDate(r[0]) !== ultimaData) return;
+          const desc   = String(r[ci['Descrição']||5]||'').trim();
+          const ifinst = String(r[ci['Instituição Financeira do Ativo']||10]||'').trim();
+          const marc   = String(r[ci['Marcação']||9]||'').trim();
+          const aplicado = parseFloat(r[ci['Valor Aplicado']||6])||0;
+          const saldo    = parseFloat(r[ci['Saldo Bruto']||8])||0;
+          const pct_sb   = parseFloat(r[ci['% sb']||16])||0;
+          if (!desc || saldo === 0) return;
+          if (!posMap[desc]) posMap[desc] = {desc, if_:ifinst, marc, aplicado:0, saldo:0};
+          posMap[desc].aplicado += aplicado;
+          posMap[desc].saldo    += saldo;
+          posMap[desc].pct_sb    = pct_sb;
+        });
+        invData.posicoes    = Object.values(posMap).sort((a,b)=>b.saldo-a.saldo);
+        invData.totalSaldo  = invData.posicoes.reduce((s,p)=>s+p.saldo,0);
+
+        // ---- Alocação por classe (baseada na marcação) ----
         const classeMap = {};
-        alocRaw.slice(1).forEach(r => {
-          const ativo = String(r[1]||'').trim();
-          const saldo = parseFloat(r[5]) || 0;
-          if (!ativo || saldo === 0) return;
-          // Filtra linhas de subtotal (detecta por % presente e ativo sem letras maiúsculas iniciais)
-          classeMap[ativo] = saldo;
+        invData.posicoes.forEach(p => {
+          const cls = invClasseFromDesc(p.desc, p.marc);
+          if (!classeMap[cls]) classeMap[cls] = 0;
+          classeMap[cls] += p.saldo;
         });
         invData.classeMap = classeMap;
 
-        // ─── [4] Pos. Consolidada → detalhamento de ativos ───────────────────────
-        // Colunas: (espaço) | Ativo | SaldoBruto31/12 | Mov | RendBruto | SaldoBruto | % | ProvIR | SaldoLiq | Liquidez
-        const posRaw = resp.result.valueRanges[4].values || [];
-        const posicoes = [];
-        const custMap  = {};
-        let classeAtual = '';
-        posRaw.slice(1).forEach(r => {
-          const ativo   = String(r[1]||'').trim();
-          const saldoBr = parseFloat(r[5]);
-          const saldoLiq= parseFloat(r[8]);
-          const pct     = parseFloat(r[6]);
-          const provIR  = parseFloat(r[7]) || 0;
-          const liquidez= String(r[9]||'').trim();
-          if (!ativo) return;
-          // Linhas de grupo/classe: sem saldo bruto numérico ou saldo = soma dos filhos
-          if (isNaN(saldoBr) || saldoBr === 0) {
-            // Pode ser header de classe
-            classeAtual = ativo;
-            return;
-          }
-          // Linha "Total" — pula
-          if (ativo.toLowerCase() === 'total') return;
-          // Detecta se é linha de subtotal de classe (já capturada em classeMap)
-          if (Object.keys(classeMap).includes(ativo)) {
-            classeAtual = ativo;
-            return;
-          }
-          posicoes.push({
-            desc:     ativo,
-            classe:   classeAtual,
-            saldo:    saldoBr,
-            saldoLiq: isNaN(saldoLiq) ? saldoBr - provIR : saldoLiq,
-            provIR,
-            pct:      isNaN(pct) ? 0 : pct,
-            liquidez,
-            if_:      '', // planilha não tem coluna de custodiante — derivamos do nome
-          });
-          // Custodiante derivado do nome do ativo
-          const cust = invCustodianteFromDesc(ativo);
-          if (!custMap[cust]) custMap[cust] = 0;
-          custMap[cust] += saldoBr;
+        // ---- Alocação por custodiante ----
+        const custMap = {};
+        invData.posicoes.forEach(p => {
+          const k = p.if_ || 'Outros';
+          if (!custMap[k]) custMap[k] = 0;
+          custMap[k] += p.saldo;
         });
-        invData.posicoes   = posicoes.sort((a,b) => b.saldo - a.saldo);
-        invData.totalSaldo = posicoes.reduce((s,p) => s + p.saldo, 0);
-        invData.custMap    = custMap;
-        invData.posData    = invData.dataRef;
+        invData.custMap = custMap;
 
-        // ─── [4-b] Liquidez por prazo ─────────────────────────────────────────────
-        const liqMap = { 'D0':0, 'D+1 a D+5':0, 'D+6 a D+30':0, 'D+31 a D+90':0, 'D+91+':0, 'N/I':0 };
-        posicoes.forEach(p => {
+        // ---- Fluxo de resgate (% sb = dias de resgate) ----
+        // Agrupamos por faixa de liquidez usando a coluna auxiliar_rf ou Liquidez
+        const liqMap = { 'D0-D1':0, 'D2-D5':0, 'D6-D30':0, 'D31+':0, 'N/I':0 };
+        invData.posicoes.forEach(p => {
           const s = p.saldo;
-          const liq = p.liquidez;
-          if (!liq || liq === 'nd') { liqMap['N/I'] += s; return; }
-          const m = liq.match(/D\+?(\d+)/i);
-          if (!m) { liqMap['N/I'] += s; return; }
-          const dias = parseInt(m[1]);
-          if (dias === 0)        liqMap['D0'] += s;
-          else if (dias <= 5)    liqMap['D+1 a D+5'] += s;
-          else if (dias <= 30)   liqMap['D+6 a D+30'] += s;
-          else if (dias <= 90)   liqMap['D+31 a D+90'] += s;
-          else                   liqMap['D+91+'] += s;
+          if (p.pct_sb <= 1)       liqMap['D0-D1'] += s;
+          else if (p.pct_sb <= 5)  liqMap['D2-D5'] += s;
+          else if (p.pct_sb <= 30) liqMap['D6-D30'] += s;
+          else if (p.pct_sb > 30)  liqMap['D31+'] += s;
+          else                     liqMap['N/I'] += s;
         });
         invData.liqMap = liqMap;
-
-        // ─── [5] Retornos Gerais → KPIs de rentabilidade ─────────────────────────
-        // Linhas: Rend.Nominal(R$), Var.Nominal(%), CDI(%), IPCAdp(%)
-        // Colunas: Label | Mês | Ano | 12meses | 24meses | NoPeriodo
-        const retRaw = resp.result.valueRanges[5].values || [];
-        invData.retornos = {};
-        retRaw.slice(1).forEach(r => {
-          const label = String(r[0]||'').trim();
-          if (!label) return;
-          invData.retornos[label] = {
-            mes:      parseFloat(r[1]),
-            ano:      parseFloat(r[2]),
-            m12:      parseFloat(r[3]),
-            m24:      parseFloat(r[4]),
-            periodo:  parseFloat(r[5]),
-          };
-        });
-
-        // ─── [6] Estatísticas ────────────────────────────────────────────────────
-        const estRaw = resp.result.valueRanges[6].values || [];
-        invData.estatisticas = {};
-        estRaw.slice(1).forEach(r => {
-          const label = String(r[0]||'').trim();
-          if (!label) return;
-          invData.estatisticas[label] = { carteira: parseFloat(r[1]), benchmark: parseFloat(r[2]) };
-        });
 
         invData.loaded = true;
       } catch(e) {
@@ -10398,22 +10336,6 @@ Esta ação não pode ser desfeita.`)) return;
         document.getElementById('inv-posicoes-tbody').innerHTML =
           `<tr><td colspan="7" style="color:red;padding:20px;">Erro: ${e.result?.error?.message||e.message}</td></tr>`;
       }
-    }
-
-    function invCustodianteFromDesc(desc) {
-      const d = (desc||'').toLowerCase();
-      if (d.includes('btg'))         return 'BTG Pactual';
-      if (d.includes('acs') || d.includes('vanquish')) return 'ACS';
-      if (d.includes('absolute') || d.includes('hidra')) return 'Absolute';
-      if (d.includes('artesanal'))   return 'Artesanal';
-      if (d.includes('root'))        return 'Root Capital';
-      if (d.includes('sparta'))      return 'Sparta';
-      if (d.includes('sulamerica') || d.includes('sulamérica')) return 'SulAmérica';
-      if (d.includes('angá') || d.includes('anga')) return 'Angá';
-      if (d.includes('milenio') || d.includes('milênio') || d.includes('terramagna') || d.includes('fiagro')) return 'Milenio/Terramagna';
-      if (d.includes('abc'))         return 'Banco ABC';
-      if (d.includes('lft') || d.includes('tesouro')) return 'Tesouro Nacional';
-      return 'Outros';
     }
 
     function invClasseFromDesc(desc, marc) {
@@ -10444,25 +10366,6 @@ Esta ação não pode ser desfeita.`)) return;
       invPeriod = period;
       document.querySelectorAll('.inv-period-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      const dateRange = document.getElementById('inv-date-range');
-      if (period === 'custom') {
-        dateRange.style.display = 'flex';
-        // Pré-preenche com o intervalo atual da série se ainda não tiver valor
-        const fromEl = document.getElementById('inv-date-from');
-        const toEl   = document.getElementById('inv-date-to');
-        if (!fromEl.value && invData.serie && invData.serie.length) {
-          fromEl.value = invData.serie[0].data;
-          toEl.value   = invData.serie[invData.serie.length-1].data;
-        }
-      } else {
-        dateRange.style.display = 'none';
-        invRender();
-      }
-    }
-
-    function invOnDateChange() {
-      // Ao mudar datas, apenas re-renderiza o gráfico com o sub-range
-      // (não busca a planilha ainda — isso é só no botão "Atualizar")
       invRender();
     }
 
@@ -10471,13 +10374,7 @@ Esta ação não pode ser desfeita.`)) return;
       const all = invData.serie;
       const last = all[all.length-1].data;
       const lastDt = new Date(last+'T12:00:00');
-      let startISO, endISO;
-
-      if (invPeriod === 'custom') {
-        startISO = document.getElementById('inv-date-from')?.value || all[0].data;
-        endISO   = document.getElementById('inv-date-to')?.value   || last;
-        return all.filter(r => r.data >= startISO && r.data <= endISO);
-      }
+      let startISO;
       if (invPeriod === 'ytd') {
         startISO = `${lastDt.getFullYear()}-01-01`;
       } else if (invPeriod === '6m') {
@@ -10485,64 +10382,7 @@ Esta ação não pode ser desfeita.`)) return;
       } else if (invPeriod === '12m') {
         const d = new Date(lastDt); d.setFullYear(d.getFullYear()-1); startISO = d.toISOString().split('T')[0];
       } else return all;
-      return all.filter(r => r.data >= startISO);
-    }
-
-    // Converte ISO date (YYYY-MM-DD) para número serial do Google Sheets
-    function isoToSheetSerial(iso) {
-      const d = new Date(iso + 'T12:00:00Z');
-      // Serial = dias desde 30/12/1899
-      return Math.round((d.getTime() / 86400000) + 25569);
-    }
-
-    async function invAtualizarComdinheiro() {
-      const fromVal = document.getElementById('inv-date-from').value;
-      const toVal   = document.getElementById('inv-date-to').value;
-      if (!fromVal || !toVal) { alert('Defina as duas datas antes de atualizar.'); return; }
-      if (fromVal > toVal)    { alert('A data inicial não pode ser maior que a data final.'); return; }
-
-      const sheetId = window.invSheetId;
-      if (!sheetId) { alert('ID da planilha não configurado.'); return; }
-
-      const btn  = document.getElementById('inv-btn-atualizar');
-      const txt  = document.getElementById('inv-btn-atualizar-txt');
-      btn.disabled = true;
-      txt.textContent = '⏳ Gravando...';
-
-      try {
-        // Grava datas nas células C10 e C11 da aba Configuração
-        // A planilha espera número serial (formato de data do Sheets)
-        const serialFrom = isoToSheetSerial(fromVal);
-        const serialTo   = isoToSheetSerial(toVal);
-
-        await gapi.client.sheets.spreadsheets.values.batchUpdate({
-          spreadsheetId: sheetId,
-          resource: {
-            valueInputOption: 'USER_ENTERED',
-            data: [
-              { range: 'Configuração!C10', values: [[fromVal.split('-').reverse().join('/')]] }, // DD/MM/AAAA
-              { range: 'Configuração!C11', values: [[toVal.split('-').reverse().join('/')]] },
-            ]
-          }
-        });
-
-        txt.textContent = '✅ Salvo! Atualizando...';
-
-        // Força reload dos dados (limpa cache)
-        invData = { loaded: false };
-        await invLoad(sheetId);
-        setTimeout(() => {
-          invRender();
-          btn.disabled = false;
-          txt.textContent = '↻ Atualizar planilha';
-        }, 200);
-
-      } catch(e) {
-        console.error('Erro ao atualizar datas:', e);
-        alert('Erro ao gravar datas na planilha: ' + (e.message || e.result?.error?.message || 'Verifique as permissões.'));
-        btn.disabled = false;
-        txt.textContent = '↻ Atualizar planilha';
-      }
+      return all.filter(r=>r.data >= startISO);
     }
 
     function invRender() {
@@ -10568,12 +10408,12 @@ Esta ação não pode ser desfeita.`)) return;
       document.getElementById('inv-patrimonio').textContent = fmt(invData.patrimonio || invData.totalSaldo);
       document.getElementById('inv-patrimonio-sub').textContent = `${invData.posicoes.length} ativos`;
 
-      // Label fixo — planilha não separa curva
-      document.getElementById('inv-rent-label').textContent = 'Rentab. da Carteira';
-      document.getElementById('inv-chart-title').textContent = 'Performance acumulada';
-      document.getElementById('inv-leg-carteira-txt').textContent = 'Carteira';
+      // Label do card de rentabilidade
+      document.getElementById('inv-rent-label').textContent = isMerc ? 'Rentab. a Mercado' : 'Rentab. na Curva';
+      document.getElementById('inv-chart-title').textContent = `Performance acumulada — ${isMerc?'A Mercado':'Na Curva'}`;
+      document.getElementById('inv-leg-carteira-txt').textContent = isMerc ? 'Mercado' : 'Curva';
 
-      // KPI rentabilidade: Mês, Ano, 12m, Período — direto da aba Retornos Gerais
+      // KPI rentabilidade: Mês, Ano, 12m, Período
       const hoje = new Date();
       const mesAtual = hoje.getMonth()+1;
       const anoAtual = hoje.getFullYear();
@@ -10589,55 +10429,30 @@ Esta ação não pode ser desfeita.`)) return;
         return (v>=0?'+':'') + v.toFixed(2) + '%';
       };
 
-      // Usa Retornos Gerais quando disponível (mais preciso)
-      const ret = invData.retornos || {};
-      const varNom = ret['Var. Nominal (%)'] || ret['Var. Nominal(%)']; // chave da planilha
-      const cdiRet = ret['CDI (%)'] || ret['CDI(%)'];
-
-      const fmtRet = (v, forceSign=true) => {
-        if (v === undefined || isNaN(v)) return '—';
-        const pct = v; // já está em %
-        return (forceSign && pct>=0?'+':'') + pct.toFixed(2) + '%';
-      };
-
-      // Mês: usa aba Rent. Mensal (rentMensalCalc)
+      // Mês atual da curva_smart
       const rentMes = (() => {
         const yr = invData.rentMensalCalc; if (!yr) return '—';
         const yData = yr[anoAtual]; if (!yData) return '—';
         const v = yData[mesAtual]; if (v === undefined) return '—';
         return (v>=0?'+':'') + v.toFixed(2) + '%';
       })();
-      const cdiMes = (() => {
-        const yr = invData.cdiMensal; if (!yr) return '—';
-        const yData = yr[anoAtual]; if (!yData) return '—';
-        const v = yData[mesAtual]; if (v === undefined) return '—';
-        return v.toFixed(2) + '%';
-      })();
 
       document.getElementById('inv-rent-mes').textContent     = rentMes;
       document.getElementById('inv-rent-mes').style.color     = rentMes.startsWith('+') ? 'var(--verde)' : '#ef4444';
-      // Ano e 12m: preferem Retornos Gerais, fallback para série
-      const rentAnoVal = varNom ? fmtRet(varNom.ano) : rentPct(serieAno, cartKey);
-      const rent12mVal = varNom ? fmtRet(varNom.m12) : rentPct(serie12m, cartKey);
-      const rentPerVal = varNom ? fmtRet(varNom.periodo) : rentPct(invData.serie, cartKey);
-      document.getElementById('inv-rent-ano').textContent     = rentAnoVal;
-      document.getElementById('inv-rent-ano').style.color     = (parseFloat(rentAnoVal)>=0||rentAnoVal.startsWith('+')) ? 'var(--verde)' : '#ef4444';
-      document.getElementById('inv-rent-12m').textContent     = rent12mVal;
-      document.getElementById('inv-rent-12m').style.color     = (parseFloat(rent12mVal)>=0||rent12mVal.startsWith('+')) ? 'var(--verde)' : '#ef4444';
-      document.getElementById('inv-rent-periodo').textContent = rentPerVal;
-      document.getElementById('inv-rent-periodo').style.color = (parseFloat(rentPerVal)>=0||rentPerVal.startsWith('+')) ? 'var(--verde)' : '#ef4444';
+      document.getElementById('inv-rent-ano').textContent     = rentPct(serieAno, cartKey);
+      document.getElementById('inv-rent-ano').style.color     = serieAno.length && serieAno[serieAno.length-1][cartKey] >= serieAno[0][cartKey] ? 'var(--verde)' : '#ef4444';
+      document.getElementById('inv-rent-12m').textContent     = rentPct(serie12m, cartKey);
+      document.getElementById('inv-rent-12m').style.color     = serie12m.length && serie12m[serie12m.length-1][cartKey] >= serie12m[0][cartKey] ? 'var(--verde)' : '#ef4444';
+      document.getElementById('inv-rent-periodo').textContent = rentPct(invData.serie, cartKey);
+      document.getElementById('inv-rent-periodo').style.color = 'var(--verde)';
 
       // CDI
-      document.getElementById('inv-cdi-mes').textContent  = cdiMes;
-      const cdiAnoVal = cdiRet ? fmtRet(cdiRet.ano, false) : rentPct(serieAno, 'cdi');
-      const cdi12mVal = cdiRet ? fmtRet(cdiRet.m12, false)  : rentPct(serie12m, 'cdi');
-      document.getElementById('inv-cdi-ano').textContent  = cdiAnoVal;
-      document.getElementById('inv-cdi-12m').textContent  = cdi12mVal;
-      // % do CDI no período
-      const pctCdi = (varNom && cdiRet && cdiRet.periodo > 0)
-        ? (varNom.periodo / cdiRet.periodo * 100).toFixed(1) + '%'
-        : '—';
-      document.getElementById('inv-pct-cdi').textContent = pctCdi;
+      document.getElementById('inv-cdi-mes').textContent  = (() => { const yr=invData.cdiMensal; if(!yr) return '—'; const y=yr[anoAtual]; if(!y) return '—'; const v=y[mesAtual]; return (v!=null && !isNaN(v)) ? v.toFixed(2)+'%' : '—'; })();
+      document.getElementById('inv-cdi-ano').textContent  = rentPct(serieAno, 'cdi');
+      document.getElementById('inv-cdi-12m').textContent  = rentPct(serie12m, 'cdi');
+      const rentCartPeriodo = invData.serie.length ? invData.serie[invData.serie.length-1][cartKey] - invData.serie[0][cartKey] : 0;
+      const rentCDIPeriodo  = invData.serie.length ? invData.serie[invData.serie.length-1].cdi    - invData.serie[0].cdi    : 0;
+      document.getElementById('inv-pct-cdi').textContent  = (rentCDIPeriodo > 0 && !isNaN(rentCartPeriodo) && !isNaN(rentCDIPeriodo)) ? (rentCartPeriodo/rentCDIPeriodo*100).toFixed(1)+'%' : '—';
 
       // Fluxo de resgate
       const liqEl = document.getElementById('inv-liquidez-body');
@@ -10650,126 +10465,25 @@ Esta ação não pode ser desfeita.`)) return;
         </div>`;
       }).join('');
 
-      // Gráfico performance — tooltip interativo com crosshair
-      const step = Math.max(1, Math.floor(serie.length/120));
+      // Gráfico performance
+      const step = Math.max(1, Math.floor(serie.length/50));
       const filtered = serie.filter((_,i)=>i%step===0||i===serie.length-1);
       if (_invChartPerf) { _invChartPerf.destroy(); _invChartPerf = null; }
       const ctxP = document.getElementById('inv-chart-perf');
       if (!ctxP) { console.warn('Canvas inv-chart-perf not found'); return; }
-
-      // Plugin de crosshair vertical
-      const crosshairPlugin = {
-        id: 'crosshair',
-        afterDraw(chart) {
-          if (chart._crosshairX == null) return;
-          const { ctx, chartArea: { top, bottom } } = chart;
-          ctx.save();
-          ctx.beginPath();
-          ctx.moveTo(chart._crosshairX, top);
-          ctx.lineTo(chart._crosshairX, bottom);
-          ctx.lineWidth = 1;
-          ctx.strokeStyle = 'rgba(15,61,87,0.25)';
-          ctx.setLineDash([4, 3]);
-          ctx.stroke();
-          ctx.restore();
-        }
-      };
-
-      _invChartPerf = new Chart(ctxP, {
-        type: 'line',
-        plugins: [crosshairPlugin],
-        data: {
-          labels: filtered.map(r => {
-            const d = new Date(r.data+'T12:00:00');
-            return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
-          }),
-          datasets: [
-            {
-              label: 'Carteira',
-              data: filtered.map(r => parseFloat(r.mercado.toFixed(4))),
-              borderColor: '#0F3D57', borderWidth: 2.5, pointRadius: 0,
-              tension: 0.3, fill: false, pointHoverRadius: 5,
-              pointHoverBackgroundColor: '#0F3D57', pointHoverBorderColor: '#fff', pointHoverBorderWidth: 2,
-            },
-            {
-              label: 'CDI',
-              data: filtered.map(r => parseFloat(r.cdi.toFixed(4))),
-              borderColor: '#B4B2A9', borderWidth: 1.5, pointRadius: 0,
-              tension: 0.3, fill: false, borderDash: [3,3], pointHoverRadius: 4,
-              pointHoverBackgroundColor: '#B4B2A9', pointHoverBorderColor: '#fff', pointHoverBorderWidth: 2,
-            },
-            {
-              label: 'IPCAdp',
-              data: filtered.map(r => parseFloat((r.ipca||0).toFixed(4))),
-              borderColor: '#E2A84B', borderWidth: 1.5, pointRadius: 0,
-              tension: 0.3, fill: false, borderDash: [5,4], pointHoverRadius: 4,
-              pointHoverBackgroundColor: '#E2A84B', pointHoverBorderColor: '#fff', pointHoverBorderWidth: 2,
-            }
-          ]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          interaction: { mode: 'index', intersect: false },
-          onHover(e, els, chart) {
-            if (els.length) {
-              const x = els[0].element.x;
-              chart._crosshairX = x;
-            } else {
-              chart._crosshairX = null;
-            }
-            chart.draw();
-          },
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              enabled: true,
-              backgroundColor: 'rgba(8,31,45,0.92)',
-              titleColor: '#fff',
-              titleFont: { size: 11, weight: '600', family: "'DM Sans', sans-serif" },
-              bodyColor: 'rgba(255,255,255,0.82)',
-              bodyFont: { size: 12, family: "'DM Sans', sans-serif" },
-              padding: 12,
-              cornerRadius: 8,
-              displayColors: true,
-              boxWidth: 8, boxHeight: 8,
-              callbacks: {
-                title: ctx => ctx[0]?.label || '',
-                label: ctx => {
-                  const raw = ctx.parsed.y;
-                  // Converte base-100 para variação acumulada
-                  const inicio = ctx.chart.data.datasets[ctx.datasetIndex].data[0];
-                  const variacao = inicio > 0 ? ((raw - inicio) / inicio * 100).toFixed(2) : '—';
-                  return ` ${ctx.dataset.label}: ${raw.toFixed(2)}  (${variacao >= 0 ? '+' : ''}${variacao}%)`;
-                },
-                afterBody: ctx => {
-                  if (!ctx.length) return;
-                  // Diferença Carteira vs CDI no ponto
-                  const cart = ctx.find(c => c.dataset.label === 'Carteira');
-                  const cdi  = ctx.find(c => c.dataset.label === 'CDI');
-                  if (cart && cdi) {
-                    const diff = (cart.parsed.y - cdi.parsed.y).toFixed(2);
-                    return [``, `  Alpha vs CDI: ${diff >= 0 ? '+' : ''}${diff}`];
-                  }
-                  return [];
-                }
-              }
-            }
-          },
-          scales: {
-            x: {
-              grid: { display: false },
-              ticks: { font: { size: 10 }, maxTicksLimit: 8, color: '#999' }
-            },
-            y: {
-              grid: { color: 'rgba(0,0,0,0.04)' },
-              ticks: {
-                font: { size: 10 }, color: '#999',
-                callback: v => v.toFixed(1) + '%'
-              }
-            }
-          }
-        }
+      if (ctxP) _invChartPerf = new Chart(ctxP, {
+        type:'line',
+        data:{ labels: filtered.map(r=>{ const d=new Date(r.data+'T12:00:00'); return `${d.getDate()}/${d.getMonth()+1}`; }),
+          datasets:[
+            { label:isMerc?'Mercado':'Curva', data: filtered.map(r=>parseFloat(r[cartKey].toFixed(4))),
+              borderColor:'#0F3D57', borderWidth:2.5, pointRadius:0, tension:0.3, fill:false },
+            { label:'CDI', data: filtered.map(r=>parseFloat(r.cdi.toFixed(4))),
+              borderColor:'#B4B2A9', borderWidth:1.5, pointRadius:0, tension:0.3, fill:false, borderDash:[3,3] }
+          ]},
+        options:{ responsive:true, maintainAspectRatio:false,
+          plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)}%` }}},
+          scales:{ x:{ grid:{display:false}, ticks:{font:{size:10},maxTicksLimit:8,color:'#999'}},
+            y:{ grid:{color:'rgba(0,0,0,0.04)'}, ticks:{font:{size:10},color:'#999',callback:v=>v.toFixed(1)+'%'} } } }
       });
 
       // Gráfico por classe
@@ -10800,10 +10514,10 @@ Esta ação não pode ser desfeita.`)) return;
         document.getElementById('inv-pos-data').textContent =
           new Date(invData.posData+'T12:00:00').toLocaleDateString('pt-BR');
 
-      // Agrupa por classe (campo direto, sem precisar de invClasseFromDesc)
+      // Agrupa por classe
       const classeGrupos = {};
       invData.posicoes.forEach(p => {
-        const cls = p.classe || invClasseFromDesc(p.desc, '');
+        const cls = invClasseFromDesc(p.desc, p.marc);
         if (!classeGrupos[cls]) classeGrupos[cls] = [];
         classeGrupos[cls].push(p);
       });
@@ -10818,16 +10532,14 @@ Esta ação não pode ser desfeita.`)) return;
         const rows = ativos.map(p => {
           const pct = totalPos>0?(p.saldo/totalPos*100).toFixed(2):0;
           const desc = p.desc.length>40?p.desc.substring(0,38)+'…':p.desc;
-          const liqLabel = p.liquidez || '—';
-          const liqColor = liqLabel==='D+0'||liqLabel==='D0'?'var(--verde)':liqLabel==='nd'||liqLabel==='N/I'?'#999':'var(--text-light)';
           return `<tr>
             <td style="font-size:11px;padding-left:20px;" title="${p.desc}">${desc}</td>
             <td style="text-align:right;font-size:12px;">${fmt(p.saldo)}</td>
             <td style="text-align:right;font-size:12px;">${pct}%</td>
-            <td style="text-align:right;font-size:12px;color:#c0392b;">${p.provIR>0?'−'+fmt(p.provIR):'—'}</td>
-            <td style="text-align:right;font-size:12px;font-weight:600;">${fmt(p.saldoLiq)}</td>
-            <td style="font-size:11px;color:${liqColor};font-weight:500;">${liqLabel}</td>
-            <td style="font-size:11px;color:var(--text-light);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${invCustodianteFromDesc(p.desc)}">${invCustodianteFromDesc(p.desc)}</td>
+            <td style="text-align:right;font-size:12px;color:var(--text-light);">—</td>
+            <td style="text-align:right;font-size:12px;">${fmt(p.saldo)}</td>
+            <td style="font-size:11px;color:var(--text-light);">—</td>
+            <td style="font-size:11px;color:var(--text-light);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${p.if_}">${p.if_||'—'}</td>
           </tr>`;
         }).join('');
         return header + rows;
@@ -11842,71 +11554,85 @@ Esta ação não pode ser desfeita.`)) return;
     const erros = [];
     let ok = 0;
 
-    for (const im of _importLinhas) {
-      try {
-        const hoje     = new Date().toISOString().split('T')[0];
-        const dataComp = im.data_compra || hoje;
-        const valComp  = parseMoeda(im.valor_compra);
-        const valAtual = im.valor_atual ? parseMoeda(im.valor_atual) : valComp;
-        const pct      = im.percentual  ? parseFloat(im.percentual) : 100;
-        const cepNum   = (im.cep || '').replace(/\D/g,'');
-        const endereco = [im.logradouro, im.numero_end, im.bairro, im.cidade, im.uf].filter(Boolean).join(', ');
+    try {
+      const hoje = new Date().toISOString().split('T')[0];
 
-        // Monta linha respeitando exatamente a estrutura do saveImovel:
-        // A:nome B:tipo C:grupo D:subgrupo E:endereco F:valComp G:dataComp H:valAtual I:dataAvaliacao
-        // J:iptu K:condominio L:areaTotal M:areaUtil N:quartos O:suites P:vagas
-        // Q:observacoes R:driveFolderId S:titularidade T:familiar U:percentual
-        // V:codigos W:registros X:cartorios
-        const linha = [
-          im.nome,                          // A
-          im.tipo,                          // B
-          im.grupo,                         // C
-          im.subgrupo,                      // D
-          endereco,                         // E
-          valComp,                          // F
-          dataComp,                         // G
-          valAtual,                         // H
-          hoje,                             // I data avaliação
-          '',                               // J iptu
-          '',                               // K condomínio
-          im.area_total || '',              // L
-          im.area_util  || '',              // M
-          '', '', '',                       // N O P quartos suites vagas
-          im.observacoes || '',             // Q
-          '',                               // R drive folder
-          im.titularidade,                  // S titular
-          im.familiar || '',                // T familiar
-          pct,                              // U percentual
-          im.cod_iptu || '',                // V código IPTU
-          im.num_registro || '',            // W nº registro cartório
-          im.cartorio || '',                // X cartório
-        ];
+      // Monta TODAS as linhas da Lista e do Histórico de uma vez
+      const linhasLista = [];
+      const linhasHistorico = [];
 
+      for (const im of _importLinhas) {
+        try {
+          const dataComp = im.data_compra || hoje;
+          const valComp  = parseMoeda(im.valor_compra);
+          const valAtual = im.valor_atual ? parseMoeda(im.valor_atual) : valComp;
+          const pct      = im.percentual  ? parseFloat(im.percentual) : 100;
+          const endereco = [im.logradouro, im.numero_end, im.bairro, im.cidade, im.uf].filter(Boolean).join(', ');
+
+          // A:nome B:tipo C:grupo D:subgrupo E:endereco F:valComp G:dataComp H:valAtual I:dataAvaliacao
+          // J:iptu K:condominio L:areaTotal M:areaUtil N:quartos O:suites P:vagas
+          // Q:observacoes R:driveFolderId S:titularidade T:familiar U:percentual
+          // V:codigos W:registros X:cartorios
+          linhasLista.push([
+            im.nome,             // A
+            im.tipo,             // B
+            im.grupo,            // C
+            im.subgrupo,         // D
+            endereco,            // E
+            valComp,             // F
+            dataComp,            // G
+            valAtual,            // H
+            hoje,                // I data avaliação
+            '',                  // J iptu
+            '',                  // K condomínio
+            im.area_total || '', // L
+            im.area_util  || '', // M
+            '', '', '',          // N O P quartos suites vagas
+            im.observacoes || '',// Q
+            '',                  // R drive folder
+            im.titularidade,     // S titular
+            im.familiar || '',   // T familiar
+            pct,                 // U percentual
+            im.cod_iptu || '',   // V código IPTU
+            im.num_registro || '',// W nº registro cartório
+            im.cartorio || '',   // X cartório
+          ]);
+
+          // Linha de compra no histórico
+          linhasHistorico.push([im.nome, dataComp, valComp, 'Compra', 'Importado via sistema']);
+
+          // Se valor atual difere da compra, adiciona avaliação também
+          if (valAtual !== valComp) {
+            linhasHistorico.push([im.nome, hoje, valAtual, 'Avaliação Manual', 'Importado via sistema']);
+          }
+
+          ok++;
+        } catch(e) {
+          erros.push(`${im.nome}: ${e?.result?.error?.message || e.message}`);
+        }
+      }
+
+      // Uma única chamada para inserir todos os imóveis na Lista
+      if (linhasLista.length) {
         await gapi.client.sheets.spreadsheets.values.append({
           spreadsheetId: imoveisSheetId, range: 'Lista!A:X',
           valueInputOption: 'USER_ENTERED', insertDataOption: 'INSERT_ROWS',
-          resource: { values: [linha] }
+          resource: { values: linhasLista }
         });
+      }
 
-        // Sempre registra valor de compra no histórico (ponto de origem)
+      // Uma única chamada para inserir todo o histórico
+      if (linhasHistorico.length) {
         await gapi.client.sheets.spreadsheets.values.append({
           spreadsheetId: imoveisSheetId, range: 'Historico_Valores!A:E',
           valueInputOption: 'USER_ENTERED', insertDataOption: 'INSERT_ROWS',
-          resource: { values: [[im.nome, dataComp, valComp, 'Compra', 'Importado via sistema']] }
+          resource: { values: linhasHistorico }
         });
-
-        // Se tem valor atual diferente da compra, registra também como avaliação atual
-        if (valAtual !== valComp) {
-          await gapi.client.sheets.spreadsheets.values.append({
-            spreadsheetId: imoveisSheetId, range: 'Historico_Valores!A:E',
-            valueInputOption: 'USER_ENTERED', insertDataOption: 'INSERT_ROWS',
-            resource: { values: [[im.nome, hoje, valAtual, 'Avaliação Manual', 'Importado via sistema']] }
-          });
-        }
-        ok++;
-      } catch(e) {
-        erros.push(`${im.nome}: ${e?.result?.error?.message || e.message}`);
       }
+
+    } catch(e) {
+      erros.push(`Erro ao salvar no Google Sheets: ${e?.result?.error?.message || e.message}`);
+      ok = 0;
     }
 
     document.getElementById('import-preview').style.display = 'none';
