@@ -10562,11 +10562,14 @@ Esta ação não pode ser desfeita.`)) return;
       return Math.round((d.getTime() / 86400000) + 25569);
     }
 
-    // Deployment ID da implantação "Executável da API" do Apps Script COMDINHEIRO
-    const INV_SCRIPT_DEPLOYMENT_ID = window.INV_SCRIPT_DEPLOYMENT_ID
-      || 'AKfycbzeLdnTpXfGDC02DgxepEFtuOl82hhLofC2fiDJe3RsfXH55FHbJRzuAzVdhVHfO2OXKg';
+    // URL do Web App do Apps Script publicado como:
+    //   Executar como: Eu mesmo | Quem pode acessar: Qualquer pessoa
+    // Substitua pela URL gerada na implantação Web App:
+    const INV_WEBAPP_URL = window.INV_WEBAPP_URL
+      || (window.invWebAppUrl)
+      || ''; // cole a URL do Web App aqui ou coloque em investimentos_webapp_url no Supabase
 
-    // Script ID (usado como fallback na Execution API)
+    // Script ID (mantido para fallback futuro)
     const INV_SCRIPT_ID = window.INV_SCRIPT_ID || '1FABJ_Da7KbIhcN-9jDEAZEqdBb7jWzm6dlmGHV70NJk0mEmLhzwuNU0e';
 
     async function invAtualizarComdinheiro() {
@@ -10613,40 +10616,34 @@ Esta ação não pode ser desfeita.`)) return;
         //
         // Se ainda não tiver o Script ID configurado, pula o passo 2 e apenas
         // recarrega os dados já existentes na planilha.
-        const scriptId = INV_SCRIPT_DEPLOYMENT_ID || INV_SCRIPT_ID || window.invScriptId;
-        if (scriptId) {
+        // ── 2. Chama o Web App do Apps Script para executar atualizar() ─────────
+        const webAppUrl = INV_WEBAPP_URL || window.invWebAppUrl;
+        if (webAppUrl) {
           txt.textContent = '⏳ Executando COMDINHEIRO...';
-          const token = gapi.client.getToken()?.access_token;
-          // Usa o Script ID (não o Deployment ID) no endpoint :run
-          const execScriptId = INV_SCRIPT_ID || window.invScriptId;
-          const resp = await fetch(
-            `https://script.googleapis.com/v1/scripts/${execScriptId}:run`,
-            {
+          try {
+            // Web App publicado como "Executar como: Eu mesmo, Qualquer pessoa"
+            // não precisa de Authorization header — roda com credenciais do dono
+            const resp = await fetch(webAppUrl, {
               method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-              },
+              headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                function: 'atualizar',
-                devMode: false,
+                action:      'atualizar',
+                sheet_id:    sheetId,
+                data_inicio: toDDMM(fromVal),
+                data_fim:    toDDMM(toVal),
               })
-            }
-          );
-          const result = await resp.json();
-          if (result.error) {
-            const code = result.error.code || result.error.status;
-            if (code === 7 || result.error.status === 'PERMISSION_DENIED') {
-              console.warn('Apps Script: verifique se a Apps Script API está ativada no GCP e se o scope script.external_request foi concedido.');
+            });
+            const result = await resp.json().catch(() => ({}));
+            if (result.ok) {
+              console.info('atualizar() executada com sucesso via Web App');
             } else {
-              console.warn('Apps Script retornou erro:', JSON.stringify(result.error));
+              console.warn('Web App retornou:', JSON.stringify(result));
             }
-          } else {
-            console.info('atualizar() executada com sucesso:', result.response);
+          } catch(webErr) {
+            console.warn('Web App indisponível:', webErr.message);
           }
         } else {
-          // Script ID não configurado — apenas datas foram gravadas
-          console.info('INV_SCRIPT_ID não definido — datas gravadas, COMDINHEIRO não foi disparado.');
+          console.info('INV_WEBAPP_URL não definido — datas gravadas, script não disparado.');
         }
 
         // ── 3. Recarrega os dados da planilha ─────────────────────────────────────
