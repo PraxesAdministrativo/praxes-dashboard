@@ -10346,6 +10346,7 @@ Esta ação não pode ser desfeita.`)) return;
         // ─── [0] Gráfico Acumulado → série histórica (base 100 + PL) ───────────
         // Colunas: Período | Carteira | CDI | IPCAdp | PL (R$)
         const grafAcum = resp.result.valueRanges[0].values || [];
+        console.log('🔍 Gráfico Acumulado rows:', grafAcum.length, '| row1:', JSON.stringify(grafAcum[1]), '| row2:', JSON.stringify(grafAcum[2]));
         invData.serie = [];
 
         // Com FORMATTED_VALUE, números podem vir como "1.234,56" ou "1,23%" — normaliza
@@ -10702,29 +10703,19 @@ Esta ação não pode ser desfeita.`)) return;
         //
         // Se ainda não tiver o Script ID configurado, pula o passo 2 e apenas
         // recarrega os dados já existentes na planilha.
-        // ── 2. Chama o Web App do Apps Script para executar atualizar() ─────────
+        // ── 2. Chama o Web App via GET (evita CORS preflight) ────────────────────
         const webAppUrl = INV_WEBAPP_URL || window.invWebAppUrl;
         if (webAppUrl) {
           txt.textContent = '⏳ Executando COMDINHEIRO...';
           try {
-            // Web App publicado como "Executar como: Eu mesmo, Qualquer pessoa"
-            // não precisa de Authorization header — roda com credenciais do dono
-            const resp = await fetch(webAppUrl, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                action:      'atualizar',
-                sheet_id:    sheetId,
-                data_inicio: toDDMM(fromVal),
-                data_fim:    toDDMM(toVal),
-              })
-            });
-            const result = await resp.json().catch(() => ({}));
-            if (result.ok) {
-              console.info('atualizar() executada com sucesso via Web App');
-            } else {
-              console.warn('Web App retornou:', JSON.stringify(result));
-            }
+            const url = new URL(webAppUrl);
+            url.searchParams.set('action',      'atualizar');
+            url.searchParams.set('sheet_id',    sheetId);
+            url.searchParams.set('data_inicio', toDDMM(fromVal));
+            url.searchParams.set('data_fim',    toDDMM(toVal));
+            // no-cors: não lê a resposta mas dispara a execução no servidor
+            await fetch(url.toString(), { method: 'GET', mode: 'no-cors' });
+            console.info('Web App acionado via GET no-cors');
           } catch(webErr) {
             console.warn('Web App indisponível:', webErr.message);
           }
