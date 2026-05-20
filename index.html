@@ -10562,9 +10562,12 @@ Esta ação não pode ser desfeita.`)) return;
       return Math.round((d.getTime() / 86400000) + 25569);
     }
 
-    // ID do script vinculado à planilha COMDINHEIRO
-    // Para obter: na planilha → Extensões → Apps Script → ⚙ Configurações do Projeto → ID do Script
-    const INV_SCRIPT_ID = window.INV_SCRIPT_ID || ''; // configure via window.INV_SCRIPT_ID se necessário
+    // Deployment ID da implantação "Executável da API" do Apps Script COMDINHEIRO
+    const INV_SCRIPT_DEPLOYMENT_ID = window.INV_SCRIPT_DEPLOYMENT_ID
+      || 'AKfycbzeLdnTpXfGDC02DgxepEFtuOl82hhLofC2fiDJe3RsfXH55FHbJRzuAzVdhVHfO2OXKg';
+
+    // Script ID (usado como fallback na Execution API)
+    const INV_SCRIPT_ID = window.INV_SCRIPT_ID || '1FABJ_Da7KbIhcN-9jDEAZEqdBb7jWzm6dlmGHV70NJk0mEmLhzwuNU0e';
 
     async function invAtualizarComdinheiro() {
       const fromVal = document.getElementById('inv-date-from').value;
@@ -10610,12 +10613,14 @@ Esta ação não pode ser desfeita.`)) return;
         //
         // Se ainda não tiver o Script ID configurado, pula o passo 2 e apenas
         // recarrega os dados já existentes na planilha.
-        const scriptId = INV_SCRIPT_ID || window.invScriptId;
+        const scriptId = INV_SCRIPT_DEPLOYMENT_ID || INV_SCRIPT_ID || window.invScriptId;
         if (scriptId) {
           txt.textContent = '⏳ Executando COMDINHEIRO...';
           const token = gapi.client.getToken()?.access_token;
+          // Usa o Script ID (não o Deployment ID) no endpoint :run
+          const execScriptId = INV_SCRIPT_ID || window.invScriptId;
           const resp = await fetch(
-            `https://script.googleapis.com/v1/scripts/${scriptId}:run`,
+            `https://script.googleapis.com/v1/scripts/${execScriptId}:run`,
             {
               method: 'POST',
               headers: {
@@ -10624,19 +10629,20 @@ Esta ação não pode ser desfeita.`)) return;
               },
               body: JSON.stringify({
                 function: 'atualizar',
-                parameters: [],
                 devMode: false,
               })
             }
           );
           const result = await resp.json();
           if (result.error) {
-            // Código 7 = não autorizado a executar via API → orienta o usuário
-            if (result.error.code === 7 || result.error.status === 'PERMISSION_DENIED') {
-              console.warn('Apps Script: habilite a Execution API nas configurações do script.');
+            const code = result.error.code || result.error.status;
+            if (code === 7 || result.error.status === 'PERMISSION_DENIED') {
+              console.warn('Apps Script: verifique se a Apps Script API está ativada no GCP e se o scope script.external_request foi concedido.');
             } else {
-              console.warn('Apps Script retornou erro:', result.error.message);
+              console.warn('Apps Script retornou erro:', JSON.stringify(result.error));
             }
+          } else {
+            console.info('atualizar() executada com sucesso:', result.response);
           }
         } else {
           // Script ID não configurado — apenas datas foram gravadas
