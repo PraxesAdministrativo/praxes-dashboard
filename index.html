@@ -10536,6 +10536,7 @@ Esta ação não pode ser desfeita.`)) return;
     function invGetSerie() {
       if (!invData.serie || !invData.serie.length) return [];
       const all = invData.serie;
+      console.log('🔍 invGetSerie — period:', invPeriod, '| pontos:', all.length, '| primeiro:', all[0]?.data, '| último:', all[all.length-1]?.data);
       const last = all[all.length-1].data;
       const lastDt = new Date(last+'T12:00:00');
 
