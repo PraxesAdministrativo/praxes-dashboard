@@ -10538,21 +10538,32 @@ Esta ação não pode ser desfeita.`)) return;
       const all = invData.serie;
       const last = all[all.length-1].data;
       const lastDt = new Date(last+'T12:00:00');
-      let startISO, endISO;
 
       if (invPeriod === 'custom') {
-        startISO = document.getElementById('inv-date-from')?.value || all[0].data;
-        endISO   = document.getElementById('inv-date-to')?.value   || last;
+        const startISO = document.getElementById('inv-date-from')?.value || all[0].data;
+        const endISO   = document.getElementById('inv-date-to')?.value   || last;
         return all.filter(r => r.data >= startISO && r.data <= endISO);
       }
       if (invPeriod === 'ytd') {
-        startISO = `${lastDt.getFullYear()}-01-01`;
-      } else if (invPeriod === '6m') {
-        const d = new Date(lastDt); d.setMonth(d.getMonth()-6); startISO = d.toISOString().split('T')[0];
-      } else if (invPeriod === '12m') {
-        const d = new Date(lastDt); d.setFullYear(d.getFullYear()-1); startISO = d.toISOString().split('T')[0];
-      } else return all;
-      return all.filter(r => r.data >= startISO);
+        // YTD = desde 1 de janeiro do ANO DO ÚLTIMO PONTO (não do ano atual do calendário)
+        const startISO = `${lastDt.getFullYear()}-01-01`;
+        const filtered = all.filter(r => r.data >= startISO);
+        // Se filtrou demais (série histórica curta), retorna tudo
+        return filtered.length >= 2 ? filtered : all;
+      }
+      if (invPeriod === '6m') {
+        const d = new Date(lastDt); d.setMonth(d.getMonth()-6);
+        const startISO = d.toISOString().split('T')[0];
+        const filtered = all.filter(r => r.data >= startISO);
+        return filtered.length >= 2 ? filtered : all;
+      }
+      if (invPeriod === '12m') {
+        const d = new Date(lastDt); d.setFullYear(d.getFullYear()-1);
+        const startISO = d.toISOString().split('T')[0];
+        const filtered = all.filter(r => r.data >= startISO);
+        return filtered.length >= 2 ? filtered : all;
+      }
+      return all;
     }
 
     // Converte ISO date (YYYY-MM-DD) para número serial do Google Sheets
