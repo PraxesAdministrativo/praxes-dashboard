@@ -10330,7 +10330,8 @@ Esta ação não pode ser desfeita.`)) return;
             'Alocação!A1:G50',
             'Pos. Consolidada!A1:J200',
             'Retornos Gerais!A1:F20',
-            'Estatísticas!A1:C20'
+            'Estatísticas!A1:C20',
+            'Custodiante!A1:G50',       // [7] alocação por custodiante
           ],
           valueRenderOption: 'FORMATTED_VALUE'
         });
@@ -10475,12 +10476,25 @@ Esta ação não pode ser desfeita.`)) return;
         invData.totalSaldo = posicoes.reduce((s,p) => s + p.saldo, 0);
         // Gráfico 1: por classe (aba Alocação)
         invData.classeMap  = classeMap;
-        // Gráfico 2: por custodiante (derivado do nome do ativo)
+
+        // ─── [7] Custodiante → alocação por custodiante ──────────────────────────
+        // Colunas: Custodiante | Saldo Bruto ini | Mov | Rend Bruto | Saldo Bruto atual | %
+        const custRaw = resp.result.valueRanges[7]?.values || [];
         const custMap = {};
-        posicoes.forEach(p => {
-          const c = invCustodianteFromDesc(p.desc);
-          custMap[c] = (custMap[c] || 0) + p.saldo;
+        custRaw.slice(2).forEach(r => {  // slice(2): pula título e cabeçalho
+          const nome  = String(r[0]||'').trim();
+          const saldo = parseNum(r[4]); // col4 = Saldo Bruto atual
+          if (!nome || isNaN(saldo) || saldo === 0) return;
+          if (nome.toLowerCase() === 'total') return;
+          custMap[nome] = saldo;
         });
+        // Fallback se aba não existir ainda
+        if (Object.keys(custMap).length === 0) {
+          posicoes.forEach(p => {
+            const c = invCustodianteFromDesc(p.desc);
+            custMap[c] = (custMap[c] || 0) + p.saldo;
+          });
+        }
         invData.custMap = custMap;
         invData.posData    = invData.dataRef;
 
