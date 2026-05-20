@@ -2259,7 +2259,7 @@
               </div>
               <!-- Pizza por Custodiante -->
               <div class="gestao-section">
-                <div class="gestao-header"><h3 class="gestao-title">Por custodiante</h3></div>
+                <div class="gestao-header"><h3 class="gestao-title">Por classe</h3></div>
                 <div style="position:relative;width:100%;height:160px;"><canvas id="inv-chart-cust"></canvas></div>
                 <div id="inv-cust-legend" style="font-size:11px;margin-top:10px;display:flex;flex-direction:column;gap:5px;"></div>
               </div>
@@ -2268,8 +2268,8 @@
                 <div class="gestao-header"><h3 class="gestao-title">Retorno mensal (%)</h3></div>
                 <div style="overflow-x:auto;">
                   <table class="gestao-table" style="width:100%;font-size:11px;" id="inv-table-mensal">
-                    <thead><tr><th>Ano</th><th>Jan</th><th>Fev</th><th>Mar</th><th>Abr</th><th>Mai</th><th>Jun</th><th>Jul</th><th>Ago</th><th>Set</th><th>Out</th><th>Nov</th><th>Dez</th><th>Ano</th></tr></thead>
-                    <tbody id="inv-mensal-tbody"><tr><td colspan="14" class="empty-state">—</td></tr></tbody>
+                    <thead><tr><th>Ano</th><th></th><th>Jan</th><th>Fev</th><th>Mar</th><th>Abr</th><th>Mai</th><th>Jun</th><th>Jul</th><th>Ago</th><th>Set</th><th>Out</th><th>Nov</th><th>Dez</th><th>Ano</th></tr></thead>
+                    <tbody id="inv-mensal-tbody"><tr><td colspan="15" class="empty-state">—</td></tr></tbody>
                   </table>
                 </div>
               </div>
@@ -2285,13 +2285,15 @@
                 <table class="gestao-table" style="table-layout:fixed;width:100%;">
                   <thead>
                     <tr>
-                      <th style="width:32%;">Ativo</th>
-                      <th style="width:13%;text-align:right;">Saldo Bruto</th>
-                      <th style="width:8%;text-align:right;">%</th>
-                      <th style="width:13%;text-align:right;">Provisão IR</th>
-                      <th style="width:13%;text-align:right;">Saldo Líquido</th>
-                      <th style="width:10%;">Liquidez</th>
-                      <th style="width:11%;">Custodiante</th>
+                      <th style="width:30%;">Ativo</th>
+                      <th style="width:12%;text-align:right;">Saldo Bruto<br><span style="font-weight:400;color:var(--text-light);font-size:10px;">Mês anterior</span></th>
+                      <th style="width:10%;text-align:right;">Aportes</th>
+                      <th style="width:10%;text-align:right;">Resgates</th>
+                      <th style="width:12%;text-align:right;">Saldo Bruto<br><span style="font-weight:400;color:var(--text-light);font-size:10px;">Atual</span></th>
+                      <th style="width:10%;text-align:right;">%</th>
+                      <th style="width:10%;text-align:right;">Provisão IR</th>
+                      <th style="width:12%;text-align:right;">Saldo Líquido</th>
+                      <th style="width:8%;">Liquidez</th>
                     </tr>
                   </thead>
                   <tbody id="inv-posicoes-tbody">
@@ -10377,47 +10379,40 @@ Esta ação não pode ser desfeita.`)) return;
         // Colunas: (espaço) | Ativo | SaldoBruto31/12 | Mov | RendBruto | SaldoBruto | % | ProvIR | SaldoLiq | Liquidez
         const posRaw = resp.result.valueRanges[4].values || [];
         const posicoes = [];
-        const custMap  = {};
         let classeAtual = '';
         posRaw.slice(1).forEach(r => {
-          const ativo   = String(r[1]||'').trim();
-          const saldoBr = parseFloat(r[5]);
-          const saldoLiq= parseFloat(r[8]);
-          const pct     = parseFloat(r[6]);
-          const provIR  = parseFloat(r[7]) || 0;
-          const liquidez= String(r[9]||'').trim();
+          const ativo    = String(r[1]||'').trim();
+          const saldoAnt = parseFloat(r[2]);  // Saldo Bruto início do período
+          const mov      = parseFloat(r[3]);  // Movimentação líquida (aportes - resgates)
+          const saldoBr  = parseFloat(r[5]);  // Saldo Bruto atual
+          const saldoLiq = parseFloat(r[8]);
+          const pct      = parseFloat(r[6]);
+          const provIR   = parseFloat(r[7]) || 0;
+          const liquidez = String(r[9]||'').trim();
           if (!ativo) return;
-          // Linhas de grupo/classe: sem saldo bruto numérico ou saldo = soma dos filhos
-          if (isNaN(saldoBr) || saldoBr === 0) {
-            // Pode ser header de classe
-            classeAtual = ativo;
-            return;
-          }
-          // Linha "Total" — pula
+          if (isNaN(saldoBr) || saldoBr === 0) { classeAtual = ativo; return; }
           if (ativo.toLowerCase() === 'total') return;
-          // Detecta se é linha de subtotal de classe (já capturada em classeMap)
-          if (Object.keys(classeMap).includes(ativo)) {
-            classeAtual = ativo;
-            return;
-          }
+          if (Object.keys(classeMap).includes(ativo)) { classeAtual = ativo; return; }
+          // Decompõe movimentação: positivo = aporte, negativo = resgate
+          const aportes  = (!isNaN(mov) && mov > 0) ? mov  : 0;
+          const resgates = (!isNaN(mov) && mov < 0) ? -mov : 0;
           posicoes.push({
             desc:     ativo,
             classe:   classeAtual,
+            saldoAnt: isNaN(saldoAnt) ? 0 : saldoAnt,
+            aportes,
+            resgates,
             saldo:    saldoBr,
             saldoLiq: isNaN(saldoLiq) ? saldoBr - provIR : saldoLiq,
             provIR,
             pct:      isNaN(pct) ? 0 : pct,
             liquidez,
-            if_:      '', // planilha não tem coluna de custodiante — derivamos do nome
           });
-          // Custodiante derivado do nome do ativo
-          const cust = invCustodianteFromDesc(ativo);
-          if (!custMap[cust]) custMap[cust] = 0;
-          custMap[cust] += saldoBr;
         });
         invData.posicoes   = posicoes.sort((a,b) => b.saldo - a.saldo);
         invData.totalSaldo = posicoes.reduce((s,p) => s + p.saldo, 0);
-        invData.custMap    = custMap;
+        // Gráfico de composição usa classeMap (aba Alocação)
+        invData.custMap    = classeMap;
         invData.posData    = invData.dataRef;
 
         // ─── [4-b] Liquidez por prazo ─────────────────────────────────────────────
@@ -10575,31 +10570,40 @@ Esta ação não pode ser desfeita.`)) return;
       const sheetId = window.invSheetId;
       if (!sheetId) { alert('ID da planilha não configurado.'); return; }
 
-      const btn  = document.getElementById('inv-btn-atualizar');
-      const txt  = document.getElementById('inv-btn-atualizar-txt');
+      const btn = document.getElementById('inv-btn-atualizar');
+      const txt = document.getElementById('inv-btn-atualizar-txt');
       btn.disabled = true;
-      txt.textContent = '⏳ Gravando...';
 
       try {
-        // Grava datas nas células C10 e C11 da aba Configuração
-        // A planilha espera número serial (formato de data do Sheets)
-        const serialFrom = isoToSheetSerial(fromVal);
-        const serialTo   = isoToSheetSerial(toVal);
-
+        // ── 1. Grava datas nas células C10 e C11 da aba Configuração (DD/MM/AAAA) ──
+        txt.textContent = '⏳ Gravando datas...';
+        const toDDMM = iso => iso.split('-').reverse().join('/');
         await gapi.client.sheets.spreadsheets.values.batchUpdate({
           spreadsheetId: sheetId,
           resource: {
             valueInputOption: 'USER_ENTERED',
             data: [
-              { range: 'Configuração!C10', values: [[fromVal.split('-').reverse().join('/')]] }, // DD/MM/AAAA
-              { range: 'Configuração!C11', values: [[toVal.split('-').reverse().join('/')]] },
+              { range: 'Configuração!C10', values: [[toDDMM(fromVal)]] },
+              { range: 'Configuração!C11', values: [[toDDMM(toVal)]] },
             ]
           }
         });
 
-        txt.textContent = '✅ Salvo! Atualizando...';
+        // ── 2. Dispara Edge Function do Supabase que executa o script COMDINHEIRO ──
+        txt.textContent = '⏳ Executando COMDINHEIRO...';
+        const { data: fnData, error: fnError } = await db.functions.invoke('run-comdinheiro', {
+          body: {
+            sheet_id:   sheetId,
+            data_inicio: toDDMM(fromVal),
+            data_fim:    toDDMM(toVal),
+          }
+        });
 
-        // Força reload dos dados (limpa cache)
+        if (fnError) throw new Error(fnError.message || 'Erro na Edge Function');
+        if (fnData?.error) throw new Error(fnData.error);
+
+        // ── 3. Aguarda a planilha ser atualizada e recarrega os dados ──────────────
+        txt.textContent = '✅ Concluído! Recarregando...';
         invData = { loaded: false };
         await invLoad(sheetId);
         setTimeout(() => {
@@ -10609,10 +10613,24 @@ Esta ação não pode ser desfeita.`)) return;
         }, 200);
 
       } catch(e) {
-        console.error('Erro ao atualizar datas:', e);
-        alert('Erro ao gravar datas na planilha: ' + (e.message || e.result?.error?.message || 'Verifique as permissões.'));
-        btn.disabled = false;
-        txt.textContent = '↻ Atualizar planilha';
+        console.error('Erro ao atualizar COMDINHEIRO:', e);
+        // Se a edge function não existir ainda, mantém o comportamento antigo
+        // (apenas recarrega os dados já na planilha)
+        const msg = e.message || '';
+        if (msg.includes('FunctionNotFound') || msg.includes('404') || msg.includes('run-comdinheiro')) {
+          txt.textContent = '✅ Datas salvas! Recarregando...';
+          invData = { loaded: false };
+          await invLoad(sheetId);
+          setTimeout(() => {
+            invRender();
+            btn.disabled = false;
+            txt.textContent = '↻ Atualizar planilha';
+          }, 200);
+        } else {
+          alert('Erro: ' + msg + '\n\nVerifique as permissões da planilha ou a Edge Function "run-comdinheiro".');
+          btn.disabled = false;
+          txt.textContent = '↻ Atualizar planilha';
+        }
       }
     }
 
@@ -10848,21 +10866,54 @@ Esta ação não pode ser desfeita.`)) return;
       // Gráfico por custodiante
       _invRenderDoughnut('inv-chart-cust','inv-cust-legend', invData.custMap, _invChartCust, c=>_invChartCust=c);
 
-      // Tabela retorno mensal
+      // Tabela retorno mensal — Carteira + CDI + %CDI por ano
       const tbody = document.getElementById('inv-mensal-tbody');
       const anos = Object.keys(invData.rentMensalCalc||{}).sort();
       tbody.innerHTML = anos.map(ano => {
-        const meses = invData.rentMensalCalc[ano]||{};
-        const anoTotal = Object.values(meses).reduce((s,v)=>s*(1+v/100),1)-1;
-        return `<tr>
-          <td style="font-weight:600;">${ano}</td>
-          ${MESES_ABR.map((_,i)=>{
-            const v = meses[i+1];
-            const cor = v===undefined?'color:#ccc':v>=0?'color:var(--verde)':'color:#ef4444';
-            return `<td style="text-align:right;${cor};">${v!==undefined?v.toFixed(2):'—'}</td>`;
-          }).join('')}
-          <td style="text-align:right;font-weight:600;${anoTotal>=0?'color:var(--verde)':'color:#ef4444'};">${(anoTotal*100).toFixed(2)}</td>
-        </tr>`;
+        const mCart = invData.rentMensalCalc[ano] || {};
+        const mCdi  = (invData.cdiMensal||{})[ano]  || {};
+
+        // Acumulado do ano (carteira)
+        const anoTotal = Object.values(mCart).reduce((s,v) => s*(1+v/100), 1) - 1;
+        // Acumulado do ano (CDI)
+        const anoTotalCdi = Object.values(mCdi).reduce((s,v) => s*(1+v/100), 1) - 1;
+
+        const cellCart = (m) => {
+          const v = mCart[m];
+          if (v === undefined) return `<td style="text-align:right;color:#ccc;">—</td>`;
+          const cor = v >= 0 ? 'color:var(--verde)' : 'color:#ef4444';
+          return `<td style="text-align:right;${cor};">${v.toFixed(2)}</td>`;
+        };
+        const cellCdi = (m) => {
+          const v = mCdi[m];
+          if (v === undefined) return `<td style="text-align:right;color:#ccc;">—</td>`;
+          return `<td style="text-align:right;color:var(--text-light);">${v.toFixed(2)}</td>`;
+        };
+        const cellPctCdi = (m) => {
+          const vc = mCart[m]; const vd = mCdi[m];
+          if (vc === undefined || vd === undefined || vd === 0) return `<td style="text-align:right;color:#ccc;">—</td>`;
+          const pct = (vc / vd * 100);
+          const cor = pct >= 100 ? 'color:var(--verde)' : 'color:#e67e22';
+          return `<td style="text-align:right;${cor};">${pct.toFixed(0)}%</td>`;
+        };
+
+        return `
+          <tr>
+            <td rowspan="3" style="font-weight:700;vertical-align:middle;">${ano}</td>
+            <td style="font-size:10px;color:var(--text-light);padding-right:4px;white-space:nowrap;">Cart.</td>
+            ${MESES_ABR.map((_,i) => cellCart(i+1)).join('')}
+            <td style="text-align:right;font-weight:700;${anoTotal>=0?'color:var(--verde)':'color:#ef4444'};">${(anoTotal*100).toFixed(2)}</td>
+          </tr>
+          <tr>
+            <td style="font-size:10px;color:var(--text-light);padding-right:4px;">CDI</td>
+            ${MESES_ABR.map((_,i) => cellCdi(i+1)).join('')}
+            <td style="text-align:right;color:var(--text-light);">${anoTotalCdi>0?(anoTotalCdi*100).toFixed(2):'—'}</td>
+          </tr>
+          <tr style="border-bottom:2px solid var(--borda);">
+            <td style="font-size:10px;color:var(--text-light);padding-right:4px;">%CDI</td>
+            ${MESES_ABR.map((_,i) => cellPctCdi(i+1)).join('')}
+            <td style="text-align:right;font-weight:600;${anoTotal>0&&anoTotalCdi>0?(anoTotal/anoTotalCdi*100>=100?'color:var(--verde)':'color:#e67e22'):'color:#ccc'};">${anoTotal>0&&anoTotalCdi>0?(anoTotal/anoTotalCdi*100).toFixed(0)+'%':'—'}</td>
+          </tr>`;
       }).join('');
 
       // Tabela posição consolidada
@@ -10881,24 +10932,37 @@ Esta ação não pode ser desfeita.`)) return;
 
       const totalPos = invData.totalSaldo;
       posBody.innerHTML = Object.entries(classeGrupos).map(([cls, ativos]) => {
-        const clsTotal = ativos.reduce((s,a)=>s+a.saldo,0);
-        const clsPct   = totalPos>0?(clsTotal/totalPos*100).toFixed(2):0;
-        const header   = `<tr style="background:var(--cinza-claro);">
-          <td colspan="7" style="font-weight:700;font-size:12px;color:var(--azul-principal);padding:8px 12px;">${cls} — ${fmt(clsTotal)} (${clsPct}%)</td>
+        const clsTotal    = ativos.reduce((s,a) => s+a.saldo, 0);
+        const clsAnt      = ativos.reduce((s,a) => s+a.saldoAnt, 0);
+        const clsAportes  = ativos.reduce((s,a) => s+a.aportes, 0);
+        const clsResgates = ativos.reduce((s,a) => s+a.resgates, 0);
+        const clsPct      = totalPos>0 ? (clsTotal/totalPos*100).toFixed(2) : 0;
+        const header = `<tr style="background:var(--cinza-claro);">
+          <td style="font-weight:700;font-size:12px;color:var(--azul-principal);padding:8px 12px;">${cls} — ${fmt(clsTotal)} (${clsPct}%)</td>
+          <td style="text-align:right;font-size:11px;color:var(--text-light);">${clsAnt>0?fmt(clsAnt):'—'}</td>
+          <td style="text-align:right;font-size:11px;color:var(--verde);">${clsAportes>0?'+'+fmt(clsAportes):'—'}</td>
+          <td style="text-align:right;font-size:11px;color:#e67e22;">${clsResgates>0?'−'+fmt(clsResgates):'—'}</td>
+          <td style="text-align:right;font-size:11px;font-weight:700;color:var(--azul-principal);">${fmt(clsTotal)}</td>
+          <td style="text-align:right;font-size:11px;">${clsPct}%</td>
+          <td></td>
+          <td></td>
+          <td></td>
         </tr>`;
         const rows = ativos.map(p => {
-          const pct = totalPos>0?(p.saldo/totalPos*100).toFixed(2):0;
-          const desc = p.desc.length>40?p.desc.substring(0,38)+'…':p.desc;
+          const pct = totalPos>0 ? (p.saldo/totalPos*100).toFixed(2) : 0;
+          const desc = p.desc.length>42 ? p.desc.substring(0,40)+'…' : p.desc;
           const liqLabel = p.liquidez || '—';
-          const liqColor = liqLabel==='D+0'||liqLabel==='D0'?'var(--verde)':liqLabel==='nd'||liqLabel==='N/I'?'#999':'var(--text-light)';
+          const liqColor = liqLabel==='D+0'||liqLabel==='D0' ? 'var(--verde)' : liqLabel==='nd'||liqLabel==='N/I'||liqLabel==='(vide regulamento)' ? '#999' : 'var(--text-light)';
           return `<tr>
             <td style="font-size:11px;padding-left:20px;" title="${p.desc}">${desc}</td>
-            <td style="text-align:right;font-size:12px;">${fmt(p.saldo)}</td>
-            <td style="text-align:right;font-size:12px;">${pct}%</td>
-            <td style="text-align:right;font-size:12px;color:#c0392b;">${p.provIR>0?'−'+fmt(p.provIR):'—'}</td>
-            <td style="text-align:right;font-size:12px;font-weight:600;">${fmt(p.saldoLiq)}</td>
+            <td style="text-align:right;font-size:11px;color:var(--text-light);">${p.saldoAnt>0?fmt(p.saldoAnt):'—'}</td>
+            <td style="text-align:right;font-size:11px;color:var(--verde);">${p.aportes>0?'+'+fmt(p.aportes):'—'}</td>
+            <td style="text-align:right;font-size:11px;color:#e67e22;">${p.resgates>0?'−'+fmt(p.resgates):'—'}</td>
+            <td style="text-align:right;font-size:12px;font-weight:600;">${fmt(p.saldo)}</td>
+            <td style="text-align:right;font-size:11px;">${pct}%</td>
+            <td style="text-align:right;font-size:11px;color:#c0392b;">${p.provIR>0?'−'+fmt(p.provIR):'—'}</td>
+            <td style="text-align:right;font-size:12px;font-weight:600;color:var(--azul-principal);">${fmt(p.saldoLiq)}</td>
             <td style="font-size:11px;color:${liqColor};font-weight:500;">${liqLabel}</td>
-            <td style="font-size:11px;color:var(--text-light);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${invCustodianteFromDesc(p.desc)}">${invCustodianteFromDesc(p.desc)}</td>
           </tr>`;
         }).join('');
         return header + rows;
