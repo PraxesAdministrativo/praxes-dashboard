@@ -10546,7 +10546,8 @@ Esta ação não pode ser desfeita.`)) return;
     }
 
     function invOnDateChange() {
-      // Muda para custom e ativa o botão correspondente
+      // Ignora disparos automáticos do browser antes dos dados carregarem
+      if (!invData.loaded) return;
       invPeriod = 'custom';
       document.querySelectorAll('.inv-period-btn').forEach(b => {
         b.classList.toggle('active', b.dataset.period === 'custom');
