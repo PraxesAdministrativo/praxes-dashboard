@@ -3785,7 +3785,7 @@
         const { data: client, error } = await db
           .from('clients')
           .select('spreadsheet_id, name, imoveis_sheet_id, imoveis_folder_id, financeiro_sheet_id, is_admin, investimentos_sheet_id, investimentos_script_id, veiculos_sheet_id, veiculos_folder_id')
-          .eq('email', email)
+          .ilike('email', email)
           .single();
         
         if (error || !client) {
