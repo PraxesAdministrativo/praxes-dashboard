@@ -3780,12 +3780,11 @@
       if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session) {
         _loginAttempts.count = 0; // Login bem sucedido — reseta contador
         const email = session.user.email.toLowerCase();
-        console.log('🔍 Email do login Google:', email, '| user_metadata:', JSON.stringify(session.user.user_metadata?.email));
         currentUser = email;
                 
         const { data: client, error } = await db
           .from('clients')
-          .select('spreadsheet_id, name, imoveis_sheet_id, imoveis_folder_id, financeiro_sheet_id, is_admin, investimentos_sheet_id, investimentos_script_id, veiculos_sheet_id, veiculos_folder_id')
+          .select('spreadsheet_id, name, imoveis_sheet_id, imoveis_folder_id, financeiro_sheet_id, is_admin, investimentos_sheet_id, veiculos_sheet_id, veiculos_folder_id')
           .ilike('email', email)
           .single();
         
