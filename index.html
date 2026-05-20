@@ -3751,7 +3751,7 @@
           provider: 'google',
           options: {
             redirectTo: cfg.redirectUrl,
-            scopes: 'openid email profile https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file',
+            scopes: 'openid email profile https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/script.external_request',
             queryParams: {
               access_type: 'offline'
               // SEM prompt:'consent' → Google só pede permissão na primeira vez
@@ -3784,7 +3784,7 @@
                 
         const { data: client, error } = await db
           .from('clients')
-          .select('spreadsheet_id, name, imoveis_sheet_id, imoveis_folder_id, financeiro_sheet_id, is_admin, investimentos_sheet_id, veiculos_sheet_id, veiculos_folder_id')
+          .select('spreadsheet_id, name, imoveis_sheet_id, imoveis_folder_id, financeiro_sheet_id, is_admin, investimentos_sheet_id, investimentos_script_id, veiculos_sheet_id, veiculos_folder_id')
           .eq('email', email)
           .single();
         
@@ -3803,6 +3803,7 @@
         // Se tiver um sheet específico, usa ele; caso contrário, usa o spreadsheet_id (mesmo do resumo)
         window.finSheetOverride = client.financeiro_sheet_id || client.spreadsheet_id;
         window.invSheetId      = client.investimentos_sheet_id || null;
+        window.invScriptId     = client.investimentos_script_id || null;
         window.veiSheetId      = client.veiculos_sheet_id || null;
         window.veiFolderId     = client.veiculos_folder_id || null;
                
@@ -10561,6 +10562,10 @@ Esta ação não pode ser desfeita.`)) return;
       return Math.round((d.getTime() / 86400000) + 25569);
     }
 
+    // ID do script vinculado à planilha COMDINHEIRO
+    // Para obter: na planilha → Extensões → Apps Script → ⚙ Configurações do Projeto → ID do Script
+    const INV_SCRIPT_ID = window.INV_SCRIPT_ID || ''; // configure via window.INV_SCRIPT_ID se necessário
+
     async function invAtualizarComdinheiro() {
       const fromVal = document.getElementById('inv-date-from').value;
       const toVal   = document.getElementById('inv-date-to').value;
@@ -10574,10 +10579,19 @@ Esta ação não pode ser desfeita.`)) return;
       const txt = document.getElementById('inv-btn-atualizar-txt');
       btn.disabled = true;
 
+      const toDDMM = iso => iso.split('-').reverse().join('/');
+
+      const recarregar = async () => {
+        invData = { loaded: false };
+        await invLoad(sheetId);
+        invRender();
+        btn.disabled = false;
+        txt.textContent = '↻ Atualizar planilha';
+      };
+
       try {
-        // ── 1. Grava datas nas células C10 e C11 da aba Configuração (DD/MM/AAAA) ──
+        // ── 1. Grava datas em Configuração!C10 e C11 (DD/MM/AAAA) ────────────────
         txt.textContent = '⏳ Gravando datas...';
-        const toDDMM = iso => iso.split('-').reverse().join('/');
         await gapi.client.sheets.spreadsheets.values.batchUpdate({
           spreadsheetId: sheetId,
           resource: {
@@ -10589,48 +10603,55 @@ Esta ação não pode ser desfeita.`)) return;
           }
         });
 
-        // ── 2. Dispara Edge Function do Supabase que executa o script COMDINHEIRO ──
-        txt.textContent = '⏳ Executando COMDINHEIRO...';
-        const { data: fnData, error: fnError } = await db.functions.invoke('run-comdinheiro', {
-          body: {
-            sheet_id:   sheetId,
-            data_inicio: toDDMM(fromVal),
-            data_fim:    toDDMM(toVal),
+        // ── 2. Chama a função 'atualizar' do Apps Script via Execution API ────────
+        // Requer que o script esteja publicado como executável pela API e que o
+        // scope https://www.googleapis.com/auth/script.external_request seja
+        // concedido. O script deve ter uma função global chamada 'atualizar'.
+        //
+        // Se ainda não tiver o Script ID configurado, pula o passo 2 e apenas
+        // recarrega os dados já existentes na planilha.
+        const scriptId = INV_SCRIPT_ID || window.invScriptId;
+        if (scriptId) {
+          txt.textContent = '⏳ Executando COMDINHEIRO...';
+          const token = gapi.client.getToken()?.access_token;
+          const resp = await fetch(
+            `https://script.googleapis.com/v1/scripts/${scriptId}:run`,
+            {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                function: 'atualizar',
+                parameters: [],
+                devMode: false,
+              })
+            }
+          );
+          const result = await resp.json();
+          if (result.error) {
+            // Código 7 = não autorizado a executar via API → orienta o usuário
+            if (result.error.code === 7 || result.error.status === 'PERMISSION_DENIED') {
+              console.warn('Apps Script: habilite a Execution API nas configurações do script.');
+            } else {
+              console.warn('Apps Script retornou erro:', result.error.message);
+            }
           }
-        });
+        } else {
+          // Script ID não configurado — apenas datas foram gravadas
+          console.info('INV_SCRIPT_ID não definido — datas gravadas, COMDINHEIRO não foi disparado.');
+        }
 
-        if (fnError) throw new Error(fnError.message || 'Erro na Edge Function');
-        if (fnData?.error) throw new Error(fnData.error);
-
-        // ── 3. Aguarda a planilha ser atualizada e recarrega os dados ──────────────
-        txt.textContent = '✅ Concluído! Recarregando...';
-        invData = { loaded: false };
-        await invLoad(sheetId);
-        setTimeout(() => {
-          invRender();
-          btn.disabled = false;
-          txt.textContent = '↻ Atualizar planilha';
-        }, 200);
+        // ── 3. Recarrega os dados da planilha ─────────────────────────────────────
+        txt.textContent = '✅ Datas salvas! Recarregando...';
+        await recarregar();
 
       } catch(e) {
-        console.error('Erro ao atualizar COMDINHEIRO:', e);
-        // Se a edge function não existir ainda, mantém o comportamento antigo
-        // (apenas recarrega os dados já na planilha)
-        const msg = e.message || '';
-        if (msg.includes('FunctionNotFound') || msg.includes('404') || msg.includes('run-comdinheiro')) {
-          txt.textContent = '✅ Datas salvas! Recarregando...';
-          invData = { loaded: false };
-          await invLoad(sheetId);
-          setTimeout(() => {
-            invRender();
-            btn.disabled = false;
-            txt.textContent = '↻ Atualizar planilha';
-          }, 200);
-        } else {
-          alert('Erro: ' + msg + '\n\nVerifique as permissões da planilha ou a Edge Function "run-comdinheiro".');
-          btn.disabled = false;
-          txt.textContent = '↻ Atualizar planilha';
-        }
+        console.error('Erro ao atualizar planilha:', e);
+        alert('Não foi possível gravar as datas na planilha.\n' + (e.result?.error?.message || e.message || 'Verifique as permissões de edição.'));
+        btn.disabled = false;
+        txt.textContent = '↻ Atualizar planilha';
       }
     }
 
@@ -11069,6 +11090,7 @@ Esta ação não pode ser desfeita.`)) return;
       imoveisFolderId  = client.imoveis_folder_id || '1fhcguz-nrayJ0kAS-y1j9LQggs5wbD7i';
       window.finSheetOverride = client.financeiro_sheet_id || client.spreadsheet_id;
       window.invSheetId      = client.investimentos_sheet_id || null;
+      window.invScriptId     = client.investimentos_script_id || null;
       window.veiSheetId      = client.veiculos_sheet_id || null;
       window.veiFolderId     = client.veiculos_folder_id || null;
 
@@ -11080,7 +11102,8 @@ Esta ação não pode ser desfeita.`)) return;
       docsData       = [];
       veiculosData   = [];
       invData        = { loaded: false };
-      window.invSheetId = client.investimentos_sheet_id || null;
+      window.invSheetId  = client.investimentos_sheet_id || null;
+      window.invScriptId = client.investimentos_script_id || null;
 
       document.getElementById('app-container').style.display = 'flex';
       document.getElementById('sidebar-name').textContent = client.name;
