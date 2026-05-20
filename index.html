@@ -3780,6 +3780,7 @@
       if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session) {
         _loginAttempts.count = 0; // Login bem sucedido — reseta contador
         const email = session.user.email.toLowerCase();
+        console.log('🔍 Email do login Google:', email, '| user_metadata:', JSON.stringify(session.user.user_metadata?.email));
         currentUser = email;
                 
         const { data: client, error } = await db
