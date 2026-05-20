@@ -2249,8 +2249,8 @@
               </div>
             </div>
 
-            <!-- Linha: 2 pizzas + tabela de retorno mensal -->
-            <div style="display:grid;grid-template-columns:220px 220px 1fr;gap:20px;margin-bottom:20px;">
+            <!-- Linha: 2 pizzas -->
+            <div style="display:grid;grid-template-columns:220px 220px;gap:20px;margin-bottom:20px;">
               <!-- Pizza por Classe -->
               <div class="gestao-section">
                 <div class="gestao-header"><h3 class="gestao-title">Por classe</h3></div>
@@ -2263,15 +2263,16 @@
                 <div style="position:relative;width:100%;height:160px;"><canvas id="inv-chart-cust"></canvas></div>
                 <div id="inv-cust-legend" style="font-size:11px;margin-top:10px;display:flex;flex-direction:column;gap:5px;"></div>
               </div>
-              <!-- Tabela retorno mensal -->
-              <div class="gestao-section">
-                <div class="gestao-header"><h3 class="gestao-title">Retorno mensal (%)</h3></div>
-                <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
-                  <table class="gestao-table" style="min-width:820px;width:100%;font-size:11px;" id="inv-table-mensal">
-                    <thead><tr><th style="min-width:36px;">Ano</th><th style="min-width:28px;"></th><th>Jan</th><th>Fev</th><th>Mar</th><th>Abr</th><th>Mai</th><th>Jun</th><th>Jul</th><th>Ago</th><th>Set</th><th>Out</th><th>Nov</th><th>Dez</th><th>Ano</th></tr></thead>
-                    <tbody id="inv-mensal-tbody"><tr><td colspan="15" class="empty-state">—</td></tr></tbody>
-                  </table>
-                </div>
+            </div>
+
+            <!-- Tabela retorno mensal — linha própria full-width -->
+            <div class="gestao-section" style="margin-bottom:20px;">
+              <div class="gestao-header"><h3 class="gestao-title">Retorno mensal (%)</h3></div>
+              <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+                <table class="gestao-table" style="min-width:820px;width:100%;font-size:11px;" id="inv-table-mensal">
+                  <thead><tr><th style="min-width:36px;">Ano</th><th style="min-width:28px;"></th><th>Jan</th><th>Fev</th><th>Mar</th><th>Abr</th><th>Mai</th><th>Jun</th><th>Jul</th><th>Ago</th><th>Set</th><th>Out</th><th>Nov</th><th>Dez</th><th>Ano</th></tr></thead>
+                  <tbody id="inv-mensal-tbody"><tr><td colspan="15" class="empty-state">—</td></tr></tbody>
+                </table>
               </div>
             </div>
 
