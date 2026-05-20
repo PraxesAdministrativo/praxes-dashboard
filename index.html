@@ -10321,20 +10321,43 @@ Esta ação não pode ser desfeita.`)) return;
     async function invLoad(sheetId) {
       try {
         // Nova estrutura: planilha COMDINHEIRO com abas nomeadas
-        const resp = await gapi.client.sheets.spreadsheets.values.batchGet({
-          spreadsheetId: sheetId,
-          ranges: [
-            'Gráfico Acumulado!A1:E500',
-            'Rent. Mensal!A1:O200',
-            'Extrato Mensal!A1:H200',
-            'Alocação!A1:G50',
-            'Pos. Consolidada!A1:J200',
-            'Retornos Gerais!A1:F20',
-            'Estatísticas!A1:C20',
-            'Custodiante!A1:G50',       // [7] alocação por custodiante
-          ],
-          valueRenderOption: 'FORMATTED_VALUE'
-        });
+        // Busca os ranges — abas podem não existir ainda (antes do primeiro atualizar)
+        const safeGet = async (ranges) => {
+          try {
+            return await gapi.client.sheets.spreadsheets.values.batchGet({
+              spreadsheetId: sheetId,
+              ranges,
+              valueRenderOption: 'FORMATTED_VALUE'
+            });
+          } catch(e) {
+            // Tenta um por um e ignora os que não existem
+            const results = { result: { valueRanges: [] } };
+            for (const range of ranges) {
+              try {
+                const r = await gapi.client.sheets.spreadsheets.values.get({
+                  spreadsheetId: sheetId,
+                  range,
+                  valueRenderOption: 'FORMATTED_VALUE'
+                });
+                results.result.valueRanges.push(r.result);
+              } catch(e2) {
+                results.result.valueRanges.push({ values: [] });
+              }
+            }
+            return results;
+          }
+        };
+
+        const resp = await safeGet([
+          'Gráfico Acumulado!A1:E500',
+          'Rent. Mensal!A1:O200',
+          'Extrato Mensal!A1:H200',
+          'Alocação!A1:G50',
+          'Pos. Consolidada!A1:J200',
+          'Retornos Gerais!A1:F20',
+          'Estatísticas!A1:C20',
+          'Custodiante!A1:G50',
+        ]);
 
         // ─── [0] Gráfico Acumulado → série histórica (base 100 + PL) ───────────
         // Colunas: Período | Carteira | CDI | IPCAdp | PL (R$)
