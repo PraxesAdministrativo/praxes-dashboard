@@ -2165,9 +2165,9 @@
                 <!-- Seletor de datas personalizado -->
                 <div id="inv-date-range" style="display:none;align-items:center;gap:8px;background:var(--branco);border:1px solid var(--borda);border-radius:8px;padding:5px 12px;">
                   <label style="font-size:11px;color:var(--text-light);white-space:nowrap;">De</label>
-                  <input type="date" id="inv-date-from" style="border:none;outline:none;font-size:12px;font-family:inherit;color:var(--text-primary);background:transparent;cursor:pointer;" onchange="invOnDateChange()">
+                  <input type="date" id="inv-date-from" style="border:none;outline:none;font-size:12px;font-family:inherit;color:var(--text-primary);background:transparent;cursor:pointer;">
                   <span style="color:var(--text-light);font-size:11px;">até</span>
-                  <input type="date" id="inv-date-to" style="border:none;outline:none;font-size:12px;font-family:inherit;color:var(--text-primary);background:transparent;cursor:pointer;" onchange="invOnDateChange()">
+                  <input type="date" id="inv-date-to" style="border:none;outline:none;font-size:12px;font-family:inherit;color:var(--text-primary);background:transparent;cursor:pointer;">
                   <button onclick="invAtualizarComdinheiro()" id="inv-btn-atualizar"
                     style="padding:4px 12px;font-size:11px;font-weight:600;border:none;border-radius:5px;cursor:pointer;background:var(--azul-principal);color:#fff;font-family:inherit;white-space:nowrap;transition:all .2s;display:flex;align-items:center;gap:5px;">
                     <span id="inv-btn-atualizar-txt">↻ Atualizar planilha</span>
@@ -10265,9 +10265,25 @@ Esta ação não pode ser desfeita.`)) return;
       document.getElementById('inv-no-sheet').style.display = 'none';
       document.getElementById('inv-content').style.display  = 'block';
 
+      // Reset período para YTD a cada init (evita ficar preso em 'custom')
+      invPeriod = 'ytd';
+      document.querySelectorAll('.inv-period-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.period === 'ytd');
+      });
+      document.getElementById('inv-date-range').style.display = 'none';
+
+      // Attach date listeners uma única vez
+      const fromEl = document.getElementById('inv-date-from');
+      const toEl   = document.getElementById('inv-date-to');
+      if (fromEl && !fromEl._invListenerAttached) {
+        fromEl.addEventListener('change', invOnDateChange);
+        toEl.addEventListener('change', invOnDateChange);
+        fromEl._invListenerAttached = true;
+      }
+
       // Mostra loading na tabela
       document.getElementById('inv-posicoes-tbody').innerHTML =
-        '<tr><td colspan="7" class="empty-state"><div class="spinner" style="margin:0 auto 8px;"></div>Carregando...</td></tr>';
+        '<tr><td colspan="9" class="empty-state"><div class="spinner" style="margin:0 auto 8px;"></div>Carregando...</td></tr>';
 
       if (!invData.loaded) await invLoad(sheetId);
 
@@ -10510,17 +10526,19 @@ Esta ação não pode ser desfeita.`)) return;
     function invSetPeriod(period, btn) {
       invPeriod = period;
       document.querySelectorAll('.inv-period-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
+      if (btn) btn.classList.add('active');
       const dateRange = document.getElementById('inv-date-range');
       if (period === 'custom') {
         dateRange.style.display = 'flex';
-        // Pré-preenche com o intervalo atual da série se ainda não tiver valor
+        // Pré-preenche com intervalo da série
         const fromEl = document.getElementById('inv-date-from');
         const toEl   = document.getElementById('inv-date-to');
-        if (!fromEl.value && invData.serie && invData.serie.length) {
-          fromEl.value = invData.serie[0].data;
-          toEl.value   = invData.serie[invData.serie.length-1].data;
+        if (invData.serie && invData.serie.length) {
+          if (!fromEl.value) fromEl.value = invData.serie[0].data;
+          if (!toEl.value)   toEl.value   = invData.serie[invData.serie.length-1].data;
         }
+        // Só renderiza se já tiver datas
+        if (fromEl.value && toEl.value) invRender();
       } else {
         dateRange.style.display = 'none';
         invRender();
@@ -10528,21 +10546,28 @@ Esta ação não pode ser desfeita.`)) return;
     }
 
     function invOnDateChange() {
-      // Ao mudar datas, apenas re-renderiza o gráfico com o sub-range
-      // (não busca a planilha ainda — isso é só no botão "Atualizar")
+      // Muda para custom e ativa o botão correspondente
+      invPeriod = 'custom';
+      document.querySelectorAll('.inv-period-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.period === 'custom');
+      });
+      document.getElementById('inv-date-range').style.display = 'flex';
       invRender();
     }
 
     function invGetSerie() {
       if (!invData.serie || !invData.serie.length) return [];
       const all = invData.serie;
-      console.log('🔍 invGetSerie — period:', invPeriod, '| pontos:', all.length, '| primeiro:', all[0]?.data, '| último:', all[all.length-1]?.data);
       const last = all[all.length-1].data;
       const lastDt = new Date(last+'T12:00:00');
 
       if (invPeriod === 'custom') {
-        const startISO = document.getElementById('inv-date-from')?.value || all[0].data;
-        const endISO   = document.getElementById('inv-date-to')?.value   || last;
+        const fromEl = document.getElementById('inv-date-from');
+        const toEl   = document.getElementById('inv-date-to');
+        const startISO = fromEl?.value || all[0].data;
+        const endISO   = toEl?.value   || last;
+        // Se inputs vazios, retorna tudo
+        if (!fromEl?.value && !toEl?.value) return all;
         return all.filter(r => r.data >= startISO && r.data <= endISO);
       }
       if (invPeriod === 'ytd') {
