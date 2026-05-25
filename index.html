@@ -133,119 +133,161 @@
     .app-container { display:flex; min-height:100vh; }
 
     /* ── SIDEBAR ────────────────────────────────────────────────── */
+    /* ── SIDEBAR — light paper mode ─────────────────────────────── */
     .sidebar {
-      width: 240px;
-      background: var(--praxes-abyss);
-      color: var(--praxes-sand);
+      width: 236px;
+      background: var(--praxes-bone);
+      color: var(--fg-1);
       position: fixed;
       left:0; top:0; bottom:0;
       overflow-y: auto;
       z-index: 1000;
       display: flex;
       flex-direction: column;
-      border-right: 1px solid rgba(242,221,198,0.08);
+      border-right: 1px solid var(--line);
     }
     .sidebar-header {
-      padding: 32px 24px 28px;
-      border-bottom: 1px solid rgba(242,221,198,0.08);
+      padding: 24px 24px 18px;
+      border-bottom: 1px solid var(--line);
       flex-shrink: 0;
     }
-    .sidebar-logo {
+    /* Logo as image */
+    .sidebar-logo { line-height: 0; }
+    .sidebar-logo img { height: 32px; width: auto; display: block; }
+    /* Fallback text logo */
+    .sidebar-logo-text {
       font-family: var(--font-display);
-      font-size: 20px;
-      font-weight: 600;
-      letter-spacing: 0.08em;
-      color: var(--praxes-sand);
-      text-transform: uppercase;
+      font-size: 17px; font-weight: 600;
+      letter-spacing: 0.08em; color: var(--fg-1); text-transform: uppercase;
     }
-    .sidebar-logo .logo-x { color: var(--praxes-sand); opacity: 0.7; }
-    .sidebar-tagline {
-      font-size: 9px;
-      letter-spacing: var(--track-eyebrow, 0.18em);
-      color: rgba(242,221,198,0.28);
-      text-transform: uppercase;
-      margin-top: 6px;
-      font-weight: 400;
+    .sidebar-logo .logo-x { display:none; }
+    .sidebar-tagline { display:none; }
+
+    /* Client block */
+    .sidebar-client-block {
+      padding: 14px 24px 16px;
+      border-bottom: 1px solid var(--line);
     }
-    .sidebar-nav { padding: 20px 0; flex: 1; }
+    .sidebar-client-family {
+      font-size: 9px; font-weight: 500;
+      letter-spacing: 0.16em; text-transform: uppercase;
+      color: var(--fg-mute); margin-bottom: 5px;
+    }
+    .sidebar-client-name {
+      font-family: var(--font-display);
+      font-size: 15px; font-weight: 500;
+      color: var(--fg-1); letter-spacing: -0.01em; margin-bottom: 2px;
+    }
+    .sidebar-client-since { font-size: 11px; color: var(--fg-mute); }
+
+    /* Section eyebrow */
+    .sidebar-section-label {
+      padding: 16px 24px 5px;
+      font-size: 9px; font-weight: 500;
+      letter-spacing: 0.18em; text-transform: uppercase;
+      color: var(--fg-mute); font-family: var(--font-body);
+    }
+    .sidebar-divider { height:1px; background:var(--line); margin: 6px 0; }
+
+    .sidebar-nav { padding: 4px 0; flex: 1; }
     .nav-item {
-      display: flex;
-      align-items: center;
-      padding: 11px 24px;
-      color: rgba(242,221,198,0.45);
+      display: flex; flex-direction: column;
+      padding: 8px 24px;
       cursor: pointer;
       transition: all var(--dur-1) var(--ease-out);
       border-left: 2px solid transparent;
       text-decoration: none;
-      font-size: 13px;
-      font-weight: 400;
-      letter-spacing: 0.01em;
-      gap: 12px;
       font-family: var(--font-body);
     }
-    .nav-item:hover {
-      background: rgba(242,221,198,0.04);
-      color: rgba(242,221,198,0.8);
-      border-left-color: rgba(242,221,198,0.2);
+    .nav-item-main {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 14px; font-weight: 400;
+      color: var(--fg-2);
+      transition: color var(--dur-1);
     }
-    .nav-item.active {
-      background: rgba(242,221,198,0.07);
-      color: var(--praxes-sand);
-      border-left-color: var(--praxes-sand);
-      font-weight: 500;
+    .nav-item-sub {
+      font-size: 11px; color: var(--fg-mute);
+      margin-top: 1px; padding-left: 28px; line-height: 1.3;
     }
-    .nav-icon { opacity:0.5; flex-shrink:0; }
-    .nav-item.active .nav-icon,
-    .nav-item:hover .nav-icon { opacity:1; }
+    .nav-item:hover { background: var(--praxes-shell); border-left-color: var(--praxes-teal-20); }
+    .nav-item:hover .nav-item-main { color: var(--fg-1); }
+    .nav-item.active { background: var(--praxes-shell); border-left-color: var(--praxes-teal); }
+    .nav-item.active .nav-item-main { color: var(--fg-1); font-weight: 500; }
+    .nav-item.active .nav-item-sub { color: var(--fg-3); }
+    .nav-icon { opacity:0.35; flex-shrink:0; width:18px; }
+    .nav-item.active .nav-icon, .nav-item:hover .nav-icon { opacity:0.7; }
+
     .sidebar-footer {
-      padding: 20px 24px;
-      border-top: 1px solid rgba(242,221,198,0.08);
+      padding: 16px 24px 20px;
+      border-top: 1px solid var(--line);
       flex-shrink: 0;
     }
-    .user-info {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 12px;
+    .sidebar-advisor-label {
+      font-size: 9px; font-weight: 500;
+      letter-spacing: 0.16em; text-transform: uppercase;
+      color: var(--fg-mute); margin-bottom: 5px;
     }
-    .user-avatar {
-      width: 34px; height: 34px;
-      border-radius: 50%;
-      background: rgba(242,221,198,0.12);
-      border: 1px solid rgba(242,221,198,0.2);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 600;
-      font-size: 12px;
-      color: var(--praxes-sand);
-      flex-shrink: 0;
-      font-family: var(--font-display);
-    }
-    .user-name {
-      font-size: 13px;
-      font-weight: 500;
-      color: rgba(242,221,198,0.75);
-      line-height: 1.3;
-    }
+    .sidebar-advisor-name { font-size: 13px; font-weight: 500; color: var(--fg-1); margin-bottom: 1px; }
+    .sidebar-advisor-contact { font-size: 11px; color: var(--fg-mute); }
+    /* Legacy hidden */
+    .user-info { display:none; }
+    .user-avatar { display:none; }
+    .user-name { display:none; }
     .btn-signout {
-      width: 100%;
-      padding: 8px;
-      background: transparent;
-      border: 1px solid rgba(242,221,198,0.12);
-      color: rgba(242,221,198,0.35);
-      border-radius: var(--r-md);
-      cursor: pointer;
-      font-size: 12px;
-      font-family: var(--font-body);
-      transition: all var(--dur-1) var(--ease-out);
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
+      margin-top: 12px; width: 100%; padding: 7px;
+      background: transparent; border: 1px solid var(--line-strong);
+      border-radius: var(--r-pill); cursor: pointer;
+      font-size: 11px; font-family: var(--font-body);
+      color: var(--fg-mute); letter-spacing: 0.08em; text-transform: uppercase;
+      transition: all var(--dur-1);
     }
-    .btn-signout:hover {
-      border-color: rgba(242,221,198,0.25);
-      color: rgba(242,221,198,0.65);
-      background: rgba(242,221,198,0.04);
+    .btn-signout:hover { background: var(--praxes-shell); color: var(--fg-1); }
+
+    /* ── TOP BAR ────────────────────────────────────────────────── */
+    .top-bar {
+      background: rgba(255,253,249,0.90);
+      backdrop-filter: blur(20px) saturate(1.2);
+      -webkit-backdrop-filter: blur(20px) saturate(1.2);
+      padding: 0 40px;
+      height: 60px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky; top: 0; z-index: 100; gap: 24px;
+    }
+    .top-bar-left { display:flex; align-items:baseline; gap:14px; }
+    .page-title {
+      font-family: var(--font-display);
+      font-size: 22px; font-weight: 500;
+      color: var(--fg-1); letter-spacing: -0.02em;
+    }
+    .top-bar-date {
+      font-size: 10px; font-weight: 500;
+      letter-spacing: 0.14em; text-transform: uppercase; color: var(--fg-mute);
+    }
+    .top-bar-right { display:flex; align-items:center; gap:10px; }
+    .top-period-group { display:flex; align-items:center; gap:2px; }
+    .top-period-btn {
+      padding: 5px 13px; font-size: 13px; font-weight: 400;
+      border: 1px solid transparent; border-radius: var(--r-pill);
+      cursor: pointer; background: transparent; color: var(--fg-mute);
+      font-family: var(--font-body); transition: all var(--dur-1);
+    }
+    .top-period-btn:hover { color: var(--fg-1); background: var(--praxes-shell); }
+    .top-period-btn.active { background: var(--praxes-abyss); color: var(--praxes-sand); font-weight: 500; }
+    .top-user-chip {
+      display: flex; align-items: center; gap: 8px;
+      padding: 4px 4px 4px 12px;
+      border: 1px solid var(--line); border-radius: var(--r-pill);
+      background: var(--surface);
+    }
+    .top-user-name { font-size: 13px; font-weight: 400; color: var(--fg-2); }
+    .top-user-avatar {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: var(--praxes-abyss); color: var(--praxes-sand);
+      font-family: var(--font-display); font-size: 11px; font-weight: 600;
+      display: flex; align-items: center; justify-content: center;
     }
 
     /* ── BUTTONS ────────────────────────────────────────────────── */
@@ -421,7 +463,7 @@
 
     /* ── MAIN CONTENT ───────────────────────────────────────────── */
     .main-content {
-      margin-left: 240px;
+      margin-left: 236px;
       flex: 1;
       background: var(--bg);
       min-width: 0;
@@ -1693,57 +1735,122 @@
     
     <!-- SIDEBAR -->
     <aside class="sidebar">
+      <!-- Logo -->
       <div class="sidebar-header">
-        <div class="sidebar-logo">PRA<span class="logo-x">X</span>ES</div>
-        <div class="sidebar-tagline">Family Office</div>
+        <div class="sidebar-logo">
+          <img src="./logo-praxes-full.png" alt="Praxes Gestão Patrimonial"
+            onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+          <span class="sidebar-logo-text" style="display:none;">PRAXES</span>
+        </div>
       </div>
+
+      <!-- Client info block -->
+      <div class="sidebar-client-block">
+        <div class="sidebar-client-family">Família</div>
+        <div class="sidebar-client-name" id="sidebar-name">—</div>
+        <div class="sidebar-client-since" id="sidebar-since">Cliente Praxes</div>
+      </div>
+
+      <!-- Navigation -->
       <nav class="sidebar-nav">
+        <div class="sidebar-section-label">Navegação</div>
+
         <div class="nav-item active" data-page="dashboard">
-          <span class="nav-icon" style="font-size:0;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>
-          <span>Dashboard</span>
+          <div class="nav-item-main">
+            <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>
+            Início
+          </div>
         </div>
+
         <div class="nav-item" data-page="investimentos">
-          <span class="nav-icon" style="font-size:0;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg></span>
-          <span>Investimentos</span>
+          <div class="nav-item-main">
+            <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg></span>
+            Investimentos
+          </div>
+          <div class="nav-item-sub">Posição, performance, marcação</div>
         </div>
+
         <div class="nav-item" data-page="imoveis">
-          <span class="nav-icon" style="font-size:0;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 12L12 3l9 9"/><path d="M5 10v9a1 1 0 001 1h4v-4h4v4h4a1 1 0 001-1v-9"/></svg></span>
-          <span>Imóveis</span>
+          <div class="nav-item-main">
+            <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 12L12 3l9 9"/><path d="M5 10v9a1 1 0 001 1h4v-4h4v4h4a1 1 0 001-1v-9"/></svg></span>
+            Imóveis
+          </div>
+          <div class="nav-item-sub">Portfólio, rentabilidade, ocupação</div>
         </div>
+
         <div class="nav-item" data-page="financeiro">
-          <span class="nav-icon" style="font-size:0;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="7" y1="15" x2="10" y2="15"/></svg></span>
-          <span>Controle Financeiro</span>
+          <div class="nav-item-main">
+            <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="7" y1="15" x2="10" y2="15"/></svg></span>
+            Controle financeiro
+          </div>
+          <div class="nav-item-sub">DRE, lançamentos, fluxo</div>
         </div>
+
         <div class="nav-item" data-page="veiculos">
-          <span class="nav-icon" style="font-size:0;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M5 17H3v-5l2-5h14l2 5v5h-2"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="16.5" cy="17.5" r="2.5"/><path d="M5 12h14"/></svg></span>
-          <span>Veículos</span>
+          <div class="nav-item-main">
+            <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M5 17H3v-5l2-5h14l2 5v5h-2"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="16.5" cy="17.5" r="2.5"/></svg></span>
+            Veículos & embarcações
+          </div>
         </div>
+
         <div class="nav-item" data-page="documentos">
-          <span class="nav-icon" style="font-size:0;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/></svg></span>
-          <span>Documentos</span>
+          <div class="nav-item-main">
+            <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span>
+            Documentos
+          </div>
         </div>
+
         <div class="nav-item" data-page="perfil">
-          <span class="nav-icon" style="font-size:0;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg></span>
-          <span>Perfil & Família</span>
+          <div class="nav-item-main">
+            <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></span>
+            Perfil & família
+          </div>
+        </div>
+
+        <div class="sidebar-divider"></div>
+        <div class="sidebar-section-label">Extrato</div>
+
+        <div class="nav-item" data-page="relatorios" style="opacity:0.5;pointer-events:none;">
+          <div class="nav-item-main">
+            <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span>
+            Relatórios & PDFs
+          </div>
         </div>
       </nav>
+
+      <!-- Advisor footer -->
       <div class="sidebar-footer">
-        <div class="user-info">
-          <div class="user-avatar" id="sidebar-avatar">LB</div>
-          <div class="user-name" id="sidebar-name">Cliente</div>
+        <div class="sidebar-advisor-label">Assessoria</div>
+        <div class="sidebar-advisor-name" id="sidebar-advisor-name">Praxes</div>
+        <div class="sidebar-advisor-contact" id="sidebar-advisor-contact">gestaopatrimonial.com</div>
+        <button class="btn-signout" id="signout-button">Sair da conta</button>
+        <!-- Legacy hidden elements for JS compat -->
+        <div class="user-info" style="display:none;">
+          <div class="user-avatar" id="sidebar-avatar">P</div>
+          <div class="user-name" id="sidebar-name-legacy"></div>
         </div>
-        <button class="btn-signout" id="signout-button">Sair</button>
       </div>
     </aside>
 
     <!-- MAIN CONTENT -->
     <main class="main-content">
+      <!-- TOP BAR -->
       <div class="top-bar">
-        <h1 class="page-title" id="top-title">Dashboard</h1>
-        <div style="display:flex;align-items:center;gap:20px;">
-          <span id="top-bar-date" style="font-size:13px;color:#8a9ab0;font-weight:500;letter-spacing:0.02em;"></span>
-          <div style="width:1px;height:20px;background:#e2e8f0;"></div>
-          <span id="top-bar-greeting" style="font-size:13px;color:var(--azul-secundario);font-weight:600;"></span>
+        <div class="top-bar-left">
+          <h1 class="page-title" id="top-title">Início</h1>
+          <span class="top-bar-date" id="top-bar-date"></span>
+        </div>
+        <div class="top-bar-right">
+          <div id="top-period-group" class="top-period-group" style="display:none;">
+            <button class="top-period-btn" data-period="mes" onclick="dashSetPeriod('mes',this)">Mês</button>
+            <button class="top-period-btn active" data-period="trimestre" onclick="dashSetPeriod('trimestre',this)">Trimestre</button>
+            <button class="top-period-btn" data-period="ano" onclick="dashSetPeriod('ano',this)">Ano</button>
+            <button class="top-period-btn" data-period="tudo" onclick="dashSetPeriod('tudo',this)">Tudo</button>
+          </div>
+          <div id="top-bar-user-chip" class="top-user-chip" style="display:none;">
+            <span class="top-user-name" id="top-user-name"></span>
+            <div class="top-user-avatar" id="top-user-avatar">—</div>
+          </div>
         </div>
       </div>
       <div class="content-wrapper">
@@ -11176,21 +11283,33 @@ Esta ação não pode ser desfeita.`)) return;
       window.invWebAppUrl = client.investimentos_webapp_url || null;
 
       document.getElementById('app-container').style.display = 'flex';
-      document.getElementById('sidebar-name').textContent = client.name;
-      document.getElementById('sidebar-avatar').textContent = client.name.substring(0,2).toUpperCase();
 
-      // ── Top bar: data e saudação ──────────────────────────────
+      // Sidebar — novo design
+      document.getElementById('sidebar-name').textContent = client.name;
+      // Avatar no legacy (oculto mas mantido para compat)
+      const legacyAvatar = document.getElementById('sidebar-avatar');
+      if (legacyAvatar) legacyAvatar.textContent = client.name.substring(0,2).toUpperCase();
+
+      // Top bar — data e chip do usuário
       const agora = new Date();
       const hora = agora.getHours();
       const saudacao = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite';
       const primeiroNome = client.name.split(' ')[0];
-      const dataFormatada = agora.toLocaleDateString('pt-BR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+      const dataFormatada = 'POSIÇÃO EM ' + agora.toLocaleDateString('pt-BR', { day:'numeric', month:'short', year:'numeric' }).toUpperCase().replace('.','');
       const dataEl = document.getElementById('top-bar-date');
-      const greetEl = document.getElementById('top-bar-greeting');
-      if (dataEl) dataEl.textContent = dataFormatada.charAt(0).toUpperCase() + dataFormatada.slice(1);
-      if (greetEl) greetEl.textContent = `${saudacao}, ${primeiroNome}`;
+      if (dataEl) dataEl.textContent = dataFormatada;
 
-      // ── Bloco de boas-vindas do dashboard ─────────────────────
+      // User chip no topbar
+      const chip = document.getElementById('top-bar-user-chip');
+      const chipName = document.getElementById('top-user-name');
+      const chipAvatar = document.getElementById('top-user-avatar');
+      if (chip && chipName && chipAvatar) {
+        chipName.textContent = client.name.split(' ').slice(0,3).join(' ');
+        chipAvatar.textContent = client.name.substring(0,2).toUpperCase();
+        chip.style.display = 'flex';
+      }
+
+      // Bloco de boas-vindas do dashboard
       const wb = document.getElementById('dash-welcome-block');
       const wn = document.getElementById('dash-welcome-name');
       const ws = document.getElementById('dash-welcome-sub');
