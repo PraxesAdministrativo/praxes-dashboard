@@ -2291,11 +2291,11 @@
 
             <!-- Performance acumulada — card dominante com pizzas na lateral -->
             <div class="gestao-section" style="margin-bottom:20px;">
-              <div style="display:grid;grid-template-columns:1fr 180px;gap:0;align-items:start;">
+              <div style="display:grid;grid-template-columns:1fr 180px;gap:0;align-items:stretch;min-height:440px;">
 
                 <!-- Lado esquerdo: gráfico principal -->
-                <div style="padding-right:20px;border-right:1px solid var(--line);">
-                  <div class="gestao-header" style="margin-bottom:14px;">
+                <div style="padding-right:20px;border-right:1px solid var(--line);display:flex;flex-direction:column;">
+                  <div class="gestao-header" style="margin-bottom:14px;flex-shrink:0;">
                     <h3 class="gestao-title" id="inv-chart-title">Performance acumulada</h3>
                     <div style="display:flex;gap:14px;font-size:11px;color:var(--fg-mute);">
                       <span style="display:flex;align-items:center;gap:5px;">
@@ -2310,8 +2310,8 @@
                       </span>
                     </div>
                   </div>
-                  <div style="position:relative;width:100%;height:280px;">
-                    <canvas id="inv-chart-perf"></canvas>
+                  <div style="position:relative;flex:1;min-height:0;">
+                    <canvas id="inv-chart-perf" style="position:absolute;inset:0;width:100%!important;height:100%!important;"></canvas>
                   </div>
                 </div>
 
@@ -2319,17 +2319,17 @@
                 <div style="padding-left:20px;display:flex;flex-direction:column;gap:20px;">
 
                   <!-- Por classe -->
-                  <div>
+                  <div style="flex:1;">
                     <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.12em;color:var(--fg-mute);margin-bottom:8px;">Por classe</div>
                     <div style="position:relative;width:100%;height:110px;"><canvas id="inv-chart-classe"></canvas></div>
                     <div id="inv-classe-legend" style="font-size:9.5px;margin-top:8px;display:flex;flex-direction:column;gap:3px;"></div>
                   </div>
 
                   <!-- Divider -->
-                  <div style="height:1px;background:var(--line);"></div>
+                  <div style="height:1px;background:var(--line);flex-shrink:0;"></div>
 
                   <!-- Por custodiante -->
-                  <div>
+                  <div style="flex:1;">
                     <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.12em;color:var(--fg-mute);margin-bottom:8px;">Por custodiante</div>
                     <div style="position:relative;width:100%;height:110px;"><canvas id="inv-chart-cust"></canvas></div>
                     <div id="inv-cust-legend" style="font-size:9.5px;margin-top:8px;display:flex;flex-direction:column;gap:3px;"></div>
