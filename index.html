@@ -2233,60 +2233,84 @@
               </div>
             </div>
 
-            <!-- KPIs: 3 cards + fluxo de resgate -->
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr 220px;gap:16px;margin-bottom:20px;">
+            <!-- KPIs: 4 cards -->
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;margin-bottom:20px;">
+
+              <!-- Patrimônio -->
               <div class="stat-card">
                 <div class="stat-label">Patrimônio Total</div>
-                <div class="stat-value" id="inv-patrimonio">—</div>
+                <div class="stat-value" style="font-size:26px;" id="inv-patrimonio">—</div>
                 <div class="stat-change" id="inv-patrimonio-sub">—</div>
               </div>
+
+              <!-- Rentabilidade % -->
               <div class="stat-card">
-                <div class="stat-label" id="inv-rent-label">Rentab. a Mercado</div>
-                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px;">
+                <div class="stat-label" id="inv-rent-label">Rentab. da Carteira</div>
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px;">
                   <div style="text-align:center;">
-                    <div style="font-size:10px;color:var(--text-light);margin-bottom:3px;">Mês</div>
-                    <div style="font-size:15px;font-weight:700;color:var(--azul-principal);" id="inv-rent-mes">—</div>
+                    <div style="font-size:9px;color:var(--fg-mute);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.08em;">Mês</div>
+                    <div style="font-size:14px;font-weight:600;" id="inv-rent-mes">—</div>
                   </div>
                   <div style="text-align:center;">
-                    <div style="font-size:10px;color:var(--text-light);margin-bottom:3px;">Ano</div>
-                    <div style="font-size:15px;font-weight:700;color:var(--azul-principal);" id="inv-rent-ano">—</div>
+                    <div style="font-size:9px;color:var(--fg-mute);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.08em;">Ano</div>
+                    <div style="font-size:14px;font-weight:600;" id="inv-rent-ano">—</div>
                   </div>
                   <div style="text-align:center;">
-                    <div style="font-size:10px;color:var(--text-light);margin-bottom:3px;">12m</div>
-                    <div style="font-size:15px;font-weight:700;color:var(--azul-principal);" id="inv-rent-12m">—</div>
+                    <div style="font-size:9px;color:var(--fg-mute);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.08em;">12m</div>
+                    <div style="font-size:14px;font-weight:600;" id="inv-rent-12m">—</div>
                   </div>
                   <div style="text-align:center;">
-                    <div style="font-size:10px;color:var(--text-light);margin-bottom:3px;">Período</div>
-                    <div style="font-size:15px;font-weight:700;color:var(--azul-principal);" id="inv-rent-periodo">—</div>
+                    <div style="font-size:9px;color:var(--fg-mute);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.08em;">Período</div>
+                    <div style="font-size:14px;font-weight:600;" id="inv-rent-periodo">—</div>
+                  </div>
+                </div>
+                <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(3,1fr);gap:6px;">
+                  <div style="text-align:center;">
+                    <div style="font-size:9px;color:var(--fg-mute);margin-bottom:2px;text-transform:uppercase;letter-spacing:0.08em;">CDI mês</div>
+                    <div style="font-size:12px;color:var(--fg-mute);" id="inv-cdi-mes">—</div>
+                  </div>
+                  <div style="text-align:center;">
+                    <div style="font-size:9px;color:var(--fg-mute);margin-bottom:2px;text-transform:uppercase;letter-spacing:0.08em;">CDI ano</div>
+                    <div style="font-size:12px;color:var(--fg-mute);" id="inv-cdi-ano">—</div>
+                  </div>
+                  <div style="text-align:center;">
+                    <div style="font-size:9px;color:var(--fg-mute);margin-bottom:2px;text-transform:uppercase;letter-spacing:0.08em;">% CDI</div>
+                    <div style="font-size:12px;font-weight:600;color:var(--success);" id="inv-pct-cdi">—</div>
+                  </div>
+                  <!-- hidden compat -->
+                  <div style="display:none;" id="inv-cdi-12m">—</div>
+                </div>
+              </div>
+
+              <!-- Rendimento Nominal R$ -->
+              <div class="stat-card">
+                <div class="stat-label">Rendimento (R$)</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;">
+                  <div>
+                    <div style="font-size:9px;color:var(--fg-mute);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.08em;">No mês</div>
+                    <div style="font-size:15px;font-weight:600;color:var(--success);" id="inv-rend-mes">—</div>
+                  </div>
+                  <div>
+                    <div style="font-size:9px;color:var(--fg-mute);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.08em;">No ano</div>
+                    <div style="font-size:15px;font-weight:600;color:var(--success);" id="inv-rend-ano">—</div>
+                  </div>
+                  <div>
+                    <div style="font-size:9px;color:var(--fg-mute);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.08em;">12 meses</div>
+                    <div style="font-size:14px;font-weight:500;color:var(--fg-2);" id="inv-rend-12m">—</div>
+                  </div>
+                  <div>
+                    <div style="font-size:9px;color:var(--fg-mute);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.08em;">Desde o início</div>
+                    <div style="font-size:14px;font-weight:500;color:var(--fg-2);" id="inv-rend-inicio">—</div>
                   </div>
                 </div>
               </div>
-              <div class="stat-card">
-                <div class="stat-label">CDI</div>
-                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px;">
-                  <div style="text-align:center;">
-                    <div style="font-size:10px;color:var(--text-light);margin-bottom:3px;">Mês</div>
-                    <div style="font-size:15px;font-weight:700;color:var(--text-light);" id="inv-cdi-mes">—</div>
-                  </div>
-                  <div style="text-align:center;">
-                    <div style="font-size:10px;color:var(--text-light);margin-bottom:3px;">Ano</div>
-                    <div style="font-size:15px;font-weight:700;color:var(--text-light);" id="inv-cdi-ano">—</div>
-                  </div>
-                  <div style="text-align:center;">
-                    <div style="font-size:10px;color:var(--text-light);margin-bottom:3px;">12m</div>
-                    <div style="font-size:15px;font-weight:700;color:var(--text-light);" id="inv-cdi-12m">—</div>
-                  </div>
-                  <div style="text-align:center;">
-                    <div style="font-size:10px;color:var(--text-light);margin-bottom:3px;">% CDI</div>
-                    <div style="font-size:15px;font-weight:700;color:var(--verde);" id="inv-pct-cdi">—</div>
-                  </div>
-                </div>
-              </div>
-              <!-- Fluxo de Resgate -->
+
+              <!-- Liquidez -->
               <div class="stat-card" style="padding:16px;">
                 <div class="stat-label" style="margin-bottom:10px;">Liquidez</div>
                 <div id="inv-liquidez-body" style="display:flex;flex-direction:column;gap:5px;font-size:11px;"></div>
               </div>
+
             </div>
 
             <!-- Performance acumulada — card dominante com pizzas na lateral -->
@@ -10423,14 +10447,15 @@ Esta ação não pode ser desfeita.`)) return;
         };
 
         const resp = await safeGet([
-          'Gráfico Acumulado!A1:E500',
-          'Rent. Mensal!A1:O200',
-          'Extrato Mensal!A1:H200',
-          'Alocação!A1:G50',
-          'Pos. Consolidada!A1:J200',
-          'Retornos Gerais!A1:F20',
-          'Estatísticas!A1:C20',
-          'Custodiante!A1:G50',
+          'Gráfico Acumulado!A1:E500',     // [0]
+          'Rent. Mensal!A1:O200',           // [1]
+          'Extrato Mensal!A1:H200',         // [2]
+          'Alocação!A1:G50',               // [3]
+          'Pos. Consolidada!A1:J200',      // [4]
+          'Retornos Gerais!A1:F20',        // [5]
+          'Estatísticas!A1:C20',           // [6]
+          'Custodiante!A1:G50',            // [7]
+          'Rendimento Nominal!A1:I10',     // [8] R$ ganho: Mês, Ano, AnoAnt, 6m, 12m, 24m, Início
         ]);
 
         // ─── [0] Gráfico Acumulado → série histórica (base 100 + PL) ───────────
@@ -10574,18 +10599,16 @@ Esta ação não pode ser desfeita.`)) return;
         // Gráfico 1: por classe (aba Alocação)
         invData.classeMap  = classeMap;
 
-        // ─── [7] Custodiante → alocação por custodiante ──────────────────────────
-        // Colunas: Custodiante | Saldo Bruto ini | Mov | Rend Bruto | Saldo Bruto atual | %
+        // ─── [7] Custodiante ─────────────────────────────────────────────────────
         const custRaw = resp.result.valueRanges[7]?.values || [];
         const custMap = {};
-        custRaw.slice(2).forEach(r => {  // slice(2): pula título e cabeçalho
+        custRaw.slice(2).forEach(r => {
           const nome  = String(r[0]||'').trim();
-          const saldo = parseNum(r[4]); // col4 = Saldo Bruto atual
+          const saldo = parseNum(r[4]);
           if (!nome || isNaN(saldo) || saldo === 0) return;
           if (nome.toLowerCase() === 'total') return;
           custMap[nome] = saldo;
         });
-        // Fallback se aba não existir ainda
         if (Object.keys(custMap).length === 0) {
           posicoes.forEach(p => {
             const c = invCustodianteFromDesc(p.desc);
@@ -10593,6 +10616,21 @@ Esta ação não pode ser desfeita.`)) return;
           });
         }
         invData.custMap = custMap;
+
+        // ─── [8] Rendimento Nominal (R$) ─────────────────────────────────────────
+        // Colunas: Carteira | Mês | Ano | Ano Anterior | 06m | 12m | 24m | Desde o início
+        const rendRaw = resp.result.valueRanges[8]?.values || [];
+        invData.rendNominal = null;
+        if (rendRaw.length >= 3) {
+          // linha 0 = título, linha 1 = cabeçalho, linha 2 = dados do portfolio
+          const hdr  = rendRaw[1] || [];
+          const data = rendRaw[2] || [];
+          if (data.length) {
+            const obj = {};
+            hdr.forEach((h, i) => { obj[String(h||'').trim()] = parseNum(data[i]); });
+            invData.rendNominal = obj;
+          }
+        }
         invData.posData    = invData.dataRef;
 
         // ─── [4-b] Liquidez por prazo ─────────────────────────────────────────────
@@ -10942,6 +10980,36 @@ Esta ação não pode ser desfeita.`)) return;
         ? (varNom.periodo / cdiRet.periodo * 100).toFixed(1) + '%'
         : '—';
       document.getElementById('inv-pct-cdi').textContent = pctCdi;
+
+      // Rendimento Nominal R$ — card dedicado
+      const rn = invData.rendNominal;
+      const fmtRend = (v) => {
+        if (!v || isNaN(v)) return '—';
+        const abs = Math.abs(v);
+        const sign = v >= 0 ? '+' : '−';
+        if (abs >= 1e6) return sign + 'R$ ' + (abs/1e6).toFixed(2).replace('.',',') + ' mi';
+        if (abs >= 1e3) return sign + 'R$ ' + (abs/1e3).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ' mil';
+        return sign + fmt(v);
+      };
+      if (rn) {
+        // Chaves podem variar — busca por substring
+        const findKey = (obj, ...terms) => Object.keys(obj).find(k => terms.some(t => k.toLowerCase().includes(t.toLowerCase())));
+        const kMes    = findKey(rn, 'ês', 'Mês', 'mes_atual');
+        const kAno    = findKey(rn, 'Ano', 'ano_atual');
+        const k12m    = findKey(rn, '12m', '12meses', '12');
+        const kInicio = findKey(rn, 'início', 'inicio', 'acomp', 'ini');
+        const set = (id, key) => {
+          const el = document.getElementById(id);
+          if (!el) return;
+          const v = key ? rn[key] : null;
+          el.textContent = fmtRend(v);
+          if (el.textContent !== '—') el.style.color = v >= 0 ? 'var(--success)' : 'var(--danger)';
+        };
+        set('inv-rend-mes',    kMes);
+        set('inv-rend-ano',    kAno);
+        set('inv-rend-12m',    k12m);
+        set('inv-rend-inicio', kInicio);
+      }
 
       // Fluxo de resgate
       const liqEl = document.getElementById('inv-liquidez-body');
