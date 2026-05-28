@@ -4134,85 +4134,162 @@
       window._dashItensAtivo = itensAtivo;
       window._dashComposMap  = composMap;
 
-      // Linhas do balanço — clicáveis para navegar ao imóvel
-      // Agrupa itens por Investimento / Uso Pessoal / Outros
+      // Subgrupos por tipo de uso
+      const SUBGRUPOS = {
+        'Uso Pessoal':  ['Lazer','Moradia','Trabalho','Família','Outros'],
+        'Investimento': ['Renda','Ganho de Capital','Incorporação','Outros'],
+      };
+      const ATIVO_CORES = { 'Investimento': '#185FA5', 'Uso Pessoal': '#1D9E75', 'Outros': '#888' };
+      const ATIVO_HOVER = { 'Investimento': '#f0f7ff', 'Uso Pessoal': '#f0fbf6', 'Outros': '#fafafa' };
       const _grupoOrdem = ['Investimento', 'Uso Pessoal'];
-      const _grupoMap   = {};
-      itensAtivo.forEach(i => {
-        const g = (i.grupo === 'Investimento') ? 'Investimento'
-                : (i.grupo === 'Uso Pessoal')  ? 'Uso Pessoal'
-                : 'Outros';
-        if (!_grupoMap[g]) _grupoMap[g] = [];
-        _grupoMap[g].push(i);
-      });
-      const _grupos = [..._grupoOrdem, ...Object.keys(_grupoMap).filter(g => !_grupoOrdem.includes(g))].filter(g => _grupoMap[g]);
 
-      // Toggle accordion — função global para evitar template literals aninhados
       window._balToggleGrupo = function(groupId, btn) {
         var open = btn.getAttribute('data-open') === '1';
+        // Mostra/oculta subgrupo headers (não os itens filhos que já estão ocultos)
         document.querySelectorAll('[data-group="' + groupId + '"]').forEach(function(r) {
-          r.style.display = open ? 'none' : 'table-row';
+          if (!open) { r.style.display = 'table-row'; }
+          else {
+            r.style.display = 'none';
+            // Fecha subgrupos internos
+            if (r.classList.contains('bal-subgroup-row')) {
+              r.setAttribute('data-subopen','0');
+              var ch = r.querySelector('.bal-chevron');
+              if (ch) ch.style.transform = 'rotate(0deg)';
+            }
+          }
         });
+        // Fecha itens filhos de subgrupos
+        if (open) {
+          document.querySelectorAll('[data-subparent^="' + groupId + '"]').forEach(function(r) {
+            r.style.display = 'none';
+          });
+        }
         var chevron = btn.querySelector('.bal-chevron');
         if (chevron) chevron.style.transform = open ? 'rotate(0deg)' : 'rotate(90deg)';
         btn.setAttribute('data-open', open ? '0' : '1');
       };
 
-      function _mkDetailRow(nome, valor, idx, groupId, hoverBg) {
+      window._balToggleSubgrupo = function(subId, event) {
+        if (event) event.stopPropagation();
+        var btn = event ? event.currentTarget : null;
+        if (!btn) return;
+        var open = btn.getAttribute('data-subopen') === '1';
+        document.querySelectorAll('[data-subparent="' + subId + '"]').forEach(function(r) {
+          r.style.display = open ? 'none' : 'table-row';
+        });
+        var chevron = btn.querySelector('.bal-chevron');
+        if (chevron) chevron.style.transform = open ? 'rotate(0deg)' : 'rotate(90deg)';
+        btn.setAttribute('data-subopen', open ? '0' : '1');
+      };
+
+      function _mkDetailRow(nome, valor, idx, subId, hoverBg, passivo) {
         var ok = idx >= 0;
         var click = ok ? ' onclick="_dashIrParaImovel(' + idx + ')"' : '';
-        var color = ok ? '#185FA5' : 'var(--text-dark)';
+        var color = passivo ? '#A32D2D' : (ok ? '#185FA5' : 'var(--text-dark)');
         var deco  = ok ? 'underline' : 'none';
         var arrow = ok ? '<span style="font-size:10px;margin-left:5px;opacity:.5;">\u2197</span>' : '';
-        return '<tr class="bal-detail-row" data-group="' + groupId + '" style="cursor:' + (ok?'pointer':'default') + ';display:none;"'
+        return '<tr class="bal-detail-row" data-subparent="' + subId + '" style="cursor:' + (ok?'pointer':'default') + ';display:none;"'
           + click
-          + ' onmouseenter="this.style.background=\'' + hoverBg + '\'" onmouseleave="this.style.background=\'\'">'
-          + '<td style="padding:5px 0 5px 24px;font-size:12px;color:' + color + ';text-decoration:' + deco + ';text-underline-offset:2px;">'
+          + ' onmouseenter="this.style.background=\'' + hoverBg + '\'" onmouseleave="this.style.background=\'\'">'+
+          '<td style="padding:5px 0 5px 36px;font-size:12px;color:' + color + ';text-decoration:' + deco + ';text-underline-offset:2px;">'
           + esc(nome) + arrow + '</td>'
-          + '<td style="padding:5px 0;font-size:12px;text-align:right;font-variant-numeric:tabular-nums;color:var(--text-dark);">' + fmt(valor) + '</td>'
+          + '<td style="padding:5px 0;font-size:12px;text-align:right;font-variant-numeric:tabular-nums;color:' + color + ';">' + fmt(valor) + '</td>'
           + '</tr>';
       }
 
-      const rowsAtivo = _grupos.map(function(g, gi) {
-        var items    = _grupoMap[g];
+      function _mkGrupoRows(grupoLabel, items, gi, passivo) {
+        var dotColor = ATIVO_CORES[grupoLabel] || '#888';
+        var hoverBg  = passivo ? '#fff5f5' : (ATIVO_HOVER[grupoLabel] || '#fafafa');
+        var groupId  = 'bal-grp-' + (passivo?'p':'a') + gi;
         var subtotal = items.reduce(function(s,i){ return s+i.valor; }, 0);
-        var isInv    = g === 'Investimento';
-        var dotColor = isInv ? '#185FA5' : '#1D9E75';
-        var hoverBg  = isInv ? '#f0f7ff' : '#f0fbf6';
-        var groupId  = 'bal-grp-' + gi;
-        var rows = items.map(function(i) {
-          var idx = imoveisData.findIndex(function(r){ return r[0] === i.nome; });
-          return _mkDetailRow(i.nome, i.valor, idx, groupId, hoverBg);
+        var tipoLabel = passivo ? 'financiamento(s)' : 'im\u00f3vel(is)';
+        var subgrupoKeys = SUBGRUPOS[grupoLabel] || ['Outros'];
+
+        // Organiza em subgrupos
+        var subMap = {};
+        items.forEach(function(i) {
+          var sub = i.subgrupo || 'Outros';
+          if (!subgrupoKeys.includes(sub)) sub = 'Outros';
+          if (!subMap[sub]) subMap[sub] = [];
+          subMap[sub].push(i);
+        });
+
+        var subRows = subgrupoKeys.map(function(sub, si) {
+          var subItems = subMap[sub];
+          if (!subItems || !subItems.length) return '';
+          var subId    = groupId + '-sub' + si;
+          var subTotal = subItems.reduce(function(s,i){ return s+i.valor; }, 0);
+          var itemRows = subItems.map(function(i) {
+            var idx = imoveisData.findIndex(function(r){ return r[0] === i.nome; });
+            return _mkDetailRow(i.nomeDisplay || i.nome, i.valor, idx, subId, hoverBg, passivo);
+          }).join('');
+          return '<tr class="bal-subgroup-row" data-group="' + groupId + '" data-subopen="0"'
+            + ' onclick="_balToggleSubgrupo(\'' + subId + '\',event)"'
+            + ' style="cursor:pointer;user-select:none;display:none;"'
+            + ' onmouseenter="this.style.background=\'#f7f7f7\'" onmouseleave="this.style.background=\'\'">'+
+            '<td colspan="2" style="padding:7px 0 7px 20px;border-bottom:0.5px solid #f3f3f3;">'
+            + '<span style="display:flex;align-items:center;justify-content:space-between;">'
+            + '<span style="display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:500;color:#777;">'
+            + '<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:' + dotColor + ';opacity:.5;flex-shrink:0;"></span>'
+            + esc(sub)
+            + ' <span style="font-weight:400;font-size:10px;color:#bbb;">' + subItems.length + '</span>'
+            + '</span>'
+            + '<span style="display:inline-flex;align-items:center;gap:8px;">'
+            + '<span style="font-size:12px;font-weight:600;color:' + (passivo?'#A32D2D':dotColor) + ';font-variant-numeric:tabular-nums;">' + fmt(subTotal) + '</span>'
+            + '<span class="bal-chevron" style="font-size:9px;color:#ccc;transition:transform .2s;">\u25ba</span>'
+            + '</span></span></td></tr>'
+            + itemRows;
         }).join('');
 
         return '<tr class="bal-group-row" data-open="0"'
           + ' onclick="_balToggleGrupo(\'' + groupId + '\',this)"'
           + ' style="cursor:pointer;user-select:none;"'
-          + ' onmouseenter="this.style.background=\'#fafafa\'" onmouseleave="this.style.background=\'\'">'
-          + '<td colspan="2" style="padding:10px 0;border-bottom:1px solid #f0f0f0;">'
+          + ' onmouseenter="this.style.background=\'#fafafa\'" onmouseleave="this.style.background=\'\'">'+
+          '<td colspan="2" style="padding:10px 0;border-bottom:1px solid #f0f0f0;">'
           + '<span style="display:flex;align-items:center;justify-content:space-between;">'
           + '<span style="display:inline-flex;align-items:center;gap:7px;font-size:11.5px;font-weight:700;color:#444;text-transform:uppercase;letter-spacing:.05em;">'
           + '<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:' + dotColor + ';flex-shrink:0;"></span>'
-          + esc(g)
-          + ' <span style="font-weight:400;font-size:10.5px;color:#aaa;text-transform:none;letter-spacing:0;">' + items.length + ' im\u00f3vel(is)</span>'
+          + esc(grupoLabel)
+          + ' <span style="font-weight:400;font-size:10.5px;color:#aaa;text-transform:none;letter-spacing:0;">' + items.length + ' ' + tipoLabel + '</span>'
           + '</span>'
           + '<span style="display:inline-flex;align-items:center;gap:10px;">'
-          + '<span style="font-size:13px;font-weight:700;color:' + dotColor + ';font-variant-numeric:tabular-nums;">' + fmt(subtotal) + '</span>'
+          + '<span style="font-size:13px;font-weight:700;color:' + (passivo?'#A32D2D':dotColor) + ';font-variant-numeric:tabular-nums;">' + fmt(subtotal) + '</span>'
           + '<span class="bal-chevron" style="font-size:10px;color:#bbb;transition:transform .2s;">\u25ba</span>'
           + '</span></span></td></tr>'
-          + rows;
+          + subRows;
+      }
+
+      // ── Ativo: grupos com subgrupos ───────────────────────────────────────────
+      const _grupoMap = {};
+      itensAtivo.forEach(function(i) {
+        var g = _grupoOrdem.includes(i.grupo) ? i.grupo : 'Outros';
+        if (!_grupoMap[g]) _grupoMap[g] = [];
+        var idx      = imoveisData.findIndex(function(r){ return r[0] === i.nome; });
+        var subgrupo = idx >= 0 ? (imoveisData[idx][3] || 'Outros') : 'Outros';
+        _grupoMap[g].push(Object.assign({}, i, { subgrupo }));
+      });
+      const _grupos = [..._grupoOrdem, ...Object.keys(_grupoMap).filter(g => !_grupoOrdem.includes(g))].filter(g => _grupoMap[g]);
+
+      const rowsAtivo = _grupos.map(function(g, gi) {
+        return _mkGrupoRows(g, _grupoMap[g], gi, false);
       }).join('');
 
-      const rowsPassivo = itensPassivo.length ? itensPassivo.map(i => {
-        const idx = imoveisData.findIndex(r => i.nome.includes(r[0].substring(0,10)));
-        const ok = idx >= 0;
-        return `<tr style="cursor:${ok?'pointer':'default'};" ${ok?`onclick="_dashIrParaImovel(${idx})"`:''} onmouseenter="this.style.background='#fff5f5'" onmouseleave="this.style.background=''">
-          <td style="padding:7px 0 7px 12px;font-size:13px;color:${ok?'#185FA5':'var(--text-dark)'};text-decoration:${ok?'underline':'none'};text-underline-offset:2px;">
-            ${esc(i.nome)}${ok?'<span style="font-size:10px;margin-left:5px;opacity:.5;">↗</span>':''}
-          </td>
-          <td style="padding:7px 0;font-size:13px;text-align:right;font-variant-numeric:tabular-nums;color:#A32D2D;">${fmt(i.valor)}</td>
-        </tr>`;
-      }).join('') : `<tr><td colspan="2" style="padding:7px 0 7px 12px;font-size:12px;color:#aaa;">Nenhum financiamento registrado</td></tr>`;
+      // ── Passivo: mesma estrutura de grupos com subgrupos ─────────────────────
+      const _passGrupoMap = {};
+      itensPassivo.forEach(function(i) {
+        var idx      = imoveisData.findIndex(function(r){ return i.nome.includes(r[0].substring(0,10)); });
+        var grupo    = idx >= 0 ? (imoveisData[idx][2] || 'Investimento') : 'Investimento';
+        var subgrupo = idx >= 0 ? (imoveisData[idx][3] || 'Outros') : 'Outros';
+        var g        = _grupoOrdem.includes(grupo) ? grupo : 'Investimento';
+        if (!_passGrupoMap[g]) _passGrupoMap[g] = [];
+        _passGrupoMap[g].push({ nome: i.nome, nomeDisplay: 'Financ. ' + i.nome.replace(/^Financ\.\s*/,''), valor: i.valor, subgrupo });
+      });
+      const rowsPassivo = Object.keys(_passGrupoMap).length
+        ? [..._grupoOrdem, ...Object.keys(_passGrupoMap).filter(g => !_grupoOrdem.includes(g))]
+            .filter(g => _passGrupoMap[g])
+            .map(function(g, gi) { return _mkGrupoRows(g, _passGrupoMap[g], gi, true); }).join('')
+        : '<tr><td colspan="2" style="padding:7px 0 7px 12px;font-size:12px;color:#aaa;">Nenhum financiamento registrado</td></tr>';
+
 
       const rowsAlerta = alertas.slice(0,8).map(a => {
         const cor = a.diff < 0 ? '#A32D2D' : a.diff < 30 ? '#854F0B' : '#185FA5';
