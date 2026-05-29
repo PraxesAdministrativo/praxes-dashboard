@@ -11479,11 +11479,12 @@ Esta ação não pode ser desfeita.`)) return;
     --success: #1a6645; --danger: #8c2020; --warn: #7a4f00;
   }
   * { margin:0; padding:0; box-sizing:border-box; }
-  @page { size: A4; margin: 18mm 16mm; }
+  @page { size: A4; margin: 0; }
   body { font-family:'Urbanist',sans-serif; background:#fff; color:var(--abyss); font-size:11px; line-height:1.5; -webkit-font-smoothing:antialiased; }
+  .content-wrap { padding: 18mm 16mm; }
 
   /* ── CAPA ── */
-  .cover { page-break-after:always; min-height:100vh; display:flex; flex-direction:column; background:var(--abyss); color:var(--sand); padding:40mm 20mm; }
+  .cover { page-break-after:always; min-height:100vh; display:flex; flex-direction:column; background:var(--abyss); color:var(--sand); padding:40mm 20mm; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   .cover-logo { font-family:'Syne',serif; font-size:22px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; margin-bottom:auto; opacity:0.9; }
   .cover-tagline { font-size:9px; letter-spacing:0.2em; text-transform:uppercase; color:rgba(242,221,198,0.35); margin-top:4px; }
   .cover-title { font-family:'Syne',serif; font-size:36px; font-weight:500; letter-spacing:-0.02em; line-height:1.1; margin-bottom:16px; }
@@ -11581,6 +11582,9 @@ Esta ação não pode ser desfeita.`)) return;
   </div>
 </div>
 
+<!-- CONTEÚDO -->
+<div class="content-wrap">
+
 <!-- 1. RENTABILIDADE -->
 <section>
   <div class="section-eyebrow">Performance</div>
@@ -11669,10 +11673,13 @@ Esta ação não pode ser desfeita.`)) return;
 </section>
 
 <!-- FOOTER -->
+<div class="content-wrap" style="padding-top:0;">
 <div class="footer">
   <span>Praxes Gestão Patrimonial — Confidencial</span>
   <span>Gerado em ${hoje.toLocaleDateString('pt-BR')} às ${hoje.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span>
 </div>
+</div><!-- content-wrap footer -->
+</div><!-- content-wrap main -->
 
 <script>window.onload = () => { window.print(); }<\/script>
 </body></html>`;
