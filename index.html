@@ -2430,22 +2430,60 @@
 
           <!-- ABA: DASHBOARD -->
           <div class="fin-tab-content active" id="fin-tab-dashboard">
+            <!-- KPIs principais -->
             <div class="fin-kpi-grid" id="fin-kpis">
               <div class="fin-loading"><div class="spinner"></div><p>Carregando...</p></div>
             </div>
-            <div class="fin-chart-row">
+
+            <!-- KPIs ampliados: YTD + Média + Projeção -->
+            <div id="fin-kpis-extra" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;"></div>
+
+            <!-- Linha 1: Histórico 12 meses (largura total) -->
+            <div class="gestao-section" style="margin-bottom:16px;">
+              <div class="gestao-header">
+                <h3 class="gestao-title">Histórico mensal — Rendas vs Despesas</h3>
+                <span id="fin-hist-label" style="font-size:11px;color:var(--fg-mute);"></span>
+              </div>
+              <div style="height:220px;"><canvas id="fin-chart-historico"></canvas></div>
+            </div>
+
+            <!-- Linha 2: Evolução anual + Pizza -->
+            <div class="fin-chart-row" style="margin-bottom:16px;">
               <div class="fin-chart-box">
                 <div class="fin-chart-title">Receitas vs. Despesas — Evolução Anual</div>
-                <div style="height: 280px;"><canvas id="fin-chart-anual"></canvas></div>
+                <div style="height:240px;"><canvas id="fin-chart-anual"></canvas></div>
               </div>
               <div class="fin-chart-box">
                 <div class="fin-chart-title">Despesas por Grupo</div>
-                <div style="height: 280px;"><canvas id="fin-chart-pizza"></canvas></div>
+                <div style="height:240px;"><canvas id="fin-chart-pizza"></canvas></div>
               </div>
             </div>
-            <div class="fin-chart-box">
-              <div class="fin-chart-title">Detalhamento de Despesas do Mês</div>
-              <div style="height: 320px;"><canvas id="fin-chart-barras"></canvas></div>
+
+            <!-- Linha 3: Insights automáticos -->
+            <div id="fin-insights" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;"></div>
+
+            <!-- Linha 4: Despesas do mês + YTD lado a lado -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+              <div class="gestao-section">
+                <div class="gestao-header">
+                  <h3 class="gestao-title">Despesas no mês — por grupo</h3>
+                  <span id="fin-desp-mes-total" style="font-size:12px;font-weight:600;color:var(--danger);"></span>
+                </div>
+                <div id="fin-desp-mes-table"></div>
+              </div>
+              <div class="gestao-section">
+                <div class="gestao-header">
+                  <h3 class="gestao-title">Despesas acumuladas YTD — por grupo</h3>
+                  <span id="fin-desp-ytd-total" style="font-size:12px;font-weight:600;color:var(--danger);"></span>
+                </div>
+                <div id="fin-desp-ytd-table"></div>
+              </div>
+            </div>
+
+            <!-- Linha 5: Detalhamento subcategorias -->
+            <div class="fin-chart-box" style="margin-bottom:0;">
+              <div class="fin-chart-title">Detalhamento de Despesas do Mês — subcategorias</div>
+              <div style="height:320px;"><canvas id="fin-chart-barras"></canvas></div>
             </div>
           </div>
 
@@ -8577,16 +8615,26 @@
     function finRenderDashboard(gerRows) {
       const colAtualKey = `${finAnoAtual}-${finMesAtual}`;
       const colAtual = finColMap[colAtualKey];
+      const ytdKey   = `ytd_${finAnoAtual}`;
+      const ytdCol   = finColMap[ytdKey];
 
-      // KPIs do mês
+      // ── Série anual + YTD ────────────────────────────────────────────────────
       let rendaTotal = 0, despesaTotal = 0;
+      let rendaYTD = 0, despYTD = 0;
       let totalAnual = { rendas: Array(12).fill(0), despesas: Array(12).fill(0) };
+
+      // Mesmo mês do ano anterior (para comparativo)
+      const anoAnterior = finAnoAtual - 1;
+      let rendaMesAnt = 0, despMesAnt = 0;
+      const colMesAnt = finColMap[`${anoAnterior}-${finMesAtual}`];
 
       gerRows.forEach(row => {
         if (!row) return;
         const label = String(row[1] || '').trim();
         if (label === 'Rendas totais') {
           if (colAtual !== undefined) rendaTotal = Math.abs(parseFloat(String(row[colAtual] ?? '0')) || 0);
+          if (ytdCol   !== undefined) rendaYTD   = Math.abs(parseFloat(String(row[ytdCol]   ?? '0')) || 0);
+          if (colMesAnt !== undefined) rendaMesAnt = Math.abs(parseFloat(String(row[colMesAnt] ?? '0')) || 0);
           for (let m = 1; m <= 12; m++) {
             const ci = finColMap[`${finAnoAtual}-${m}`];
             if (ci !== undefined) totalAnual.rendas[m-1] = Math.abs(parseFloat(String(row[ci] ?? '0')) || 0);
@@ -8594,6 +8642,8 @@
         }
         if (label === 'Total de despesas') {
           if (colAtual !== undefined) despesaTotal = Math.abs(parseFloat(String(row[colAtual] ?? '0')) || 0);
+          if (ytdCol   !== undefined) despYTD      = Math.abs(parseFloat(String(row[ytdCol]   ?? '0')) || 0);
+          if (colMesAnt !== undefined) despMesAnt  = Math.abs(parseFloat(String(row[colMesAnt] ?? '0')) || 0);
           for (let m = 1; m <= 12; m++) {
             const ci = finColMap[`${finAnoAtual}-${m}`];
             if (ci !== undefined) totalAnual.despesas[m-1] = Math.abs(parseFloat(String(row[ci] ?? '0')) || 0);
@@ -8601,19 +8651,62 @@
         }
       });
 
-      const saldo = rendaTotal - despesaTotal;
-      const poupanca = rendaTotal > 0 ? ((saldo / rendaTotal) * 100).toFixed(1) : 0;
+      const saldo      = rendaTotal - despesaTotal;
+      const saldoYTD   = rendaYTD - despYTD;
+      const poupanca   = rendaTotal > 0 ? ((saldo / rendaTotal) * 100).toFixed(1) : 0;
+      const poupYTD    = rendaYTD  > 0 ? ((saldoYTD / rendaYTD) * 100).toFixed(1) : 0;
+
+      // Média mensal YTD
+      const mesesComDados = totalAnual.despesas.filter(v => v > 0).length || 1;
+      const mediaMensal   = despYTD / mesesComDados;
+      const projecaoAnual = mediaMensal * 12;
+
+      // Comparativo mês anterior
+      const varRenda = rendaMesAnt > 0 ? ((rendaTotal - rendaMesAnt) / rendaMesAnt * 100) : null;
+      const varDesp  = despMesAnt  > 0 ? ((despesaTotal - despMesAnt) / despMesAnt * 100)  : null;
+
+      // Concentração: top 3 categorias
+      const SKIP = ['rendas totais','total de despesas','despesas rotineiras'];
+      const grupos = [];
+      let totGrupos = 0;
+      gerRows.forEach(row => {
+        if (!row || colAtual === undefined) return;
+        const l = String(row[1]||'').trim(), sub = String(row[2]||'').trim();
+        if (!l || sub || SKIP.some(s=>l.toLowerCase().includes(s))) return;
+        if (finIsRenda(l) || l.startsWith('(=')) return;
+        const v = Math.abs(parseFloat(String(row[colAtual]||'0'))||0);
+        if (v > 0) { grupos.push({l, v}); totGrupos += v; }
+      });
+      grupos.sort((a,b) => b.v - a.v);
+      const top3pct = totGrupos > 0 ? grupos.slice(0,3).reduce((s,g)=>s+g.v,0)/totGrupos*100 : 0;
+
+      // Grupos YTD
+      const gruposYTD = [];
+      let totYTD = 0;
+      gerRows.forEach(row => {
+        if (!row || ytdCol === undefined) return;
+        const l = String(row[1]||'').trim(), sub = String(row[2]||'').trim();
+        if (!l || sub || SKIP.some(s=>l.toLowerCase().includes(s))) return;
+        if (finIsRenda(l) || l.startsWith('(=')) return;
+        const v = Math.abs(parseFloat(String(row[ytdCol]||'0'))||0);
+        if (v > 0) { gruposYTD.push({l, v}); totYTD += v; }
+      });
+      gruposYTD.sort((a,b) => b.v - a.v);
+
+      // ── KPIs principais ──────────────────────────────────────────────────────
+      const fmtVar = (v) => v === null ? '' :
+        `<span style="font-size:10px;color:${v>0?'var(--danger)':'var(--success)'};">${v>0?'▲':'▼'} ${Math.abs(v).toFixed(1)}% vs ${anoAnterior}</span>`;
 
       document.getElementById('fin-kpis').innerHTML = `
         <div class="fin-kpi-card verde">
           <div class="fin-kpi-label">Rendas no Mês</div>
           <div class="fin-kpi-value positivo">${fmt(rendaTotal)}</div>
-          <div class="fin-kpi-sub">${MESES_PT[finMesAtual-1]} de ${finAnoAtual}</div>
+          <div class="fin-kpi-sub">${fmtVar(varRenda) || MESES_PT[finMesAtual-1]+' de '+finAnoAtual}</div>
         </div>
         <div class="fin-kpi-card vermelho">
           <div class="fin-kpi-label">Despesas no Mês</div>
           <div class="fin-kpi-value negativo">${fmt(despesaTotal)}</div>
-          <div class="fin-kpi-sub">Excl. duplicidades</div>
+          <div class="fin-kpi-sub">${fmtVar(varDesp) || 'Excl. duplicidades'}</div>
         </div>
         <div class="fin-kpi-card ${saldo >= 0 ? 'verde' : 'vermelho'}">
           <div class="fin-kpi-label">Resultado (Δ)</div>
@@ -8627,23 +8720,175 @@
         </div>
       `;
 
-      // Gráfico linha anual
-      const labels = MESES_PT.map(m => m.substring(0,3));
-      finDestroyChart('fin-chart-anual');
-      finChartAnual = new Chart(document.getElementById('fin-chart-anual'), {
-        type: 'line',
+      // ── KPIs ampliados: YTD + Média + Projeção ────────────────────────────────
+      document.getElementById('fin-kpis-extra').innerHTML = [
+        ['Rendas YTD', fmt(rendaYTD), 'var(--success)', `Acum. ${finAnoAtual}`],
+        ['Despesas YTD', fmt(despYTD), 'var(--danger)', `Acum. ${finAnoAtual}`],
+        ['Resultado YTD', (saldoYTD>=0?'+':'')+fmt(saldoYTD), saldoYTD>=0?'var(--success)':'var(--danger)', `Poupança ${poupYTD}%`],
+        ['Média mensal', fmt(mediaMensal), 'var(--fg-2)', `Base ${mesesComDados} meses`],
+        ['Projeção anual', fmt(projecaoAnual), 'var(--fg-2)', 'Despesas estimadas'],
+        ['Top 3 grupos', top3pct.toFixed(1)+'%', 'var(--praxes-teal)', grupos.slice(0,3).map(g=>g.l).join(', ').substring(0,40)],
+      ].map(([l,v,c,sub]) => `
+        <div class="fin-kpi-card" style="border-top-color:var(--praxes-sand);">
+          <div class="fin-kpi-label">${l}</div>
+          <div class="fin-kpi-value" style="color:${c};font-size:16px;">${v}</div>
+          <div class="fin-kpi-sub" style="font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${sub}</div>
+        </div>`).join('');
+
+      // Ajusta grid para 6 colunas
+      document.getElementById('fin-kpis-extra').style.gridTemplateColumns = 'repeat(6,1fr)';
+
+      // ── Histórico mensal 12 meses ─────────────────────────────────────────────
+      const mAbrev = MESES_PT.map(m => m.substring(0,3));
+      document.getElementById('fin-hist-label').textContent = finAnoAtual;
+      finDestroyChart('fin-chart-historico');
+      new Chart(document.getElementById('fin-chart-historico'), {
+        type: 'bar',
         data: {
-          labels,
+          labels: mAbrev,
           datasets: [
-            { label: 'Rendas', data: totalAnual.rendas, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)', borderWidth: 2.5, fill: true, tension: 0.4, pointRadius: 4, pointBackgroundColor: '#10b981', pointBorderColor: '#fff', pointBorderWidth: 2 },
-            { label: 'Despesas', data: totalAnual.despesas, borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.08)', borderWidth: 2.5, fill: true, tension: 0.4, pointRadius: 4, pointBackgroundColor: '#ef4444', pointBorderColor: '#fff', pointBorderWidth: 2 }
+            { label: 'Rendas', data: totalAnual.rendas,
+              backgroundColor: totalAnual.rendas.map((_,i) => i===finMesAtual-1?'rgba(26,102,69,0.9)':'rgba(26,102,69,0.4)'),
+              borderRadius: 3, borderSkipped: false, barPercentage: 0.45, categoryPercentage: 0.8 },
+            { label: 'Despesas', data: totalAnual.despesas,
+              backgroundColor: totalAnual.despesas.map((_,i) => i===finMesAtual-1?'rgba(140,32,32,0.9)':'rgba(140,32,32,0.4)'),
+              borderRadius: 3, borderSkipped: false, barPercentage: 0.45, categoryPercentage: 0.8 }
           ]
         },
-        options: finChartOptions()
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { labels: { font: { size: 11, family: 'Urbanist' }, padding: 14 } },
+            tooltip: {
+              ...finTooltipStyle(),
+              callbacks: {
+                label: ctx => {
+                  const v = ctx.parsed.y;
+                  const other = ctx.datasetIndex === 0 ? totalAnual.despesas[ctx.dataIndex] : totalAnual.rendas[ctx.dataIndex];
+                  const delta = ctx.datasetIndex === 0 ? v - other : other - v;
+                  return [`${ctx.dataset.label}: ${fmt(v)}`, `Δ: ${delta>=0?'+':''}${fmt(delta)}`];
+                }
+              }
+            }
+          },
+          scales: {
+            y: { beginAtZero: true, ticks: { callback: v => 'R$'+(v/1000).toFixed(0)+'k', color:'#666', font:{size:10} }, grid: { color:'#e8e4dc' } },
+            x: { ticks: { color: '#666', font:{size:10} }, grid: { display: false } }
+          }
+        }
       });
 
+      // ── Insights automáticos ─────────────────────────────────────────────────
+      const insights = [];
+
+      // 1. Comparativo mês vs mesmo mês ano anterior
+      if (varDesp !== null) {
+        const ico  = varDesp > 10 ? '⚠️' : varDesp < -10 ? '✅' : 'ℹ️';
+        const txt  = varDesp > 0 ? `Despesas ${varDesp.toFixed(1)}% maiores que ${MESES_PT[finMesAtual-1]}/${anoAnterior}` : `Despesas ${Math.abs(varDesp).toFixed(1)}% menores que ${MESES_PT[finMesAtual-1]}/${anoAnterior}`;
+        insights.push({ icon: ico, title: 'Comparativo anual', text: txt, cor: varDesp > 10 ? '#8c2020' : '#1a6645' });
+      }
+
+      // 2. Concentração de gastos
+      if (grupos.length >= 3) {
+        insights.push({
+          icon: '📊', title: 'Concentração de gastos',
+          text: `Top 3 categorias representam ${top3pct.toFixed(1)}% das despesas: ${grupos.slice(0,3).map(g=>g.l).join(', ')}`,
+          cor: top3pct > 80 ? '#8c2020' : '#2a5a66'
+        });
+      }
+
+      // 3. Projeção vs média
+      const ritmo = mediaMensal > 0 ? ((despesaTotal / mediaMensal - 1) * 100) : 0;
+      insights.push({
+        icon: ritmo > 15 ? '🔴' : ritmo < -15 ? '🟢' : '🟡',
+        title: 'Ritmo de gastos',
+        text: ritmo > 0
+          ? `Mês ${ritmo.toFixed(1)}% acima da média mensal (${fmt(mediaMensal)})`
+          : `Mês ${Math.abs(ritmo).toFixed(1)}% abaixo da média mensal (${fmt(mediaMensal)})`,
+        cor: ritmo > 15 ? '#8c2020' : ritmo < -15 ? '#1a6645' : '#7a4f00'
+      });
+
+      // 4. Velocidade poupança
+      if (rendaTotal > 0) {
+        const nivel = parseFloat(poupanca);
+        insights.push({
+          icon: nivel >= 30 ? '🌟' : nivel >= 10 ? '👍' : '⚠️',
+          title: 'Taxa de poupança',
+          text: nivel >= 30 ? `Excelente: ${poupanca}% da renda guardada este mês` :
+                nivel >= 10 ? `Adequada: ${poupanca}% da renda guardada este mês` :
+                              `Atenção: apenas ${poupanca}% da renda guardada este mês`,
+          cor: nivel >= 30 ? '#1a6645' : nivel >= 10 ? '#2a5a66' : '#8c2020'
+        });
+      }
+
+      // 5. Maior despesa do mês
+      if (grupos.length > 0) {
+        const maior = grupos[0];
+        const pct   = totGrupos > 0 ? (maior.v/totGrupos*100).toFixed(1) : 0;
+        insights.push({
+          icon: '🏷️', title: 'Principal despesa',
+          text: `"${maior.l}" representa ${pct}% do total (${fmt(maior.v)})`,
+          cor: '#2a5a66'
+        });
+      }
+
+      // 6. Projeção anual de despesas
+      insights.push({
+        icon: '📅', title: 'Projeção anual',
+        text: `Ao ritmo atual: ${fmt(projecaoAnual)} em despesas em ${finAnoAtual} (${fmt(despYTD)} acumulado)`,
+        cor: '#2a5a66'
+      });
+
+      document.getElementById('fin-insights').style.gridTemplateColumns = 'repeat(3,1fr)';
+      document.getElementById('fin-insights').innerHTML = insights.slice(0,6).map(ins => `
+        <div style="background:var(--praxes-paper);border-radius:8px;padding:14px 16px;border:1px solid var(--line);border-left:3px solid ${ins.cor};">
+          <div style="font-size:11px;font-weight:600;color:var(--fg-mute);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">${ins.icon} ${ins.title}</div>
+          <div style="font-size:12px;color:var(--fg-1);line-height:1.45;">${ins.text}</div>
+        </div>`).join('');
+
+      // ── Tabela despesas do mês por grupo ────────────────────────────────────
+      const renderGrupoTable = (items, total, elId, totalElId) => {
+        document.getElementById(totalElId).textContent = fmt(total);
+        document.getElementById(elId).innerHTML = `
+          <table class="gestao-table" style="font-size:11px;">
+            <thead><tr><th>Grupo</th><th style="text-align:right;">Valor</th><th style="text-align:right;">%</th></tr></thead>
+            <tbody>
+              ${items.map(g => {
+                const pct = total > 0 ? (g.v/total*100).toFixed(1) : 0;
+                const bar = `<div style="height:3px;background:var(--praxes-teal);opacity:.4;border-radius:2px;width:${pct}%;margin-top:2px;"></div>`;
+                return `<tr><td>${g.l}${bar}</td><td style="text-align:right;">${fmt(g.v)}</td><td style="text-align:right;font-weight:600;color:var(--fg-mute);">${pct}%</td></tr>`;
+              }).join('')}
+              <tr style="font-weight:700;border-top:2px solid var(--line);"><td>Total</td><td style="text-align:right;">${fmt(total)}</td><td style="text-align:right;">100%</td></tr>
+            </tbody>
+          </table>`;
+      };
+      renderGrupoTable(grupos, totGrupos, 'fin-desp-mes-table', 'fin-desp-mes-total');
+      renderGrupoTable(gruposYTD, totYTD, 'fin-desp-ytd-table', 'fin-desp-ytd-total');
+
+      // ── Gráficos existentes ───────────────────────────────────────────────────
       finRenderPizza(gerRows, colAtual);
       finRenderBarras(gerRows, colAtual);
+
+      // ── Linha anual (existente, ajustada para bar) ────────────────────────────
+      finDestroyChart('fin-chart-anual');
+      finChartAnual = new Chart(document.getElementById('fin-chart-anual'), {
+        type: 'bar',
+        data: {
+          labels: mAbrev,
+          datasets: [
+            { label: 'Rendas', data: totalAnual.rendas, backgroundColor: 'rgba(26,102,69,0.7)', borderRadius:3, barPercentage:0.45, categoryPercentage:0.8 },
+            { label: 'Despesas', data: totalAnual.despesas, backgroundColor: 'rgba(140,32,32,0.7)', borderRadius:3, barPercentage:0.45, categoryPercentage:0.8 }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { labels: { font:{size:11,family:'Urbanist'}, padding:14 } }, tooltip: finTooltipStyle() },
+          scales: {
+            y: { beginAtZero: true, ticks: { callback: v=>'R$'+(v/1000).toFixed(0)+'k', color:'#666' }, grid:{color:'#e8e4dc'} },
+            x: { ticks:{color:'#666'}, grid:{display:false} }
+          }
+        }
+      });
     }
 
     function finDestroyChart(canvasId) {
@@ -9356,6 +9601,46 @@ Esta ação não pode ser desfeita.`)) return;
 
         // Grupos de despesa
         const colAtual = finColMap[finAnoAtual+'-'+finMesAtual];
+        const ytdCol   = finColMap['ytd_'+finAnoAtual];
+        const anoAnt   = finAnoAtual - 1;
+        const colMesAnt= finColMap[anoAnt+'-'+finMesAtual];
+
+        // YTD rendas/despesas + mês anterior
+        let rendaYTD=0, despYTD=0, rendaMesAnt=0, despMesAnt=0;
+        finGerRows.forEach(row=>{
+          if(!row) return;
+          const l=String(row[1]||'').trim();
+          if(l==='Rendas totais'){
+            if(ytdCol!==undefined)    rendaYTD   =Math.abs(parseFloat(row[ytdCol])||0);
+            if(colMesAnt!==undefined) rendaMesAnt=Math.abs(parseFloat(row[colMesAnt])||0);
+          }
+          if(l==='Total de despesas'){
+            if(ytdCol!==undefined)    despYTD    =Math.abs(parseFloat(row[ytdCol])||0);
+            if(colMesAnt!==undefined) despMesAnt =Math.abs(parseFloat(row[colMesAnt])||0);
+          }
+        });
+        const saldoYTD   = rendaYTD - despYTD;
+        const poupYTD    = rendaYTD>0?((saldoYTD/rendaYTD)*100).toFixed(1):'0';
+        const mesesComDados = serie.filter(s=>s.d>0).length||1;
+        const mediaMensal   = despYTD / mesesComDados;
+        const projecaoAnual = mediaMensal * 12;
+        const varDesp = despMesAnt>0?((kpi.despesaTotal-despMesAnt)/despMesAnt*100):null;
+        const varRenda= rendaMesAnt>0?((kpi.rendaTotal-rendaMesAnt)/rendaMesAnt*100):null;
+        const top3pct = totGrupos>0?grupos.slice(0,3).reduce((s,g)=>s+g.v,0)/totGrupos*100:0;
+        const ritmo   = mediaMensal>0?((kpi.despesaTotal/mediaMensal-1)*100):0;
+
+        // Grupos YTD
+        const gruposYTD=[];let totYTD=0;
+        finGerRows.forEach(row=>{
+          if(!row||ytdCol===undefined) return;
+          const l=String(row[1]||'').trim(), sub=String(row[2]||'').trim();
+          if(!l||sub||SKIP.some(s=>l.toLowerCase().includes(s))) return;
+          if(finIsRenda(l)||l.startsWith('(=')) return;
+          const v=Math.abs(parseFloat(row[ytdCol])||0);
+          if(v>0){gruposYTD.push({l,v});totYTD+=v;}
+        });
+        gruposYTD.sort((a,b)=>b.v-a.v);
+
         const SKIP = ['rendas totais','total de despesas','despesas rotineiras'];
         const grupos=[];let totGrupos=0;
         finGerRows.forEach(row=>{
@@ -9556,18 +9841,191 @@ Esta ação não pode ser desfeita.`)) return;
       </div>
     </div>
   </div>
-  <div class="pf"><span>Praxes Gestão Patrimonial — Confidencial</span><span>2 / 3</span></div>
+  <div class="pf"><span>Praxes Gestão Patrimonial — Confidencial</span><span>2 / 5</span></div>
 </div>
 </div>
 
-<!-- PÁG 3: DETALHAMENTO -->
+<!-- PÁG 3: ANÁLISE GERAL — histórico + tabelas ──────────────────────────── -->
+<div class="page">
+<div class="inner">
+  <div class="ph"><span class="ph-l">${clientName}</span><span class="ph-r">${mesLabel}</span></div>
+
+  <!-- Tabela de análise geral -->
+  <section style="margin-bottom:18px;">
+    <div class="ey">Análise geral</div>
+    <div class="st">Recebimentos versus Despesas</div>
+    <table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:12px;">
+      <thead><tr>
+        <th style="background:var(--ab);color:var(--sd);padding:7px 10px;text-align:left;">Indicador</th>
+        <th style="background:var(--ab);color:var(--sd);padding:7px 10px;text-align:right;">No mês</th>
+        <th style="background:var(--ab);color:var(--sd);padding:7px 10px;text-align:right;">No ano (YTD)</th>
+        <th style="background:var(--ab);color:var(--sd);padding:7px 10px;text-align:right;">Média mensal</th>
+        ${varRenda!==null?`<th style="background:var(--ab);color:var(--sd);padding:7px 10px;text-align:right;">vs ${anoAnt}</th>`:''}
+      </tr></thead>
+      <tbody>
+        <tr style="background:var(--pp);">
+          <td style="padding:7px 10px;font-weight:600;">Rendas totais</td>
+          <td style="padding:7px 10px;text-align:right;color:#1a6645;font-weight:600;">${fmtR(kpi.rendaTotal)}</td>
+          <td style="padding:7px 10px;text-align:right;">${fmtR(rendaYTD)}</td>
+          <td style="padding:7px 10px;text-align:right;">${fmtR(rendaYTD/mesesComDados)}</td>
+          ${varRenda!==null?`<td style="padding:7px 10px;text-align:right;color:${varRenda>=0?'#1a6645':'#8c2020'};font-weight:600;">${varRenda>=0?'+':''}${varRenda.toFixed(1)}%</td>`:''}
+        </tr>
+        <tr>
+          <td style="padding:7px 10px;font-weight:600;">Despesas totais</td>
+          <td style="padding:7px 10px;text-align:right;color:#8c2020;font-weight:600;">${fmtR(kpi.despesaTotal)}</td>
+          <td style="padding:7px 10px;text-align:right;">${fmtR(despYTD)}</td>
+          <td style="padding:7px 10px;text-align:right;">${fmtR(mediaMensal)}</td>
+          ${varDesp!==null?`<td style="padding:7px 10px;text-align:right;color:${varDesp<=0?'#1a6645':'#8c2020'};font-weight:600;">${varDesp>=0?'+':''}${varDesp.toFixed(1)}%</td>`:''}
+        </tr>
+        <tr style="background:var(--pp);border-top:2px solid var(--ab);">
+          <td style="padding:7px 10px;font-weight:700;">Δ Resultado</td>
+          <td style="padding:7px 10px;text-align:right;font-weight:700;color:${kpi.saldo>=0?'#1a6645':'#8c2020'};">${fmtS(kpi.saldo)}</td>
+          <td style="padding:7px 10px;text-align:right;font-weight:700;color:${saldoYTD>=0?'#1a6645':'#8c2020'};">${fmtS(saldoYTD)}</td>
+          <td style="padding:7px 10px;text-align:right;font-weight:700;color:${(rendaYTD/mesesComDados-mediaMensal)>=0?'#1a6645':'#8c2020'};">${fmtS(rendaYTD/mesesComDados-mediaMensal)}</td>
+          ${varRenda!==null?`<td style="padding:7px 10px;"></td>`:''}
+        </tr>
+        <tr>
+          <td style="padding:7px 10px;">Taxa de poupança</td>
+          <td style="padding:7px 10px;text-align:right;font-weight:600;">${kpi.poupanca}%</td>
+          <td style="padding:7px 10px;text-align:right;">${poupYTD}%</td>
+          <td style="padding:7px 10px;text-align:right;">—</td>
+          ${varRenda!==null?`<td style="padding:7px 10px;"></td>`:''}
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Linha extra: projeção e insights -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:6px;">
+      <div style="background:var(--pp);border-radius:4px;padding:10px 12px;border:1px solid rgba(4,25,36,.07);">
+        <div style="font-size:7.5px;color:var(--t4);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px;">Projeção anual despesas</div>
+        <div style="font-family:'Syne',serif;font-size:14px;font-weight:500;">${fmtR(projecaoAnual)}</div>
+        <div style="font-size:8px;color:var(--t4);margin-top:2px;">Base: média de ${mesesComDados} meses</div>
+      </div>
+      <div style="background:var(--pp);border-radius:4px;padding:10px 12px;border:1px solid rgba(4,25,36,.07);">
+        <div style="font-size:7.5px;color:var(--t4);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px;">Ritmo de gastos</div>
+        <div style="font-family:'Syne',serif;font-size:14px;font-weight:500;color:${ritmo>15?'#8c2020':ritmo<-15?'#1a6645':'#7a4f00'};">${ritmo>0?'+':''}${ritmo.toFixed(1)}%</div>
+        <div style="font-size:8px;color:var(--t4);margin-top:2px;">vs média mensal (${fmtR(mediaMensal)})</div>
+      </div>
+      <div style="background:var(--pp);border-radius:4px;padding:10px 12px;border:1px solid rgba(4,25,36,.07);">
+        <div style="font-size:7.5px;color:var(--t4);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px;">Concentração top 3</div>
+        <div style="font-family:'Syne',serif;font-size:14px;font-weight:500;">${top3pct.toFixed(1)}%</div>
+        <div style="font-size:8px;color:var(--t4);margin-top:2px;">${grupos.slice(0,3).map(g=>g.l).join(' · ')}</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Histórico mensal SVG -->
+  <section>
+    <div class="ey">Histórico anual</div>
+    <div class="st">Rendas vs Despesas — histórico mensal ${finAnoAtual}</div>
+    ${anualSvg}
+  </section>
+
+  <div class="pf"><span>Praxes Gestão Patrimonial — Confidencial</span><span>3 / 5</span></div>
+</div>
+</div>
+
+<!-- PÁG 4: DESPESAS MÊS + YTD ───────────────────────────────────────────── -->
+<div class="page">
+<div class="inner">
+  <div class="ph"><span class="ph-l">${clientName}</span><span class="ph-r">${mesLabel}</span></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+
+    <!-- Despesas no mês por grupo -->
+    <section>
+      <div class="ey">Análise das despesas</div>
+      <div class="st">Por grupo — ${mesLabel}</div>
+      <table style="width:100%;border-collapse:collapse;font-size:9.5px;">
+        <thead><tr>
+          <th style="background:var(--sh);padding:6px 8px;text-align:left;font-size:8px;color:var(--t4);text-transform:uppercase;letter-spacing:.1em;">Plano de contas</th>
+          <th style="background:var(--sh);padding:6px 8px;text-align:right;font-size:8px;color:var(--t4);text-transform:uppercase;">Total no mês</th>
+          <th style="background:var(--sh);padding:6px 8px;text-align:right;font-size:8px;color:var(--t4);text-transform:uppercase;">Repres.</th>
+        </tr></thead>
+        <tbody>
+          ${grupos.map((g,i)=>{
+            const pct=totGrupos>0?(g.v/totGrupos*100).toFixed(2)+'%':'0%';
+            const bw=Math.round((g.v/grupos[0].v)*60);
+            return `<tr style="background:${i%2===0?'var(--pp)':'#fff'}">
+              <td style="padding:5px 8px;">${g.l}</td>
+              <td style="padding:5px 8px;text-align:right;font-weight:600;">${fmtR(g.v)}</td>
+              <td style="padding:5px 8px;text-align:right;color:var(--t4);">${pct}</td>
+            </tr>`;
+          }).join('')}
+          <tr style="border-top:2px solid var(--ab);font-weight:700;background:var(--pp);">
+            <td style="padding:6px 8px;">Total</td>
+            <td style="padding:6px 8px;text-align:right;">${fmtR(totGrupos)}</td>
+            <td style="padding:6px 8px;text-align:right;">100,00%</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Mini barras horizontais -->
+      <div style="margin-top:10px;">
+        <svg viewBox="0 0 260 ${Math.min(grupos.length,10)*16+4}" style="width:100%;display:block;" xmlns="http://www.w3.org/2000/svg">
+          ${grupos.slice(0,10).map((g,i)=>{
+            const bw=Math.max(2,(g.v/grupos[0].v)*180);
+            return `<rect x="0" y="${i*16}" width="${bw.toFixed(1)}" height="10" rx="2" fill="${C[i%C.length]}"/>
+              <text x="${bw+4}" y="${i*16+8}" font-size="7.5" fill="#5b818b" font-family="Urbanist,sans-serif">${fmtR(g.v)}</text>`;
+          }).join('')}
+        </svg>
+      </div>
+    </section>
+
+    <!-- Despesas YTD por grupo -->
+    <section>
+      <div class="ey">Acumulado no ano</div>
+      <div class="st">Por grupo — YTD ${finAnoAtual}</div>
+      <table style="width:100%;border-collapse:collapse;font-size:9.5px;">
+        <thead><tr>
+          <th style="background:var(--sh);padding:6px 8px;text-align:left;font-size:8px;color:var(--t4);text-transform:uppercase;letter-spacing:.1em;">Plano de contas</th>
+          <th style="background:var(--sh);padding:6px 8px;text-align:right;font-size:8px;color:var(--t4);text-transform:uppercase;">Total no ano</th>
+          <th style="background:var(--sh);padding:6px 8px;text-align:right;font-size:8px;color:var(--t4);text-transform:uppercase;">Repres.</th>
+        </tr></thead>
+        <tbody>
+          ${gruposYTD.map((g,i)=>{
+            const pct=totYTD>0?(g.v/totYTD*100).toFixed(2)+'%':'0%';
+            return `<tr style="background:${i%2===0?'var(--pp)':'#fff'}">
+              <td style="padding:5px 8px;">${g.l}</td>
+              <td style="padding:5px 8px;text-align:right;font-weight:600;">${fmtR(g.v)}</td>
+              <td style="padding:5px 8px;text-align:right;color:var(--t4);">${pct}</td>
+            </tr>`;
+          }).join('')}
+          <tr style="border-top:2px solid var(--ab);font-weight:700;background:var(--pp);">
+            <td style="padding:6px 8px;">Total</td>
+            <td style="padding:6px 8px;text-align:right;">${fmtR(totYTD)}</td>
+            <td style="padding:6px 8px;text-align:right;">100,00%</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Mini barras horizontais YTD -->
+      <div style="margin-top:10px;">
+        <svg viewBox="0 0 260 ${Math.min(gruposYTD.length,10)*16+4}" style="width:100%;display:block;" xmlns="http://www.w3.org/2000/svg">
+          ${gruposYTD.slice(0,10).map((g,i)=>{
+            const bw=Math.max(2,(g.v/(gruposYTD[0]?.v||1))*180);
+            return `<rect x="0" y="${i*16}" width="${bw.toFixed(1)}" height="10" rx="2" fill="${C[i%C.length]}"/>
+              <text x="${bw+4}" y="${i*16+8}" font-size="7.5" fill="#5b818b" font-family="Urbanist,sans-serif">${fmtR(g.v)}</text>`;
+          }).join('')}
+        </svg>
+      </div>
+    </section>
+  </div>
+
+  <div class="pf"><span>Praxes Gestão Patrimonial — Confidencial</span><span>4 / 5</span></div>
+</div>
+</div>
+
+<!-- PÁG 5: DETALHAMENTO SUBCATEGORIAS ──────────────────────────────────── -->
 <div class="page">
 <div class="inner">
   <div class="ph"><span class="ph-l">${clientName}</span><span class="ph-r">${mesLabel}</span></div>
   <div class="ey">Detalhe</div>
   <div class="st">Detalhamento de despesas — ${mesLabel}</div>
   <div class="bar-section">${subcatSvg}</div>
-  <div class="pf"><span>Praxes Gestão Patrimonial — Confidencial</span><span>Gerado em ${hoje.toLocaleDateString('pt-BR')} às ${hoje.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span></div>
+  <div class="pf">
+    <span>Praxes Gestão Patrimonial — Confidencial</span>
+    <span>Gerado em ${hoje.toLocaleDateString('pt-BR')} às ${hoje.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span>
+  </div>
 </div>
 </div>
 
