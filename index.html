@@ -11464,10 +11464,23 @@ Esta ação não pode ser desfeita.`)) return;
         `<tr><td>${k}</td><td class="num">${custTotal>0?(v/custTotal*100).toFixed(1)+'%':'—'}</td><td class="num">${fmtR(v)}</td></tr>`
       ).join('');
 
-      // Captura os gráficos do dashboard como imagem base64
-      const chartPerfImg   = document.getElementById('inv-chart-perf')?.toDataURL('image/png') || '';
-      const chartClasseImg = document.getElementById('inv-chart-classe')?.toDataURL('image/png') || '';
-      const chartCustImg   = document.getElementById('inv-chart-cust')?.toDataURL('image/png') || '';
+      // Captura os gráficos em alta resolução (2x)
+      const captureCanvas = (id) => {
+        const canvas = document.getElementById(id);
+        if (!canvas) return '';
+        // Cria canvas temporário em 2x
+        const scale = 2;
+        const tmp = document.createElement('canvas');
+        tmp.width  = canvas.width  * scale;
+        tmp.height = canvas.height * scale;
+        const ctx = tmp.getContext('2d');
+        ctx.scale(scale, scale);
+        ctx.drawImage(canvas, 0, 0);
+        return tmp.toDataURL('image/png', 1.0);
+      };
+      const chartPerfImg   = captureCanvas('inv-chart-perf');
+      const chartClasseImg = captureCanvas('inv-chart-classe');
+      const chartCustImg   = captureCanvas('inv-chart-cust');
 
       // ── HTML do relatório ─────────────────────────────────────────────────────
       const html = `<!DOCTYPE html>
@@ -11646,53 +11659,38 @@ Esta ação não pode ser desfeita.`)) return;
 
   <!-- Gráficos capturados do dashboard -->
   <section>
-    <!-- Performance: linha inteira -->
-    <div class="chart-wrap" style="margin-bottom:10px;">
-      <div class="chart-wrap-label">Performance acumulada</div>
-      ${chartPerfImg ? `<img src="${chartPerfImg}" alt="Performance acumulada" style="width:100%;height:auto;display:block;">` : '<p style="color:var(--teal-40);font-size:9px;padding:20px 0;text-align:center;">Gráfico não disponível</p>'}
+    <!-- Performance: linha inteira, altura proporcional ao canvas original -->
+    <div class="chart-wrap" style="margin-bottom:12px;">
+      <div class="chart-wrap-label">Performance acumulada — Carteira vs CDI vs IPCAdp</div>
+      ${chartPerfImg ? `<img src="${chartPerfImg}" alt="Performance acumulada" style="width:100%;height:auto;display:block;border-radius:3px;">` : '<p style="color:var(--teal-40);font-size:9px;padding:20px 0;text-align:center;">Gráfico não disponível</p>'}
     </div>
-    <!-- Pizzas: lado a lado abaixo -->
+    <!-- Pizzas: lado a lado com donut maior -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-      <div class="chart-wrap" style="display:flex;align-items:center;gap:12px;">
-        <div style="flex-shrink:0;width:90px;">
-          <div class="chart-wrap-label" style="margin-bottom:6px;">Por classe</div>
-          ${chartClasseImg ? `<img src="${chartClasseImg}" alt="Por classe" style="width:90px;height:90px;display:block;">` : ''}
-        </div>
-        <div style="font-size:8.5px;line-height:1.6;min-width:0;">
-          ${Object.entries(d.classeMap||{}).sort(([,a],[,b])=>b-a).map(([k,v],i)=>{
-            const tot=Object.values(d.classeMap||{}).reduce((s,x)=>s+x,0);
-            const pct=tot>0?(v/tot*100).toFixed(1):'0';
-            const colors=['#041924','#2a5a66','#1d9e75','#a5bcc2','#5b818b','#ebe3d6'];
-            return `<div style="display:flex;justify-content:space-between;gap:8px;white-space:nowrap;">
-              <span style="display:inline-flex;align-items:center;gap:4px;overflow:hidden;text-overflow:ellipsis;max-width:140px;color:var(--abyss);">
-                <span style="width:6px;height:6px;border-radius:1px;background:${colors[i%colors.length]};flex-shrink:0;display:inline-block;"></span>
-                ${k}
-              </span>
-              <span style="font-weight:600;color:var(--teal-40);">${pct}%</span>
-            </div>`;
-          }).join('')}
-        </div>
-      </div>
-      <div class="chart-wrap" style="display:flex;align-items:center;gap:12px;">
-        <div style="flex-shrink:0;width:90px;">
-          <div class="chart-wrap-label" style="margin-bottom:6px;">Por custodiante</div>
-          ${chartCustImg ? `<img src="${chartCustImg}" alt="Por custodiante" style="width:90px;height:90px;display:block;">` : ''}
-        </div>
-        <div style="font-size:8.5px;line-height:1.6;min-width:0;">
-          ${Object.entries(d.custMap||{}).sort(([,a],[,b])=>b-a).map(([k,v],i)=>{
-            const tot=Object.values(d.custMap||{}).reduce((s,x)=>s+x,0);
-            const pct=tot>0?(v/tot*100).toFixed(1):'0';
-            const colors=['#041924','#2a5a66','#1d9e75','#a5bcc2','#5b818b','#ebe3d6'];
-            return `<div style="display:flex;justify-content:space-between;gap:8px;white-space:nowrap;">
-              <span style="display:inline-flex;align-items:center;gap:4px;overflow:hidden;text-overflow:ellipsis;max-width:140px;color:var(--abyss);">
-                <span style="width:6px;height:6px;border-radius:1px;background:${colors[i%colors.length]};flex-shrink:0;display:inline-block;"></span>
-                ${k}
-              </span>
-              <span style="font-weight:600;color:var(--teal-40);">${pct}%</span>
-            </div>`;
-          }).join('')}
-        </div>
-      </div>
+      ${[
+        ['Por classe', chartClasseImg, d.classeMap||{}],
+        ['Por custodiante', chartCustImg, d.custMap||{}]
+      ].map(([title, img, map]) => {
+        const tot = Object.values(map).reduce((s,x)=>s+x,0);
+        const entries = Object.entries(map).sort(([,a],[,b])=>b-a);
+        const colors = ['#041924','#2a5a66','#1d9e75','#a5bcc2','#5b818b','#03313e','#d7e1e4'];
+        const legend = entries.map(([k,v],i) => {
+          const pct = tot>0?(v/tot*100).toFixed(1):'0';
+          return `<div style="display:flex;align-items:center;justify-content:space-between;padding:2px 0;border-bottom:0.5px solid rgba(4,25,36,0.04);">
+            <span style="display:inline-flex;align-items:center;gap:5px;font-size:8.5px;color:var(--abyss);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px;">
+              <span style="width:7px;height:7px;border-radius:1px;background:${colors[i%colors.length]};flex-shrink:0;display:inline-block;"></span>
+              ${k}
+            </span>
+            <span style="font-size:9px;font-weight:600;color:var(--teal-40);flex-shrink:0;margin-left:4px;">${pct}%</span>
+          </div>`;
+        }).join('');
+        return `<div class="chart-wrap" style="display:flex;align-items:flex-start;gap:14px;padding:12px 14px;">
+          <div style="flex-shrink:0;">
+            <div class="chart-wrap-label" style="margin-bottom:8px;">${title}</div>
+            ${img ? `<img src="${img}" alt="${title}" style="width:110px;height:110px;display:block;border-radius:3px;">` : ''}
+          </div>
+          <div style="flex:1;min-width:0;padding-top:18px;">${legend}</div>
+        </div>`;
+      }).join('')}
     </div>
   </section>
 
