@@ -11464,6 +11464,11 @@ Esta ação não pode ser desfeita.`)) return;
         `<tr><td>${k}</td><td class="num">${custTotal>0?(v/custTotal*100).toFixed(1)+'%':'—'}</td><td class="num">${fmtR(v)}</td></tr>`
       ).join('');
 
+      // Captura os gráficos do dashboard como imagem base64
+      const chartPerfImg   = document.getElementById('inv-chart-perf')?.toDataURL('image/png') || '';
+      const chartClasseImg = document.getElementById('inv-chart-classe')?.toDataURL('image/png') || '';
+      const chartCustImg   = document.getElementById('inv-chart-cust')?.toDataURL('image/png') || '';
+
       // ── HTML do relatório ─────────────────────────────────────────────────────
       const html = `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -11481,10 +11486,27 @@ Esta ação não pode ser desfeita.`)) return;
   * { margin:0; padding:0; box-sizing:border-box; }
   @page { size: A4; margin: 0; }
   body { font-family:'Urbanist',sans-serif; background:#fff; color:var(--abyss); font-size:11px; line-height:1.5; -webkit-font-smoothing:antialiased; }
-  .content-wrap { padding: 18mm 16mm; }
+
+  /* ── PÁGINAS ── */
+  .page {
+    width: 210mm;
+    min-height: 297mm;
+    padding: 16mm 16mm 14mm;
+    page-break-after: always;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    position: relative;
+  }
+  .page:last-child { page-break-after: avoid; }
 
   /* ── CAPA ── */
-  .cover { page-break-after:always; min-height:100vh; display:flex; flex-direction:column; background:var(--abyss); color:var(--sand); padding:40mm 20mm; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .cover {
+    background: var(--abyss);
+    color: var(--sand);
+    display: flex;
+    flex-direction: column;
+    padding: 40mm 20mm;
+  }
   .cover-logo { font-family:'Syne',serif; font-size:22px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; margin-bottom:auto; opacity:0.9; }
   .cover-tagline { font-size:9px; letter-spacing:0.2em; text-transform:uppercase; color:rgba(242,221,198,0.35); margin-top:4px; }
   .cover-title { font-family:'Syne',serif; font-size:36px; font-weight:500; letter-spacing:-0.02em; line-height:1.1; margin-bottom:16px; }
@@ -11497,32 +11519,35 @@ Esta ação não pode ser desfeita.`)) return;
   .cover-kpi-val { font-family:'Syne',serif; font-size:22px; font-weight:500; letter-spacing:-0.02em; color:var(--sand); }
   .cover-kpi-sub { font-size:9px; color:rgba(242,221,198,0.25); margin-top:2px; }
 
+  /* ── HEADER DE PÁGINA ── */
+  .page-header { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:20px; padding-bottom:10px; border-bottom:1px solid rgba(4,25,36,0.08); }
+  .page-header-client { font-family:'Syne',serif; font-size:13px; font-weight:500; color:var(--abyss); }
+  .page-header-date { font-size:8px; color:var(--teal-40); text-transform:uppercase; letter-spacing:0.12em; }
+
   /* ── SEÇÕES ── */
-  section { page-break-inside:avoid; margin-bottom:28px; }
-  .section-eyebrow { font-size:8px; font-weight:600; letter-spacing:0.18em; text-transform:uppercase; color:var(--teal-40); margin-bottom:6px; }
-  .section-title { font-family:'Syne',serif; font-size:15px; font-weight:500; letter-spacing:-0.01em; color:var(--abyss); margin-bottom:14px; border-bottom:1px solid rgba(4,25,36,0.08); padding-bottom:8px; }
+  section { page-break-inside:avoid; margin-bottom:24px; }
+  .section-eyebrow { font-size:8px; font-weight:600; letter-spacing:0.18em; text-transform:uppercase; color:var(--teal-40); margin-bottom:5px; }
+  .section-title { font-family:'Syne',serif; font-size:15px; font-weight:500; letter-spacing:-0.01em; color:var(--abyss); margin-bottom:12px; border-bottom:1px solid rgba(4,25,36,0.08); padding-bottom:7px; }
 
   /* ── KPI GRID ── */
-  .kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:24px; }
-  .kpi-card { background:var(--paper); border-radius:6px; padding:14px 16px; border:1px solid rgba(4,25,36,0.07); border-top:2px solid var(--sand); }
+  .kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:20px; }
+  .kpi-card { background:var(--paper); border-radius:5px; padding:12px 14px; border:1px solid rgba(4,25,36,0.07); border-top:2px solid var(--sand); }
   .kpi-label { font-size:8px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; color:var(--teal-40); margin-bottom:6px; }
-  .kpi-val { font-family:'Syne',serif; font-size:18px; font-weight:500; color:var(--abyss); letter-spacing:-0.02em; }
-  .kpi-sub { font-size:9px; color:var(--teal-40); margin-top:3px; }
-  .kpi-sub-grid { display:grid; grid-template-columns:1fr 1fr; gap:4px 10px; margin-top:8px; }
+  .kpi-sub-grid { display:grid; grid-template-columns:1fr 1fr; gap:4px 10px; }
   .kpi-sub-item label { display:block; font-size:8px; color:var(--teal-40); text-transform:uppercase; letter-spacing:0.1em; }
   .kpi-sub-item span { font-size:11px; font-weight:500; }
 
-  /* ── RENDIMENTO R$ ── */
-  .rend-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; padding:12px 0; border-top:1px solid rgba(4,25,36,0.06); border-bottom:1px solid rgba(4,25,36,0.06); margin-bottom:20px; }
-  .rend-item label { display:block; font-size:8px; color:var(--teal-40); text-transform:uppercase; letter-spacing:0.12em; margin-bottom:3px; }
-  .rend-item span { font-size:14px; font-weight:600; color:var(--success); }
+  /* ── GRÁFICOS ── */
+  .charts-row { display:grid; grid-template-columns:1fr 120px 120px; gap:12px; margin-bottom:20px; align-items:start; }
+  .chart-wrap { background:var(--paper); border-radius:5px; border:1px solid rgba(4,25,36,0.06); padding:10px; }
+  .chart-wrap-label { font-size:8px; font-weight:600; letter-spacing:0.14em; text-transform:uppercase; color:var(--teal-40); margin-bottom:8px; }
+  .chart-wrap img { width:100%; height:auto; display:block; }
 
   /* ── TABELAS ── */
   table { width:100%; border-collapse:collapse; font-size:10px; }
-  th { background:var(--shell); padding:7px 8px; text-align:left; font-size:8px; font-weight:600; text-transform:uppercase; letter-spacing:0.1em; color:var(--teal-40); }
-  td { padding:6px 8px; border-bottom:1px solid rgba(4,25,36,0.05); color:var(--abyss); }
+  th { background:var(--shell); padding:6px 7px; text-align:left; font-size:8px; font-weight:600; text-transform:uppercase; letter-spacing:0.1em; color:var(--teal-40); }
+  td { padding:5px 7px; border-bottom:1px solid rgba(4,25,36,0.05); color:var(--abyss); }
   tr:last-child td { border-bottom:none; }
-  tr:hover td { background:rgba(242,221,198,0.15); }
   .num { text-align:right; font-variant-numeric:tabular-nums; }
   .muted { color:var(--teal-40); text-align:right; }
   .pos { color:var(--success); text-align:right; }
@@ -11532,8 +11557,8 @@ Esta ação não pode ser desfeita.`)) return;
   .bold { font-weight:600; }
   .cell-empty { color:var(--teal-20); text-align:right; }
   .label-col { color:var(--teal-40); font-size:8.5px; font-weight:500; width:30px; }
-  .year-header td { background:var(--abyss); color:var(--sand); font-size:9px; font-weight:600; letter-spacing:0.08em; padding:5px 8px; }
-  .cls-header td { background:var(--paper); font-size:9px; font-weight:600; color:var(--teal); padding:7px 8px; letter-spacing:0.04em; }
+  .year-header td { background:var(--abyss); color:var(--sand); font-size:9px; font-weight:600; letter-spacing:0.08em; padding:5px 7px; }
+  .cls-header td { background:var(--paper); font-size:9px; font-weight:600; color:var(--teal); padding:6px 7px; letter-spacing:0.04em; }
   .cls-pct { float:right; font-weight:400; color:var(--teal-40); }
   .asset-name { color:var(--abyss); }
 
@@ -11541,19 +11566,18 @@ Esta ação não pode ser desfeita.`)) return;
   .two-col { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
 
   /* ── FOOTER ── */
-  .footer { margin-top:32px; padding-top:10px; border-top:1px solid rgba(4,25,36,0.08); display:flex; justify-content:space-between; font-size:8px; color:var(--teal-40); }
+  .page-footer { position:absolute; bottom:10mm; left:16mm; right:16mm; display:flex; justify-content:space-between; font-size:8px; color:var(--teal-40); border-top:1px solid rgba(4,25,36,0.06); padding-top:6px; }
 
   @media print {
-    .cover { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-    .year-header td, .cls-header td { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    .cover, .year-header td, .cls-header td, .kpi-card { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
     section { page-break-inside:avoid; }
   }
 </style>
 </head>
 <body>
 
-<!-- CAPA -->
-<div class="cover">
+<!-- PÁG 1: CAPA -->
+<div class="page cover">
   <div>
     <div class="cover-logo">PRAXES</div>
     <div class="cover-tagline">Gestão Patrimonial</div>
@@ -11582,104 +11606,144 @@ Esta ação não pode ser desfeita.`)) return;
   </div>
 </div>
 
-<!-- CONTEÚDO -->
-<div class="content-wrap">
-
-<!-- 1. RENTABILIDADE -->
-<section>
-  <div class="section-eyebrow">Performance</div>
-  <div class="section-title">Rentabilidade da carteira</div>
-  <div class="kpi-grid">
-    <div class="kpi-card">
-      <div class="kpi-label">Rentab. da Carteira</div>
-      <div class="kpi-sub-grid">
-        <div class="kpi-sub-item"><label>Mês</label><span style="color:${varNom.mes>=0?'var(--success)':'var(--danger)'};">${fmtP(varNom.mes)}</span></div>
-        <div class="kpi-sub-item"><label>Ano</label><span style="color:${varNom.ano>=0?'var(--success)':'var(--danger)'};">${fmtP(varNom.ano)}</span></div>
-        <div class="kpi-sub-item"><label>12 meses</label><span>${fmtP(varNom.m12)}</span></div>
-        <div class="kpi-sub-item"><label>Período</label><span>${fmtP(varNom.periodo)}</span></div>
-      </div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-label">CDI</div>
-      <div class="kpi-sub-grid">
-        <div class="kpi-sub-item"><label>Mês</label><span>${fmtP(cdiRet.mes,false)}</span></div>
-        <div class="kpi-sub-item"><label>Ano</label><span>${fmtP(cdiRet.ano,false)}</span></div>
-        <div class="kpi-sub-item"><label>12 meses</label><span>${fmtP(cdiRet.m12,false)}</span></div>
-        <div class="kpi-sub-item"><label>% CDI período</label><span style="color:var(--success);">${varNom.periodo&&cdiRet.periodo?(varNom.periodo/cdiRet.periodo*100).toFixed(1)+'%':'—'}</span></div>
-      </div>
-    </div>
-    <div class="kpi-card" style="grid-column:span 2;">
-      <div class="kpi-label">Rendimento Nominal (R$)</div>
-      <div class="rend-grid" style="margin:8px 0 0;border:none;padding:0;">
-        ${[['No mês', findKey(rendN,'ês','mes_atual')],['No ano',findKey(rendN,'Ano','ano_atual')],['12 meses',findKey(rendN,'12m','12meses')],['Desde o início',findKey(rendN,'início','inicio','acomp','ini')]].map(([l,k])=>`<div class="kpi-sub-item"><label>${l}</label><span style="color:var(--success);font-size:12px;">${k&&!isNaN(rendN[k])?fmtR(rendN[k]):'—'}</span></div>`).join('')}
-      </div>
-    </div>
+<!-- PÁG 2: RENTABILIDADE + GRÁFICOS -->
+<div class="page">
+  <div class="page-header">
+    <span class="page-header-client">${clientName}</span>
+    <span class="page-header-date">Posição em ${dataRef}</span>
   </div>
-</section>
 
-<!-- 2. RETORNO MENSAL -->
-<section style="page-break-before:always;">
-  <div class="section-eyebrow">Histórico</div>
-  <div class="section-title">Retorno mensal (%)</div>
-  <table>
-    <thead><tr><th>Ano</th><th></th>${meses.map(m=>`<th>${m}</th>`).join('')}<th>Ano</th></tr></thead>
-    <tbody>${tabelaMensal||'<tr><td colspan="15" style="color:var(--teal-40);text-align:center;padding:16px;">Sem dados disponíveis</td></tr>'}</tbody>
-  </table>
-</section>
+  <section>
+    <div class="section-eyebrow">Performance</div>
+    <div class="section-title">Rentabilidade da carteira</div>
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">Rentab. da Carteira</div>
+        <div class="kpi-sub-grid">
+          <div class="kpi-sub-item"><label>Mês</label><span style="color:${varNom.mes>=0?'var(--success)':'var(--danger)'};">${fmtP(varNom.mes)}</span></div>
+          <div class="kpi-sub-item"><label>Ano</label><span style="color:${varNom.ano>=0?'var(--success)':'var(--danger)'};">${fmtP(varNom.ano)}</span></div>
+          <div class="kpi-sub-item"><label>12 meses</label><span>${fmtP(varNom.m12)}</span></div>
+          <div class="kpi-sub-item"><label>Período</label><span>${fmtP(varNom.periodo)}</span></div>
+        </div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">CDI</div>
+        <div class="kpi-sub-grid">
+          <div class="kpi-sub-item"><label>Mês</label><span>${fmtP(cdiRet.mes,false)}</span></div>
+          <div class="kpi-sub-item"><label>Ano</label><span>${fmtP(cdiRet.ano,false)}</span></div>
+          <div class="kpi-sub-item"><label>12 meses</label><span>${fmtP(cdiRet.m12,false)}</span></div>
+          <div class="kpi-sub-item"><label>% CDI período</label><span style="color:var(--success);">${varNom.periodo&&cdiRet.periodo?(varNom.periodo/cdiRet.periodo*100).toFixed(1)+'%':'—'}</span></div>
+        </div>
+      </div>
+      <div class="kpi-card" style="grid-column:span 2;">
+        <div class="kpi-label">Rendimento Nominal (R$)</div>
+        <div class="kpi-sub-grid" style="grid-template-columns:repeat(4,1fr);margin-top:6px;">
+          ${[['No mês',findKey(rendN,'ês','mes_atual')],['No ano',findKey(rendN,'Ano','ano_atual')],['12 meses',findKey(rendN,'12m','12meses')],['Desde o início',findKey(rendN,'início','inicio','acomp','ini')]].map(([l,k])=>`<div class="kpi-sub-item"><label>${l}</label><span style="color:var(--success);font-size:12px;">${k&&!isNaN(rendN[k])?fmtR(rendN[k]):'—'}</span></div>`).join('')}
+        </div>
+      </div>
+    </div>
+  </section>
 
-<!-- 3. COMPOSIÇÃO -->
-<section>
-  <div class="section-eyebrow">Composição</div>
-  <div class="section-title">Alocação da carteira</div>
-  <div class="two-col">
-    <div>
-      <p style="font-size:9px;color:var(--teal-40);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.1em;">Por classe</p>
-      <table>
-        <thead><tr><th>Classe</th><th style="text-align:right;">%</th><th style="text-align:right;">Valor</th></tr></thead>
-        <tbody>${Object.entries(d.classeMap||{}).sort(([,a],[,b])=>b-a).map(([k,v])=>{
-          const tot = Object.values(d.classeMap||{}).reduce((s,x)=>s+x,0);
-          return `<tr><td>${k}</td><td class="num">${tot>0?(v/tot*100).toFixed(1)+'%':'—'}</td><td class="num">${fmtR(v)}</td></tr>`;
-        }).join('')}</tbody>
-      </table>
+  <!-- Gráficos capturados do dashboard -->
+  <section>
+    <div class="charts-row">
+      <div class="chart-wrap">
+        <div class="chart-wrap-label">Performance acumulada</div>
+        ${chartPerfImg ? `<img src="${chartPerfImg}" alt="Performance acumulada">` : '<p style="color:var(--teal-40);font-size:9px;padding:20px 0;text-align:center;">Gráfico não disponível</p>'}
+      </div>
+      <div class="chart-wrap">
+        <div class="chart-wrap-label">Por classe</div>
+        ${chartClasseImg ? `<img src="${chartClasseImg}" alt="Por classe">` : ''}
+      </div>
+      <div class="chart-wrap">
+        <div class="chart-wrap-label">Por custodiante</div>
+        ${chartCustImg ? `<img src="${chartCustImg}" alt="Por custodiante">` : ''}
+      </div>
     </div>
-    <div>
-      <p style="font-size:9px;color:var(--teal-40);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.1em;">Por custodiante</p>
-      <table>
-        <thead><tr><th>Custodiante</th><th style="text-align:right;">%</th><th style="text-align:right;">Valor</th></tr></thead>
-        <tbody>${custRows||'<tr><td colspan="3" style="color:var(--teal-40);">—</td></tr>'}</tbody>
-      </table>
-    </div>
+  </section>
+
+  <div class="page-footer">
+    <span>Praxes Gestão Patrimonial — Confidencial</span>
+    <span>2 / 4</span>
   </div>
-</section>
-
-<!-- 4. LIQUIDEZ -->
-<section>
-  <div class="section-eyebrow">Risco & Liquidez</div>
-  <div class="section-title">Prazo de resgate</div>
-  <table style="max-width:400px;">
-    <thead><tr><th>Faixa</th><th style="text-align:right;">%</th><th style="text-align:right;">Valor</th></tr></thead>
-    <tbody>${liqRows||'<tr><td colspan="3" style="color:var(--teal-40);">—</td></tr>'}</tbody>
-  </table>
-</section>
-
-<!-- 5. POSIÇÃO CONSOLIDADA -->
-<section style="page-break-before:always;">
-  <div class="section-eyebrow">Detalhe</div>
-  <div class="section-title">Posição consolidada</div>
-  <table>
-    <thead><tr><th>Ativo</th><th style="text-align:right;">Saldo Bruto</th><th style="text-align:right;">%</th><th style="text-align:right;">Provisão IR</th><th>Liquidez</th></tr></thead>
-    <tbody>${posRows||'<tr><td colspan="5" style="color:var(--teal-40);">—</td></tr>'}</tbody>
-  </table>
-</section>
-
-<!-- FOOTER -->
-<div class="content-wrap" style="padding-top:0;">
-<div class="footer">
-  <span>Praxes Gestão Patrimonial — Confidencial</span>
-  <span>Gerado em ${hoje.toLocaleDateString('pt-BR')} às ${hoje.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span>
 </div>
-</div><!-- content-wrap footer -->
-</div><!-- content-wrap main -->
+
+<!-- PÁG 3: HISTÓRICO + COMPOSIÇÃO + LIQUIDEZ -->
+<div class="page">
+  <div class="page-header">
+    <span class="page-header-client">${clientName}</span>
+    <span class="page-header-date">Posição em ${dataRef}</span>
+  </div>
+
+  <section>
+    <div class="section-eyebrow">Histórico</div>
+    <div class="section-title">Retorno mensal (%)</div>
+    <table>
+      <thead><tr><th>Ano</th><th></th>${meses.map(m=>`<th>${m}</th>`).join('')}<th>Ano</th></tr></thead>
+      <tbody>${tabelaMensal||'<tr><td colspan="15" style="color:var(--teal-40);text-align:center;padding:16px;">Sem dados</td></tr>'}</tbody>
+    </table>
+  </section>
+
+  <section>
+    <div class="section-eyebrow">Composição</div>
+    <div class="section-title">Alocação da carteira</div>
+    <div class="two-col">
+      <div>
+        <p style="font-size:9px;color:var(--teal-40);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.1em;">Por classe</p>
+        <table>
+          <thead><tr><th>Classe</th><th style="text-align:right;">%</th><th style="text-align:right;">Valor</th></tr></thead>
+          <tbody>${Object.entries(d.classeMap||{}).sort(([,a],[,b])=>b-a).map(([k,v])=>{
+            const tot=Object.values(d.classeMap||{}).reduce((s,x)=>s+x,0);
+            return `<tr><td>${k}</td><td class="num">${tot>0?(v/tot*100).toFixed(1)+'%':'—'}</td><td class="num">${fmtR(v)}</td></tr>`;
+          }).join('')}</tbody>
+        </table>
+      </div>
+      <div>
+        <p style="font-size:9px;color:var(--teal-40);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.1em;">Por custodiante</p>
+        <table>
+          <thead><tr><th>Custodiante</th><th style="text-align:right;">%</th><th style="text-align:right;">Valor</th></tr></thead>
+          <tbody>${custRows||'<tr><td colspan="3" style="color:var(--teal-40);">—</td></tr>'}</tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-eyebrow">Risco & Liquidez</div>
+    <div class="section-title">Prazo de resgate</div>
+    <table style="max-width:400px;">
+      <thead><tr><th>Faixa</th><th style="text-align:right;">%</th><th style="text-align:right;">Valor</th></tr></thead>
+      <tbody>${liqRows||'<tr><td colspan="3" style="color:var(--teal-40);">—</td></tr>'}</tbody>
+    </table>
+  </section>
+
+  <div class="page-footer">
+    <span>Praxes Gestão Patrimonial — Confidencial</span>
+    <span>3 / 4</span>
+  </div>
+</div>
+
+<!-- PÁG 4: POSIÇÃO CONSOLIDADA -->
+<div class="page">
+  <div class="page-header">
+    <span class="page-header-client">${clientName}</span>
+    <span class="page-header-date">Posição em ${dataRef}</span>
+  </div>
+
+  <section>
+    <div class="section-eyebrow">Detalhe</div>
+    <div class="section-title">Posição consolidada</div>
+    <table>
+      <thead><tr><th>Ativo</th><th style="text-align:right;">Saldo Bruto</th><th style="text-align:right;">%</th><th style="text-align:right;">Provisão IR</th><th>Liquidez</th></tr></thead>
+      <tbody>${posRows||'<tr><td colspan="5" style="color:var(--teal-40);">—</td></tr>'}</tbody>
+    </table>
+  </section>
+
+  <div class="page-footer">
+    <span>Praxes Gestão Patrimonial — Confidencial</span>
+    <span>Gerado em ${hoje.toLocaleDateString('pt-BR')} às ${hoje.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span>
+  </div>
+</div>
 
 <script>window.onload = () => { window.print(); }<\/script>
 </body></html>`;
