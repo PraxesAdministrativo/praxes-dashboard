@@ -11464,11 +11464,10 @@ Esta ação não pode ser desfeita.`)) return;
         `<tr><td>${k}</td><td class="num">${custTotal>0?(v/custTotal*100).toFixed(1)+'%':'—'}</td><td class="num">${fmtR(v)}</td></tr>`
       ).join('');
 
-      // Captura os gráficos em alta resolução (2x)
+      // Captura performance em 2x
       const captureCanvas = (id) => {
         const canvas = document.getElementById(id);
         if (!canvas) return '';
-        // Cria canvas temporário em 2x
         const scale = 2;
         const tmp = document.createElement('canvas');
         tmp.width  = canvas.width  * scale;
@@ -11478,9 +11477,42 @@ Esta ação não pode ser desfeita.`)) return;
         ctx.drawImage(canvas, 0, 0);
         return tmp.toDataURL('image/png', 1.0);
       };
-      const chartPerfImg   = captureCanvas('inv-chart-perf');
-      const chartClasseImg = captureCanvas('inv-chart-classe');
-      const chartCustImg   = captureCanvas('inv-chart-cust');
+      const chartPerfImg = captureCanvas('inv-chart-perf');
+
+      // Para os donuts, renderiza o chart do Chart.js em canvas quadrado dedicado
+      const captureDoughnut = (chartInstance) => {
+        if (!chartInstance) return '';
+        const size = 160; // canvas quadrado
+        const tmp = document.createElement('canvas');
+        tmp.width  = size * 2; // 2x
+        tmp.height = size * 2;
+        const ctx = tmp.getContext('2d');
+        ctx.fillStyle = '#faf6f0'; // --paper background
+        ctx.fillRect(0, 0, tmp.width, tmp.height);
+        // Usa a API de Chart.js para redesenhar num canvas novo
+        const offscreen = document.createElement('canvas');
+        offscreen.width  = size;
+        offscreen.height = size;
+        offscreen.style.display = 'none';
+        document.body.appendChild(offscreen);
+        const newChart = new Chart(offscreen, {
+          type: 'doughnut',
+          data: chartInstance.data,
+          options: {
+            ...chartInstance.options,
+            animation: false,
+            responsive: false,
+            plugins: { legend: { display: false }, tooltip: { enabled: false } },
+          }
+        });
+        ctx.scale(2, 2);
+        ctx.drawImage(offscreen, 0, 0);
+        newChart.destroy();
+        document.body.removeChild(offscreen);
+        return tmp.toDataURL('image/png', 1.0);
+      };
+      const chartClasseImg = captureDoughnut(_invChartClasse);
+      const chartCustImg   = captureDoughnut(_invChartCust);
 
       // ── HTML do relatório ─────────────────────────────────────────────────────
       const html = `<!DOCTYPE html>
@@ -11664,7 +11696,7 @@ Esta ação não pode ser desfeita.`)) return;
       <div class="chart-wrap-label">Performance acumulada — Carteira vs CDI vs IPCAdp</div>
       ${chartPerfImg ? `<img src="${chartPerfImg}" alt="Performance acumulada" style="width:100%;height:auto;display:block;border-radius:3px;">` : '<p style="color:var(--teal-40);font-size:9px;padding:20px 0;text-align:center;">Gráfico não disponível</p>'}
     </div>
-    <!-- Pizzas: lado a lado com donut maior -->
+    <!-- Pizzas: lado a lado abaixo -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
       ${[
         ['Por classe', chartClasseImg, d.classeMap||{}],
@@ -11675,20 +11707,20 @@ Esta ação não pode ser desfeita.`)) return;
         const colors = ['#041924','#2a5a66','#1d9e75','#a5bcc2','#5b818b','#03313e','#d7e1e4'];
         const legend = entries.map(([k,v],i) => {
           const pct = tot>0?(v/tot*100).toFixed(1):'0';
-          return `<div style="display:flex;align-items:center;justify-content:space-between;padding:2px 0;border-bottom:0.5px solid rgba(4,25,36,0.04);">
-            <span style="display:inline-flex;align-items:center;gap:5px;font-size:8.5px;color:var(--abyss);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px;">
-              <span style="width:7px;height:7px;border-radius:1px;background:${colors[i%colors.length]};flex-shrink:0;display:inline-block;"></span>
+          return `<div style="display:flex;align-items:center;justify-content:space-between;padding:3px 0;border-bottom:0.5px solid rgba(4,25,36,0.05);">
+            <span style="display:inline-flex;align-items:center;gap:5px;font-size:8.5px;color:#041924;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+              <span style="width:7px;height:7px;border-radius:1px;background:${colors[i%colors.length]};flex-shrink:0;"></span>
               ${k}
             </span>
-            <span style="font-size:9px;font-weight:600;color:var(--teal-40);flex-shrink:0;margin-left:4px;">${pct}%</span>
+            <span style="font-size:9px;font-weight:600;color:#5b818b;flex-shrink:0;padding-left:6px;">${pct}%</span>
           </div>`;
         }).join('');
-        return `<div class="chart-wrap" style="display:flex;align-items:flex-start;gap:14px;padding:12px 14px;">
-          <div style="flex-shrink:0;">
-            <div class="chart-wrap-label" style="margin-bottom:8px;">${title}</div>
-            ${img ? `<img src="${img}" alt="${title}" style="width:110px;height:110px;display:block;border-radius:3px;">` : ''}
+        return `<div class="chart-wrap" style="padding:14px 16px;">
+          <div class="chart-wrap-label" style="margin-bottom:10px;">${title}</div>
+          <div style="display:flex;align-items:center;gap:16px;">
+            ${img ? `<img src="${img}" alt="${title}" style="width:100px;height:100px;flex-shrink:0;display:block;border-radius:2px;">` : '<div style="width:100px;height:100px;flex-shrink:0;"></div>'}
+            <div style="flex:1;min-width:0;">${legend}</div>
           </div>
-          <div style="flex:1;min-width:0;padding-top:18px;">${legend}</div>
         </div>`;
       }).join('')}
     </div>
