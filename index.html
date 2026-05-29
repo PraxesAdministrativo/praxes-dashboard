@@ -9328,317 +9328,290 @@ Esta ação não pode ser desfeita.`)) return;
     // ================================================================
     async function finGerarResumoPDF() {
       try {
-        const { jsPDF } = window.jspdf;
-        const H = _pdfHelpers();
+        const H   = _pdfHelpers();
         const kpi = H.kpiData();
         const { saldo, resYTD, poupanca } = kpi;
+        const mesLabel = MESES_PT[finMesAtual-1] + ' de ' + finAnoAtual;
+        const hoje = new Date();
+        const clientName = document.getElementById('sidebar-name')?.textContent || 'Cliente';
 
-        const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-        const pw = doc.internal.pageSize.getWidth();   // 297
-        const ph = doc.internal.pageSize.getHeight();  // 210
-        const mg = 14;
+        // ── Helpers ──────────────────────────────────────────────────────────────
+        const fmtR = v => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:0,maximumFractionDigits:0}).format(v||0);
+        const fmtS = v => (v>=0?'+':'')+fmtR(v);
+        const color = v => v >= 0 ? 'var(--success)' : 'var(--danger)';
 
-        // ===== CABEÇALHO =====
-        doc.setFillColor(15,61,87); doc.rect(0,0,pw,28,'F');
-        doc.setTextColor(255,255,255);
-        doc.setFontSize(18); doc.setFont('helvetica','bold'); doc.text('PRAXES', mg, 13);
-        doc.setFontSize(9);  doc.setFont('helvetica','normal');
-        doc.text('Controle Financeiro  |  '+MESES_PT[finMesAtual-1]+' de '+finAnoAtual, mg, 22);
-        doc.text('Gerado em '+new Date().toLocaleDateString('pt-BR'), pw-mg, 22, {align:'right'});
-        doc.setTextColor(0,0,0);
-        let y = 33;
-
-        // ===== KPI CARDS =====
-        const kpis = [
-          {label:'Rendas',       value:H.fmtPDF(kpi.rendaTotal),    c:[16,185,129]},
-          {label:'Despesas',     value:H.fmtPDF(-kpi.despesaTotal), c:[239,68,68]},
-          {label:'Resultado',    value:H.fmtPDF(saldo),             c:saldo>=0?[16,185,129]:[239,68,68]},
-          {label:'Poupanca',     value:poupanca+'%',                c:[139,92,246]},
-          {label:'Rendas YTD',   value:H.fmtPDF(kpi.rendaYTD),      c:[15,61,87]},
-          {label:'Despesas YTD', value:H.fmtPDF(-kpi.despYTD),      c:[46,107,142]},
-          {label:'Result. YTD',  value:H.fmtPDF(resYTD),            c:resYTD>=0?[16,185,129]:[239,68,68]},
-        ];
-        const cw = (pw-2*mg-18) / 7;
-        const ch = 18;
-        kpis.forEach(function(k,i){
-          const cx = mg + i*(cw+3);
-          doc.setFillColor(245,245,245); doc.roundedRect(cx,y,cw,ch,1.5,1.5,'F');
-          doc.setFillColor(k.c[0],k.c[1],k.c[2]); doc.rect(cx,y,2,ch,'F');
-          doc.setFontSize(6); doc.setFont('helvetica','normal'); doc.setTextColor(120,120,120);
-          doc.text(k.label, cx+4, y+6);
-          doc.setFontSize(9); doc.setFont('helvetica','bold');
-          doc.setTextColor(k.c[0],k.c[1],k.c[2]);
-          doc.text(k.value, cx+4, y+14);
-        });
-        doc.setTextColor(0,0,0);
-        y += ch+4;
-
-        // ===== DADOS PARA OS GRÁFICOS =====
+        // ── Dados do mês ──────────────────────────────────────────────────────────
         const colAtual = finColMap[finAnoAtual+'-'+finMesAtual];
-        const ytdCol   = finColMap['ytd_'+finAnoAtual];
 
-        // Série anual (rendas e despesas por mês)
-        const serieRendas   = [];
-        const serieDespesas = [];
-        let maxVal = 0;
-        for (let m=1; m<=12; m++) {
-          const ci = finColMap[finAnoAtual+'-'+m];
-          let r=0, d=0;
-          finGerRows.forEach(function(row){
-            if (!row) return;
-            const lbl = String(row[1]||'').trim();
-            if (ci===undefined) return;
-            if (lbl==='Rendas totais')     r = Math.abs(parseFloat(String(row[ci]||'0'))||0);
-            if (lbl==='Total de despesas') d = Math.abs(parseFloat(String(row[ci]||'0'))||0);
+        // Série anual
+        const seriesData = Array.from({length:12},(_,i)=>{
+          const ci = finColMap[finAnoAtual+'-'+(i+1)];
+          let r=0,d=0;
+          finGerRows.forEach(row=>{
+            if(!row||ci===undefined) return;
+            const l=String(row[1]||'').trim();
+            if(l==='Rendas totais')     r=Math.abs(parseFloat(row[ci])||0);
+            if(l==='Total de despesas') d=Math.abs(parseFloat(row[ci])||0);
           });
-          serieRendas.push(r);
-          serieDespesas.push(d);
-          if (r>maxVal) maxVal=r;
-          if (d>maxVal) maxVal=d;
-        }
-        maxVal = Math.ceil(maxVal/50000)*50000 || 100000;
-
-        // Despesas por grupo (pie)
-        const gruposDespesa = [];
-        let totalGrupos = 0;
-        const SKIP_PIZZA = ['rendas totais','total de despesas','despesas rotineiras (fixas)'];
-        finGerRows.forEach(function(row){
-          if (!row || colAtual===undefined) return;
-          const label    = String(row[1]||'').trim();
-          const subLabel = String(row[2]||'').trim();
-          if (!label || subLabel) return;
-          if (SKIP_PIZZA.some(function(s){return label.toLowerCase().includes(s);})) return;
-          if (finIsRenda(label)) return;
-          if (label.startsWith('(=') || label.startsWith('(+') || label.startsWith('(-')) return;
-          const val = Math.abs(parseFloat(String(row[colAtual]||'0'))||0);
-          if (val>0){ gruposDespesa.push({label:label,val:val}); totalGrupos+=val; }
+          return {mes:['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][i],r,d};
         });
-        gruposDespesa.sort(function(a,b){return b.val-a.val;});
+        const maxVal = Math.max(...seriesData.map(s=>Math.max(s.r,s.d)),1);
 
-        // Detalhamento subcategorias
-        const subcats = [];
-        let totalSubcats = 0;
-        finGerRows.forEach(function(row){
-          if (!row || colAtual===undefined) return;
-          const cat = String(row[2]||'').trim();
-          if (!cat) return;
-          if (finIsExcluido(cat)||finIsRenda(cat)) return;
-          const val = Math.abs(parseFloat(String(row[colAtual]||'0'))||0);
-          if (val>0){ subcats.push({cat:cat.replace(/^[A-Z& -]+ - /,''),val:val}); totalSubcats+=val; }
+        // Grupos de despesa
+        const SKIP = ['rendas totais','total de despesas','despesas rotineiras'];
+        const grupos=[];let totGrupos=0;
+        finGerRows.forEach(row=>{
+          if(!row||colAtual===undefined) return;
+          const l=String(row[1]||'').trim(), sub=String(row[2]||'').trim();
+          if(!l||sub||SKIP.some(s=>l.toLowerCase().includes(s))) return;
+          if(finIsRenda(l)||l.startsWith('(=')) return;
+          const v=Math.abs(parseFloat(row[colAtual])||0);
+          if(v>0){grupos.push({l,v});totGrupos+=v;}
         });
-        subcats.sort(function(a,b){return b.val-a.val;}).splice(15);
+        grupos.sort((a,b)=>b.v-a.v);
 
-        // ===== PÁGINA 1: GRÁFICO DE LINHA + PIZZA =====
-        const areaW   = pw - 2*mg;
-        const lineW   = Math.round(areaW * 0.58);
-        const pizzaW  = areaW - lineW - 6;
-        const chartH  = ph - y - mg - 4;
-
-        // --- GRÁFICO DE LINHA ---
-        const lx = mg, ly = y;
-        const lw = lineW, lh = chartH;
-        const axisL=14, axisB=10;
-        const plotX=lx+axisL, plotY=ly+4, plotW=lw-axisL-2, plotH=lh-axisB-4;
-
-        // Fundo
-        doc.setFillColor(250,250,250); doc.rect(lx,ly,lw,lh,'F');
-        doc.setDrawColor(230,230,230); doc.rect(lx,ly,lw,lh,'S');
-
-        // Grid + labels eixo Y
-        doc.setFontSize(5.5); doc.setFont('helvetica','normal'); doc.setTextColor(130,130,130);
-        for (let i=0; i<=5; i++){
-          const val = (maxVal/5)*i;
-          const gy  = plotY + plotH - (plotH * i/5);
-          doc.setDrawColor(230,230,230); doc.line(plotX, gy, plotX+plotW, gy);
-          const lbl = val>=1000 ? 'R$'+(val/1000).toFixed(0)+'k' : 'R$0';
-          doc.text(lbl, plotX-1, gy+1, {align:'right'});
-        }
-
-        // Labels eixo X
-        const mAbrev = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-        mAbrev.forEach(function(m,i){
-          const gx = plotX + (plotW/(11))*i;
-          doc.setTextColor(130,130,130);
-          doc.text(m, gx, plotY+plotH+axisB-2, {align:'center'});
+        // Subcategorias
+        const subcats=[];let totSub=0;
+        finGerRows.forEach(row=>{
+          if(!row||colAtual===undefined) return;
+          const cat=String(row[2]||'').trim();
+          if(!cat||finIsExcluido(cat)||finIsRenda(cat)) return;
+          const v=Math.abs(parseFloat(row[colAtual])||0);
+          if(v>0){subcats.push({cat:cat.replace(/^[A-Z& -]+ - /,''),v});totSub+=v;}
         });
+        subcats.sort((a,b)=>b.v-a.v).splice(20);
 
-        // Polígonos de área preenchida
-        function serieToPoints(serie){
-          return serie.map(function(v,i){
-            return {
-              x: plotX + (plotW/11)*i,
-              y: plotY + plotH - (v/maxVal)*plotH
-            };
-          });
-        }
-        function fillArea(pts, rgb){
-          doc.setFillColor(rgb[0],rgb[1],rgb[2]);
-          const poly = [];
-          pts.forEach(function(p){ poly.push(p.x, p.y); });
-          // Fecha pelo baseline
-          poly.push(pts[pts.length-1].x, plotY+plotH);
-          poly.push(pts[0].x, plotY+plotH);
-          // jsPDF polygon fill
-          doc.saveGraphicsState();
-          doc.setGState(new doc.GState({opacity:0.15}));
-          const ps = [];
-          for(let i=0;i<poly.length;i+=2) ps.push({x:poly[i],y:poly[i+1]});
-          // Draw filled polygon via lines
-          doc.setFillColor(rgb[0],rgb[1],rgb[2]);
-          doc.lines(ps.slice(1).map(function(p,i){return [p.x-ps[i].x, p.y-ps[i].y];}), ps[0].x, ps[0].y, [1,1], 'F', true);
-          doc.restoreGraphicsState();
-        }
+        // Captura gráfico de linha do dashboard se existir
+        const lineCanvas = document.querySelector('#fin-chart-anual canvas') || document.getElementById('fin-chart-anual');
+        const lineImg = lineCanvas?.toDataURL?.('image/png') || '';
 
-        const ptsR = serieToPoints(serieRendas);
-        const ptsD = serieToPoints(serieDespesas);
+        // ── Paleta Praxes ─────────────────────────────────────────────────────────
+        const PIE_COLORS = ['#041924','#2a5a66','#1d9e75','#a5bcc2','#5b818b','#03313e','#d7e1e4','#ebe3d6','#f2ddc6','#0a2433'];
 
-        // Fill areas
-        fillArea(ptsR, [16,185,129]);
-        fillArea(ptsD, [239,68,68]);
+        // ── Gráfico de barras horizontais via SVG inline ───────────────────────────
+        const BAR_W = 320, BAR_H = Math.max(180, subcats.length * 22);
+        const maxBar = subcats[0]?.v || 1;
+        const barSvg = `<svg width="${BAR_W}" height="${BAR_H}" xmlns="http://www.w3.org/2000/svg">
+          ${subcats.map((s,i)=>{
+            const bw = Math.max(2,(s.v/maxBar)*(BAR_W-120));
+            const y  = i*22+4;
+            const pct= totSub>0?(s.v/totSub*100).toFixed(1)+'%':'';
+            const col= PIE_COLORS[i%PIE_COLORS.length];
+            return `<g>
+              <text x="0" y="${y+14}" font-size="8" fill="#5b818b" font-family="Urbanist,sans-serif" text-anchor="start">${s.cat.substring(0,28)}</text>
+              <rect x="0" y="${y+17}" width="${bw}" height="7" rx="2" fill="${col}"/>
+              <text x="${bw+4}" y="${y+24}" font-size="7.5" fill="${col}" font-family="Urbanist,sans-serif" font-weight="600">${fmtR(s.v)}  ${pct}</text>
+            </g>`;
+          }).join('')}
+        </svg>`;
 
-        // Draw lines
-        function drawLine(pts, rgb, dashed){
-          doc.setDrawColor(rgb[0],rgb[1],rgb[2]); doc.setLineWidth(0.7);
-          if (dashed) doc.setLineDashPattern([1.5,1],0);
-          for(let i=1;i<pts.length;i++){
-            doc.line(pts[i-1].x,pts[i-1].y,pts[i].x,pts[i].y);
-          }
-          doc.setLineDashPattern([],0);
-        }
-        drawLine(ptsR,[16,185,129],false);
-        drawLine(ptsD,[239,68,68],true);
+        // ── Gráfico de barras agrupadas anual via SVG ─────────────────────────────
+        const AX=40, AH=140, AW=480;
+        const bw2=8, gap2=AW/12;
+        const anualSvg = `<svg width="${AW+AX+10}" height="${AH+30}" xmlns="http://www.w3.org/2000/svg">
+          <!-- grid -->
+          ${[0,1,2,3,4].map(i=>{
+            const gy=AH-(AH*i/4);
+            const v=(maxVal/4)*i;
+            return `<line x1="${AX}" y1="${gy}" x2="${AW+AX}" y2="${gy}" stroke="#e8e8e0" stroke-width="0.5"/>
+              <text x="${AX-2}" y="${gy+3}" font-size="7" fill="#a5bcc2" text-anchor="end" font-family="Urbanist,sans-serif">R$${v>=1000?(v/1000).toFixed(0)+'k':'0'}</text>`;
+          }).join('')}
+          <!-- bars -->
+          ${seriesData.map((s,i)=>{
+            const x=AX+i*gap2+gap2/2-bw2;
+            const rh=(s.r/maxVal)*AH, dh=(s.d/maxVal)*AH;
+            return `<rect x="${x-bw2/2}" y="${AH-rh}" width="${bw2}" height="${rh}" rx="1.5" fill="#1d9e75" opacity="0.85"/>
+              <rect x="${x+bw2/2+1}" y="${AH-dh}" width="${bw2}" height="${dh}" rx="1.5" fill="#8c2020" opacity="0.75"/>
+              <text x="${x+bw2/2}" y="${AH+10}" font-size="7" fill="#a5bcc2" text-anchor="middle" font-family="Urbanist,sans-serif">${s.mes}</text>`;
+          }).join('')}
+          <!-- legenda -->
+          <rect x="${AX}" y="${AH+18}" width="8" height="5" rx="1" fill="#1d9e75"/>
+          <text x="${AX+10}" y="${AH+23}" font-size="7" fill="#5b818b" font-family="Urbanist,sans-serif">Rendas</text>
+          <rect x="${AX+40}" y="${AH+18}" width="8" height="5" rx="1" fill="#8c2020"/>
+          <text x="${AX+50}" y="${AH+23}" font-size="7" fill="#5b818b" font-family="Urbanist,sans-serif">Despesas</text>
+        </svg>`;
 
-        // Legenda
-        doc.setFontSize(6.5); doc.setFont('helvetica','bold');
-        doc.setFillColor(16,185,129); doc.rect(plotX,ly+1,6,3,'F');
-        doc.setTextColor(80,80,80); doc.text('Rendas', plotX+8, ly+4);
-        doc.setFillColor(239,68,68); doc.rect(plotX+28,ly+1,6,3,'F');
-        doc.text('Despesas', plotX+36, ly+4);
+        // ── Donut de grupos via SVG ───────────────────────────────────────────────
+        const R=55, r2=32, CX=65, CY=65;
+        let ang=-Math.PI/2;
+        const piePaths = grupos.slice(0,10).map((g,i)=>{
+          const slice=(g.v/totGrupos)*2*Math.PI;
+          const x1=CX+R*Math.cos(ang), y1=CY+R*Math.sin(ang);
+          const x2=CX+r2*Math.cos(ang), y2=CY+r2*Math.sin(ang);
+          ang+=slice;
+          const x3=CX+R*Math.cos(ang), y3=CY+R*Math.sin(ang);
+          const x4=CX+r2*Math.cos(ang), y4=CY+r2*Math.sin(ang);
+          const lg=slice>Math.PI?1:0;
+          return `<path d="M${x2},${y2} L${x1},${y1} A${R},${R},0,${lg},1,${x3},${y3} L${x4},${y4} A${r2},${r2},0,${lg},0,${x2},${y2} Z"
+            fill="${PIE_COLORS[i%PIE_COLORS.length]}" stroke="#fff" stroke-width="0.8"/>`;
+        }).join('');
+        const donutSvg = `<svg width="130" height="130" xmlns="http://www.w3.org/2000/svg">
+          ${piePaths}
+          <circle cx="${CX}" cy="${CY}" r="${r2-1}" fill="white"/>
+        </svg>`;
 
-        // Título
-        doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor(15,61,87);
-        doc.text('Rendas vs Despesas — Evolucao Anual', lx, ly-1);
+        // ── HTML ──────────────────────────────────────────────────────────────────
+        const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Resumo Financeiro — Praxes</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700&family=Urbanist:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --abyss:#041924;--deep:#03313e;--teal:#2a5a66;--sand:#f2ddc6;
+    --shell:#ebe3d6;--paper:#faf6f0;--teal-40:#5b818b;--teal-20:#a5bcc2;
+    --success:#1a6645;--danger:#8c2020;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  @page{size:A4;margin:0;}
+  body{font-family:'Urbanist',sans-serif;background:#fff;color:var(--abyss);font-size:11px;line-height:1.5;-webkit-font-smoothing:antialiased;}
+  .page{width:210mm;min-height:297mm;padding:14mm 16mm 12mm;page-break-after:always;-webkit-print-color-adjust:exact;print-color-adjust:exact;position:relative;}
+  .page:last-child{page-break-after:avoid;}
+  /* header */
+  .ph{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:18px;padding-bottom:10px;border-bottom:1px solid rgba(4,25,36,.08);}
+  .ph-left{font-family:'Syne',serif;font-size:13px;font-weight:500;color:var(--abyss);}
+  .ph-right{font-size:8px;color:var(--teal-40);text-transform:uppercase;letter-spacing:.12em;}
+  /* cover */
+  .cover{background:var(--abyss);color:var(--sand);display:flex;flex-direction:column;padding:36mm 20mm;}
+  .cover-logo{font-family:'Syne',serif;font-size:22px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;opacity:.9;}
+  .cover-tagline{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:rgba(242,221,198,.3);margin-top:4px;}
+  .cover-title{font-family:'Syne',serif;font-size:32px;font-weight:500;letter-spacing:-.02em;line-height:1.1;margin-bottom:12px;}
+  .cover-sub{font-size:16px;font-weight:300;color:rgba(242,221,198,.65);margin-bottom:6px;}
+  .cover-date{font-size:10px;color:rgba(242,221,198,.35);letter-spacing:.1em;text-transform:uppercase;margin-bottom:40px;}
+  .cover-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-top:1px solid rgba(242,221,198,.12);padding-top:20px;}
+  .ck{padding:0 20px 0 0;border-right:1px solid rgba(242,221,198,.08);}
+  .ck:last-child{border-right:none;}
+  .ck-l{font-size:7.5px;letter-spacing:.15em;text-transform:uppercase;color:rgba(242,221,198,.28);margin-bottom:3px;}
+  .ck-v{font-family:'Syne',serif;font-size:19px;font-weight:500;letter-spacing:-.02em;color:var(--sand);}
+  .ck-s{font-size:8.5px;color:rgba(242,221,198,.22);margin-top:2px;}
+  /* sections */
+  section{margin-bottom:20px;}
+  .ey{font-size:8px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--teal-40);margin-bottom:4px;}
+  .st{font-family:'Syne',serif;font-size:14px;font-weight:500;letter-spacing:-.01em;color:var(--abyss);margin-bottom:10px;border-bottom:1px solid rgba(4,25,36,.07);padding-bottom:6px;}
+  /* kpi grid */
+  .kg{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-bottom:18px;}
+  .kc{background:var(--paper);border-radius:4px;padding:10px 12px;border:1px solid rgba(4,25,36,.07);border-top:2px solid var(--sand);}
+  .kl{font-size:7.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--teal-40);margin-bottom:5px;}
+  .kv{font-family:'Syne',serif;font-size:14px;font-weight:500;letter-spacing:-.01em;}
+  /* two col */
+  .tc{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  .chart-box{background:var(--paper);border-radius:4px;border:1px solid rgba(4,25,36,.06);padding:12px;}
+  .cbl{font-size:8px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--teal-40);margin-bottom:8px;}
+  /* legend */
+  .leg-item{display:flex;align-items:center;justify-content:space-between;padding:2.5px 0;border-bottom:.5px solid rgba(4,25,36,.04);}
+  .leg-dot{width:7px;height:7px;border-radius:1px;flex-shrink:0;display:inline-block;margin-right:5px;}
+  .leg-label{font-size:8.5px;color:var(--abyss);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;}
+  .leg-pct{font-size:8.5px;font-weight:600;color:var(--teal-40);flex-shrink:0;padding-left:6px;}
+  /* footer */
+  .pf{position:absolute;bottom:8mm;left:16mm;right:16mm;display:flex;justify-content:space-between;font-size:7.5px;color:var(--teal-40);border-top:1px solid rgba(4,25,36,.06);padding-top:5px;}
+  @media print{.cover,.kc{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}
+</style>
+</head>
+<body>
 
-        // --- PIZZA (grupo de despesas) ---
-        const px2 = mg+lineW+6, py2 = y, pw2 = pizzaW, ph2 = chartH;
-        doc.setFillColor(250,250,250); doc.rect(px2,py2,pw2,ph2,'F');
-        doc.setDrawColor(230,230,230); doc.rect(px2,py2,pw2,ph2,'S');
+<!-- PÁG 1: CAPA -->
+<div class="page cover">
+  <div><div class="cover-logo">PRAXES</div><div class="cover-tagline">Gestão Patrimonial</div></div>
+  <div style="margin-top:auto;">
+    <div class="cover-title">Controle<br>Financeiro</div>
+    <div class="cover-sub">${clientName}</div>
+    <div class="cover-date">${mesLabel}</div>
+    <div class="cover-kpis">
+      <div class="ck"><div class="ck-l">Rendas</div><div class="ck-v">${fmtR(kpi.rendaTotal)}</div><div class="ck-s">no mês</div></div>
+      <div class="ck"><div class="ck-l">Despesas</div><div class="ck-v" style="color:#f2ddc6;opacity:.8;">${fmtR(kpi.despesaTotal)}</div><div class="ck-s">no mês</div></div>
+      <div class="ck"><div class="ck-l">Resultado</div><div class="ck-v">${fmtS(saldo)}</div><div class="ck-s">no mês</div></div>
+      <div class="ck"><div class="ck-l">Taxa poupança</div><div class="ck-v">${poupanca}%</div><div class="ck-s">do total de rendas</div></div>
+    </div>
+  </div>
+</div>
 
-        doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor(15,61,87);
-        doc.text('Despesas por Grupo', px2, py2-1);
+<!-- PÁG 2: KPIs + GRÁFICOS -->
+<div class="page">
+  <div class="ph">
+    <span class="ph-left">${clientName}</span>
+    <span class="ph-right">${mesLabel}</span>
+  </div>
 
-        const coresPizza = ['#0f3d57','#2e6b8e','#629ec1','#10b981','#8b5cf6','#f59e0b','#ef4444','#06b6d4','#84cc16','#ec4899'];
-        function hexToRgb(hex){
-          const r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
-          return [r,g,b];
-        }
+  <section>
+    <div class="ey">Resumo do mês</div>
+    <div class="st">Indicadores financeiros</div>
+    <div class="kg">
+      ${[
+        ['Rendas',       fmtR(kpi.rendaTotal),   'var(--success)'],
+        ['Despesas',     fmtR(kpi.despesaTotal),  'var(--danger)'],
+        ['Resultado',    fmtS(saldo),              color(saldo)],
+        ['Poupança',     poupanca+'%',             '#7c4f00'],
+        ['Rendas YTD',   fmtR(kpi.rendaYTD),      'var(--success)'],
+        ['Despesas YTD', fmtR(kpi.despYTD),       'var(--danger)'],
+        ['Result. YTD',  fmtS(resYTD),             color(resYTD)],
+      ].map(([l,v,c])=>`<div class="kc"><div class="kl">${l}</div><div class="kv" style="color:${c};">${v}</div></div>`).join('')}
+    </div>
+  </section>
 
-        const cx2   = px2 + pw2*0.38;
-        const cy2   = py2 + ph2*0.52;
-        const radius = Math.min(pw2*0.30, ph2*0.40);
-        const inner  = radius * 0.52;
-        let angle = -Math.PI/2;
+  <div class="tc">
+    <section>
+      <div class="ey">Evolução anual</div>
+      <div class="st">Rendas vs Despesas</div>
+      <div class="chart-box">
+        ${anualSvg}
+      </div>
+    </section>
+    <section>
+      <div class="ey">Composição</div>
+      <div class="st">Despesas por grupo</div>
+      <div class="chart-box" style="display:flex;align-items:center;gap:12px;">
+        ${donutSvg}
+        <div style="flex:1;min-width:0;">
+          ${grupos.slice(0,10).map((g,i)=>{
+            const pct=totGrupos>0?(g.v/totGrupos*100).toFixed(1):'0';
+            return `<div class="leg-item">
+              <span class="leg-label"><span class="leg-dot" style="background:${PIE_COLORS[i%PIE_COLORS.length]};"></span>${g.l}</span>
+              <span class="leg-pct">${pct}%</span>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+    </section>
+  </div>
 
-        gruposDespesa.slice(0,10).forEach(function(g,i){
-          const slice = (g.val/totalGrupos) * 2*Math.PI;
-          const midA  = angle + slice/2;
-          const color = hexToRgb(coresPizza[i % coresPizza.length]);
-          doc.setFillColor(color[0],color[1],color[2]);
-          doc.setDrawColor(255,255,255); doc.setLineWidth(0.4);
+  <div class="pf"><span>Praxes Gestão Patrimonial — Confidencial</span><span>2 / 3</span></div>
+</div>
 
-          // Desenha fatia como polígono com pontos suficientes
-          const steps = Math.max(8, Math.round(slice/(Math.PI/16)));
-          const pts2 = [];
-          // inner arc
-          for(let s=0;s<=steps;s++){
-            const a = angle + (slice/steps)*s;
-            pts2.push({x: cx2+inner*Math.cos(a), y: cy2+inner*Math.sin(a)});
-          }
-          // outer arc (reverse)
-          for(let s=steps;s>=0;s--){
-            const a = angle + (slice/steps)*s;
-            pts2.push({x: cx2+radius*Math.cos(a), y: cy2+radius*Math.sin(a)});
-          }
-          const first = pts2[0];
-          const rest  = pts2.slice(1);
-          doc.lines(rest.map(function(p,i){return [p.x-(i===0?first:pts2[i]).x, p.y-(i===0?first:pts2[i]).y];}),
-            first.x, first.y, [1,1], 'FD', true);
+<!-- PÁG 3: DETALHAMENTO -->
+<div class="page">
+  <div class="ph">
+    <span class="ph-left">${clientName}</span>
+    <span class="ph-right">${mesLabel}</span>
+  </div>
+  <section>
+    <div class="ey">Detalhe</div>
+    <div class="st">Detalhamento de despesas — ${mesLabel}</div>
+    <div style="display:flex;gap:24px;align-items:flex-start;">
+      <div style="flex:1;">
+        ${barSvg}
+      </div>
+    </div>
+  </section>
+  <div class="pf">
+    <span>Praxes Gestão Patrimonial — Confidencial</span>
+    <span>Gerado em ${hoje.toLocaleDateString('pt-BR')} às ${hoje.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span>
+  </div>
+</div>
 
-          angle += slice;
-        });
+<script>window.onload=()=>{window.print();}<\/script>
+</body></html>`;
 
-        // Legenda pizza
-        const legX = px2 + pw2*0.68;
-        let legY = py2 + 10;
-        doc.setFontSize(6); doc.setFont('helvetica','normal');
-        gruposDespesa.slice(0,10).forEach(function(g,i){
-          const color = hexToRgb(coresPizza[i % coresPizza.length]);
-          doc.setFillColor(color[0],color[1],color[2]);
-          doc.rect(legX, legY-2.5, 4, 3, 'F');
-          doc.setTextColor(60,60,60);
-          const pct = totalGrupos>0 ? (g.val/totalGrupos*100).toFixed(1)+'%' : '';
-          const lbl = g.label.length>18 ? g.label.substring(0,17)+'…' : g.label;
-          doc.text(lbl+' '+pct, legX+6, legY);
-          legY += 5.5;
-          if (legY > py2+ph2-4) return;
-        });
-
-        // ===== PÁGINA 2: BARRAS (subcategorias) =====
-        doc.addPage('a4','landscape');
-        const pw3 = doc.internal.pageSize.getWidth();
-        const ph3 = doc.internal.pageSize.getHeight();
-
-        doc.setFillColor(15,61,87); doc.rect(0,0,pw3,22,'F');
-        doc.setTextColor(255,255,255);
-        doc.setFontSize(11); doc.setFont('helvetica','bold'); doc.text('PRAXES', mg, 10);
-        doc.setFontSize(8); doc.setFont('helvetica','normal');
-        doc.text('Detalhamento de Despesas  |  '+MESES_PT[finMesAtual-1]+' de '+finAnoAtual, mg, 18);
-        doc.setTextColor(0,0,0);
-
-        let y3 = 27;
-        const barAreaX = mg+52, barAreaW = pw3-mg-barAreaX-30, barAreaH = ph3-y3-mg-4;
-        const barH = barAreaH/subcats.length * 0.72;
-        const barGap = barAreaH/subcats.length;
-        const maxBar = subcats[0] ? subcats[0].val : 1;
-
-        // Eixo X
-        const xSteps = 5;
-        doc.setFontSize(5.5); doc.setTextColor(160,160,160);
-        for(let i=0;i<=xSteps;i++){
-          const bx = barAreaX + (barAreaW/xSteps)*i;
-          doc.setDrawColor(235,235,235); doc.line(bx, y3, bx, y3+barAreaH);
-          const v = (maxBar/xSteps)*i;
-          doc.text('R$'+(v/1000).toFixed(0)+'k', bx, y3+barAreaH+4, {align:'center'});
-        }
-
-        subcats.forEach(function(s,i){
-          const by    = y3 + i*barGap + (barGap-barH)/2;
-          const bw    = (s.val/maxBar)*barAreaW;
-          const pct   = totalSubcats>0 ? (s.val/totalSubcats*100).toFixed(1)+'%' : '';
-          const color = hexToRgb(coresPizza[i % coresPizza.length]);
-
-          // Label categoria
-          doc.setFontSize(6.5); doc.setFont('helvetica','normal'); doc.setTextColor(60,60,60);
-          doc.text(s.cat.substring(0,28), barAreaX-2, by+barH*0.65, {align:'right'});
-
-          // Barra
-          doc.setFillColor(color[0],color[1],color[2]);
-          doc.roundedRect(barAreaX, by, bw, barH, 0.8, 0.8, 'F');
-
-          // Valor + %
-          doc.setFontSize(6.5); doc.setFont('helvetica','bold'); doc.setTextColor(color[0],color[1],color[2]);
-          doc.text(H.fmtPDF(s.val)+'  '+pct, barAreaX+bw+2, by+barH*0.65);
-        });
-
-        H.addFooter(doc, doc.internal.pages.length-1);
-        doc.save('Praxes_Resumo_'+MESES_PT[finMesAtual-1]+'_'+finAnoAtual+'.pdf');
+        const win = window.open('', '_blank', 'width=900,height=700');
+        win.document.write(html);
+        win.document.close();
       } catch(e) {
         console.error('PDF Resumo:', e);
-        alert('Erro ao gerar PDF Resumo: '+e.message);
+        alert('Erro ao gerar PDF: '+e.message);
       }
     }
 
-        // ================================================================
+    // ================================================================
     // RELATÓRIO (ii): DRE — Retrato, sem dashboard
     // ================================================================
     async function finGerarDREPDF() {
