@@ -9605,6 +9605,20 @@ Esta ação não pode ser desfeita.`)) return;
         const anoAnt   = finAnoAtual - 1;
         const colMesAnt= finColMap[anoAnt+'-'+finMesAtual];
 
+        const SKIP = ['rendas totais','total de despesas','despesas rotineiras'];
+
+        // Grupos de despesa (mês)
+        const grupos=[];let totGrupos=0;
+        finGerRows.forEach(row=>{
+          if(!row||colAtual===undefined) return;
+          const l=String(row[1]||'').trim(), sub=String(row[2]||'').trim();
+          if(!l||sub||SKIP.some(s=>l.toLowerCase().includes(s))) return;
+          if(finIsRenda(l)||l.startsWith('(=')) return;
+          const v=Math.abs(parseFloat(row[colAtual])||0);
+          if(v>0){grupos.push({l,v});totGrupos+=v;}
+        });
+        grupos.sort((a,b)=>b.v-a.v);
+
         // YTD rendas/despesas + mês anterior
         let rendaYTD=0, despYTD=0, rendaMesAnt=0, despMesAnt=0;
         finGerRows.forEach(row=>{
@@ -9640,18 +9654,6 @@ Esta ação não pode ser desfeita.`)) return;
           if(v>0){gruposYTD.push({l,v});totYTD+=v;}
         });
         gruposYTD.sort((a,b)=>b.v-a.v);
-
-        const SKIP = ['rendas totais','total de despesas','despesas rotineiras'];
-        const grupos=[];let totGrupos=0;
-        finGerRows.forEach(row=>{
-          if(!row||colAtual===undefined) return;
-          const l=String(row[1]||'').trim(), sub=String(row[2]||'').trim();
-          if(!l||sub||SKIP.some(s=>l.toLowerCase().includes(s))) return;
-          if(finIsRenda(l)||l.startsWith('(=')) return;
-          const v=Math.abs(parseFloat(row[colAtual])||0);
-          if(v>0){grupos.push({l,v});totGrupos+=v;}
-        });
-        grupos.sort((a,b)=>b.v-a.v);
 
         // Subcategorias
         const subcats=[];let totSub=0;
