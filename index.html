@@ -9339,7 +9339,7 @@ Esta ação não pode ser desfeita.`)) return;
         const fmtS = v => (v>=0?'+':'')+fmtR(v);
         const posC = v => v>=0?'#1a6645':'#8c2020';
 
-        // ── Série anual ───────────────────────────────────────────────────────
+        // Série anual
         const mAbrev = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
         const serie = mAbrev.map((_,i) => {
           const ci = finColMap[finAnoAtual+'-'+(i+1)];
@@ -9354,7 +9354,7 @@ Esta ação não pode ser desfeita.`)) return;
         });
         const maxVal = Math.max(...serie.map(s=>Math.max(s.r,s.d)),1);
 
-        // ── Grupos de despesa ─────────────────────────────────────────────────
+        // Grupos de despesa
         const colAtual = finColMap[finAnoAtual+'-'+finMesAtual];
         const SKIP = ['rendas totais','total de despesas','despesas rotineiras'];
         const grupos=[];let totGrupos=0;
@@ -9368,7 +9368,7 @@ Esta ação não pode ser desfeita.`)) return;
         });
         grupos.sort((a,b)=>b.v-a.v);
 
-        // ── Subcategorias ─────────────────────────────────────────────────────
+        // Subcategorias
         const subcats=[];let totSub=0;
         finGerRows.forEach(row=>{
           if(!row||colAtual===undefined) return;
@@ -9377,47 +9377,39 @@ Esta ação não pode ser desfeita.`)) return;
           const v=Math.abs(parseFloat(row[colAtual])||0);
           if(v>0){subcats.push({cat:cat.replace(/^[A-Z& -]+ - /,''),v});totSub+=v;}
         });
-        subcats.sort((a,b)=>b.v-a.v).splice(18);
+        subcats.sort((a,b)=>b.v-a.v).splice(20);
 
-        // ── Cores ─────────────────────────────────────────────────────────────
         const C = ['#041924','#2a5a66','#1d9e75','#5b818b','#a5bcc2','#03313e','#0a2433','#1d5060','#d7e1e4','#ebe3d6'];
 
-        // ── SVG: gráfico de barras agrupadas ──────────────────────────────────
-        const GW=500, GH=160, PAD_L=44, PAD_B=18, PAD_T=8, PAD_R=10;
-        const PW=GW-PAD_L-PAD_R, PH=GH-PAD_B-PAD_T;
-        const slots=12, bw=Math.floor(PW/slots*0.32);
-
-        // grid linhas Y
-        const gridLines = [0,0.25,0.5,0.75,1].map(f=>{
-          const y=PAD_T+PH*(1-f);
+        // ── SVG barras agrupadas (largura total da área = 520px) ──────────────
+        const GW=520, GH=180, PL=46, PB=20, PT=6, PR=8;
+        const PW2=GW-PL-PR, PH2=GH-PB-PT;
+        const bw=Math.floor(PW2/12*0.28);
+        const gridY = [0,0.25,0.5,0.75,1].map(f=>{
+          const gy=PT+PH2*(1-f);
           const v=maxVal*f;
-          const lbl = v>=1e6?'R$'+(v/1e6).toFixed(1)+'mi' : v>=1e3?'R$'+(v/1e3).toFixed(0)+'k' : 'R$0';
-          return `<line x1="${PAD_L}" y1="${y}" x2="${GW-PAD_R}" y2="${y}" stroke="#e8e4dc" stroke-width="0.5"/>
-            <text x="${PAD_L-3}" y="${y+3}" font-size="7" fill="#a5bcc2" text-anchor="end" font-family="Urbanist,sans-serif">${lbl}</text>`;
+          const lbl=v>=1e6?'R$'+(v/1e6).toFixed(1)+'mi':v>=1e3?'R$'+(v/1e3).toFixed(0)+'k':'R$0';
+          return `<line x1="${PL}" y1="${gy.toFixed(1)}" x2="${GW-PR}" y2="${gy.toFixed(1)}" stroke="#e8e4dc" stroke-width="0.5"/>
+            <text x="${PL-3}" y="${(gy+3).toFixed(1)}" font-size="7" fill="#a5bcc2" text-anchor="end" font-family="Urbanist,sans-serif">${lbl}</text>`;
         }).join('');
-
         const bars = serie.map((s,i)=>{
-          const x = PAD_L + i*(PW/slots) + (PW/slots-bw*2-2)/2;
-          const rh = (s.r/maxVal)*PH, dh = (s.d/maxVal)*PH;
-          const hasTx = i===finMesAtual-1;
-          return `
-            <rect x="${x}" y="${PAD_T+PH-rh}" width="${bw}" height="${rh}" rx="1.5" fill="#1a6645" opacity="${hasTx?1:0.55}"/>
-            <rect x="${x+bw+2}" y="${PAD_T+PH-dh}" width="${bw}" height="${dh}" rx="1.5" fill="#8c2020" opacity="${hasTx?1:0.55}"/>
-            <text x="${x+bw+1}" y="${PAD_T+PH+PAD_B-3}" font-size="7" fill="${hasTx?'#041924':'#a5bcc2'}" text-anchor="middle" font-family="Urbanist,sans-serif" font-weight="${hasTx?600:400}">${s.m}</text>`;
+          const slotW = PW2/12;
+          const x = PL + i*slotW + (slotW-bw*2-2)/2;
+          const rh=(s.r/maxVal)*PH2, dh=(s.d/maxVal)*PH2;
+          const isNow = i===finMesAtual-1;
+          return `<rect x="${x.toFixed(1)}" y="${(PT+PH2-rh).toFixed(1)}" width="${bw}" height="${rh.toFixed(1)}" rx="1.5" fill="#1a6645" opacity="${isNow?1:0.45}"/>
+            <rect x="${(x+bw+2).toFixed(1)}" y="${(PT+PH2-dh).toFixed(1)}" width="${bw}" height="${dh.toFixed(1)}" rx="1.5" fill="#8c2020" opacity="${isNow?1:0.45}"/>
+            <text x="${(x+bw+1).toFixed(1)}" y="${(PT+PH2+PB-3).toFixed(1)}" font-size="7" fill="${isNow?'#041924':'#a5bcc2'}" text-anchor="middle" font-family="Urbanist,sans-serif" font-weight="${isNow?600:400}">${s.m}</text>`;
         }).join('');
-
-        const anualSvg = `<svg width="${GW}" height="${GH}" xmlns="http://www.w3.org/2000/svg">
-          ${gridLines}${bars}
-          <rect x="${PAD_L}" y="${PAD_T+2}" width="7" height="5" rx="1" fill="#1a6645"/>
-          <text x="${PAD_L+9}" y="${PAD_T+7}" font-size="7.5" fill="#5b818b" font-family="Urbanist,sans-serif">Rendas</text>
-          <rect x="${PAD_L+40}" y="${PAD_T+2}" width="7" height="5" rx="1" fill="#8c2020"/>
-          <text x="${PAD_L+49}" y="${PAD_T+7}" font-size="7.5" fill="#5b818b" font-family="Urbanist,sans-serif">Despesas</text>
+        const anualSvg = `<svg width="${GW}" height="${GH}" xmlns="http://www.w3.org/2000/svg" style="display:block;width:100%;height:auto;">${gridY}${bars}
+          <rect x="${PL}" y="${PT+2}" width="7" height="5" rx="1" fill="#1a6645"/><text x="${PL+9}" y="${PT+7}" font-size="7.5" fill="#5b818b" font-family="Urbanist,sans-serif">Rendas</text>
+          <rect x="${PL+42}" y="${PT+2}" width="7" height="5" rx="1" fill="#8c2020"/><text x="${PL+51}" y="${PT+7}" font-size="7.5" fill="#5b818b" font-family="Urbanist,sans-serif">Despesas</text>
         </svg>`;
 
-        // ── SVG: donut ────────────────────────────────────────────────────────
-        const DR=54, dr=32, DCX=62, DCY=62;
-        let ang = -Math.PI/2;
-        const slices = grupos.slice(0,8).map((g,i)=>{
+        // ── SVG donut ────────────────────────────────────────────────────────
+        const DR=52, dr=30, DCX=60, DCY=60;
+        let ang=-Math.PI/2;
+        const slices=grupos.slice(0,8).map((g,i)=>{
           const sl=(g.v/totGrupos)*2*Math.PI;
           const x1=DCX+DR*Math.cos(ang),y1=DCY+DR*Math.sin(ang);
           const x2=DCX+dr*Math.cos(ang),y2=DCY+dr*Math.sin(ang);
@@ -9425,30 +9417,29 @@ Esta ação não pode ser desfeita.`)) return;
           const x3=DCX+DR*Math.cos(ang),y3=DCY+DR*Math.sin(ang);
           const x4=DCX+dr*Math.cos(ang),y4=DCY+dr*Math.sin(ang);
           const lg=sl>Math.PI?1:0;
-          return `<path d="M${x2.toFixed(1)},${y2.toFixed(1)} L${x1.toFixed(1)},${y1.toFixed(1)} A${DR},${DR},0,${lg},1,${x3.toFixed(1)},${y3.toFixed(1)} L${x4.toFixed(1)},${y4.toFixed(1)} A${dr},${dr},0,${lg},0,${x2.toFixed(1)},${y2.toFixed(1)} Z" fill="${C[i%C.length]}" stroke="#fff" stroke-width="1"/>`;
+          return `<path d="M${x2.toFixed(1)},${y2.toFixed(1)} L${x1.toFixed(1)},${y1.toFixed(1)} A${DR},${DR},0,${lg},1,${x3.toFixed(1)},${y3.toFixed(1)} L${x4.toFixed(1)},${y4.toFixed(1)} A${dr},${dr},0,${lg},0,${x2.toFixed(1)},${y2.toFixed(1)} Z" fill="${C[i%C.length]}" stroke="#fff" stroke-width="1.2"/>`;
         }).join('');
-        const donutSvg = `<svg width="124" height="124" xmlns="http://www.w3.org/2000/svg">${slices}<circle cx="${DCX}" cy="${DCY}" r="${dr-1}" fill="white"/></svg>`;
+        const donutSvg=`<svg width="120" height="120" xmlns="http://www.w3.org/2000/svg">${slices}<circle cx="${DCX}" cy="${DCY}" r="${dr-1}" fill="white"/></svg>`;
 
-        // ── SVG: barras horizontais subcategorias ─────────────────────────────
-        const ROW_H = 22, BH = 9, LABEL_W = 150;
-        const SH = subcats.length * ROW_H + 20;
-        const SW = 520, BAR_AREA = SW - LABEL_W - 80;
-        const maxB = subcats[0]?.v||1;
-
-        const subcatSvg = `<svg width="${SW}" height="${SH}" xmlns="http://www.w3.org/2000/svg">
+        // ── SVG barras horizontais subcategorias ─────────────────────────────
+        // Usa largura total da área de conteúdo: 178mm ≈ 673px a 96dpi
+        // Mas como SVG é escalado por CSS, usamos unidades relativas
+        const SROW=20, SBH=8, SLABEL=160, SVAL=70, SPCT=36, STOTAL=560;
+        const SBAR = STOTAL-SLABEL-SVAL-SPCT-12;
+        const maxB=subcats[0]?.v||1;
+        const subcatSvg=`<svg viewBox="0 0 ${STOTAL} ${subcats.length*SROW+10}" xmlns="http://www.w3.org/2000/svg" style="width:100%;display:block;">
           ${subcats.map((s,i)=>{
-            const bw2 = Math.max(4,(s.v/maxB)*BAR_AREA);
-            const y = i*ROW_H;
-            const pct = totSub>0?(s.v/totSub*100).toFixed(1)+'%':'';
-            const col = C[i%C.length];
-            return `<text x="0" y="${y+BH+1}" font-size="8.5" fill="#5b818b" font-family="Urbanist,sans-serif">${s.cat.substring(0,30)}</text>
-              <rect x="${LABEL_W}" y="${y+1}" width="${bw2}" height="${BH}" rx="2" fill="${col}"/>
-              <text x="${LABEL_W+bw2+6}" y="${y+BH+1}" font-size="8.5" fill="${col}" font-family="Urbanist,sans-serif" font-weight="600">${fmtR(s.v)}</text>
-              <text x="${SW}" y="${y+BH+1}" font-size="8" fill="#a5bcc2" font-family="Urbanist,sans-serif" text-anchor="end">${pct}</text>`;
+            const bw2=Math.max(3,(s.v/maxB)*SBAR);
+            const y=i*SROW;
+            const pct=totSub>0?(s.v/totSub*100).toFixed(1)+'%':'';
+            const col=C[i%C.length];
+            return `<text x="0" y="${y+SBH+2}" font-size="9" fill="#5b818b" font-family="Urbanist,sans-serif">${s.cat.substring(0,26)}</text>
+              <rect x="${SLABEL}" y="${y}" width="${bw2.toFixed(1)}" height="${SBH}" rx="2" fill="${col}"/>
+              <text x="${SLABEL+SBAR+8}" y="${y+SBH+1}" font-size="9" fill="${col}" font-family="Urbanist,sans-serif" font-weight="600">${fmtR(s.v)}</text>
+              <text x="${STOTAL}" y="${y+SBH+1}" font-size="8.5" fill="#a5bcc2" font-family="Urbanist,sans-serif" text-anchor="end">${pct}</text>`;
           }).join('')}
         </svg>`;
 
-        // ── HTML ──────────────────────────────────────────────────────────────
         const html = `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -9456,155 +9447,128 @@ Esta ação não pode ser desfeita.`)) return;
 <title>Controle Financeiro — Praxes</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700&family=Urbanist:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
-  :root{--abyss:#041924;--teal:#2a5a66;--sand:#f2ddc6;--shell:#ebe3d6;--paper:#faf6f0;--t40:#5b818b;--t20:#a5bcc2;--ok:#1a6645;--no:#8c2020;}
+  :root{--ab:#041924;--tl:#2a5a66;--sd:#f2ddc6;--sh:#ebe3d6;--pp:#faf6f0;--t4:#5b818b;--t2:#a5bcc2;--ok:#1a6645;--no:#8c2020;}
   *{margin:0;padding:0;box-sizing:border-box;}
-  @page{size:A4;margin:0;}
-  body{font-family:'Urbanist',sans-serif;background:#fff;color:var(--abyss);font-size:11px;line-height:1.5;-webkit-font-smoothing:antialiased;}
-  .page{width:210mm;min-height:297mm;padding:14mm 16mm 18mm;page-break-after:always;-webkit-print-color-adjust:exact;print-color-adjust:exact;position:relative;}
+  @page{size:A4 portrait;margin:0;}
+  html,body{width:210mm;background:#fff;}
+  body{font-family:'Urbanist',sans-serif;color:var(--ab);font-size:10.5px;line-height:1.5;-webkit-font-smoothing:antialiased;}
+
+  /* ── PÁGINAS ── */
+  .page{width:210mm;height:297mm;overflow:hidden;page-break-after:always;-webkit-print-color-adjust:exact;print-color-adjust:exact;position:relative;}
   .page:last-child{page-break-after:avoid;}
 
-  /* ── CAPA ── */
-  .cover{background:var(--abyss);color:var(--sand);display:flex;flex-direction:column;justify-content:space-between;padding:28mm 22mm 24mm;}
-  .cover-brand{display:flex;flex-direction:column;gap:4px;}
-  .cover-logo{font-family:'Syne',serif;font-size:20px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--sand);opacity:.9;}
-  .cover-tag{font-size:8px;letter-spacing:.2em;text-transform:uppercase;color:rgba(242,221,198,.28);}
-  .cover-main{display:flex;flex-direction:column;gap:10px;}
-  .cover-title{font-family:'Syne',serif;font-size:44px;font-weight:500;letter-spacing:-.03em;line-height:1.0;color:var(--sand);}
-  .cover-client{font-size:17px;font-weight:300;color:rgba(242,221,198,.6);}
-  .cover-period{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:rgba(242,221,198,.3);margin-top:4px;}
-  .cover-kpis{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid rgba(242,221,198,.1);padding-top:22px;gap:0;}
-  .ck{padding:0 18px 0 0;border-right:1px solid rgba(242,221,198,.07);}
-  .ck:last-child{border-right:none;}
-  .ck-l{font-size:7.5px;letter-spacing:.15em;text-transform:uppercase;color:rgba(242,221,198,.28);margin-bottom:5px;}
-  .ck-v{font-family:'Syne',serif;font-size:20px;font-weight:500;letter-spacing:-.02em;color:var(--sand);line-height:1.1;}
-  .ck-s{font-size:8px;color:rgba(242,221,198,.2);margin-top:3px;}
+  /* ── CAPA: preenche exatamente 210×297mm ── */
+  .cover{background:var(--ab);color:var(--sd);width:100%;height:100%;display:flex;flex-direction:column;justify-content:space-between;padding:26mm 20mm 20mm;}
+  .c-brand{display:flex;flex-direction:column;gap:3px;}
+  .c-logo{font-family:'Syne',serif;font-size:19px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--sd);opacity:.9;}
+  .c-tag{font-size:7.5px;letter-spacing:.2em;text-transform:uppercase;color:rgba(242,221,198,.28);}
+  .c-main{display:flex;flex-direction:column;gap:8px;}
+  .c-title{font-family:'Syne',serif;font-size:46px;font-weight:500;letter-spacing:-.03em;line-height:.98;color:var(--sd);}
+  .c-client{font-size:16px;font-weight:300;color:rgba(242,221,198,.6);}
+  .c-period{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:rgba(242,221,198,.28);margin-top:2px;}
+  .c-kpis{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid rgba(242,221,198,.1);padding-top:18px;}
+  .ck{padding:0 16px 0 0;border-right:1px solid rgba(242,221,198,.07);}
+  .ck:last-child{border-right:none;padding:0;}
+  .ck-l{font-size:7px;letter-spacing:.14em;text-transform:uppercase;color:rgba(242,221,198,.27);margin-bottom:4px;}
+  .ck-v{font-family:'Syne',serif;font-size:18px;font-weight:500;letter-spacing:-.02em;color:var(--sd);line-height:1.1;}
+  .ck-s{font-size:7.5px;color:rgba(242,221,198,.2);margin-top:2px;}
 
   /* ── PÁGINAS INTERNAS ── */
-  .ph{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:20px;padding-bottom:10px;border-bottom:1px solid rgba(4,25,36,.08);}
-  .ph-l{font-family:'Syne',serif;font-size:14px;font-weight:500;color:var(--abyss);}
-  .ph-r{font-size:8px;color:var(--t40);text-transform:uppercase;letter-spacing:.12em;}
-  .ey{font-size:8px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--t40);margin-bottom:4px;}
-  .st{font-family:'Syne',serif;font-size:15px;font-weight:500;letter-spacing:-.01em;color:var(--abyss);margin-bottom:12px;border-bottom:1px solid rgba(4,25,36,.07);padding-bottom:7px;}
+  .inner{padding:14mm 16mm 14mm;}
+  .ph{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:16px;padding-bottom:9px;border-bottom:1px solid rgba(4,25,36,.08);}
+  .ph-l{font-family:'Syne',serif;font-size:13px;font-weight:500;color:var(--ab);}
+  .ph-r{font-size:7.5px;color:var(--t4);text-transform:uppercase;letter-spacing:.12em;}
+  .ey{font-size:7.5px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--t4);margin-bottom:4px;}
+  .st{font-family:'Syne',serif;font-size:14px;font-weight:500;letter-spacing:-.01em;color:var(--ab);margin-bottom:10px;border-bottom:1px solid rgba(4,25,36,.07);padding-bottom:6px;}
 
-  /* ── KPI GRID ── */
-  .kg{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-bottom:22px;}
-  .kc{background:var(--paper);border-radius:5px;padding:11px 12px;border:1px solid rgba(4,25,36,.07);border-top:2px solid var(--sand);}
-  .kl{font-size:7.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--t40);margin-bottom:5px;}
-  .kv{font-family:'Syne',serif;font-size:13px;font-weight:500;letter-spacing:-.01em;line-height:1.2;}
+  /* ── KPI GRID 7 colunas ── */
+  .kg{display:grid;grid-template-columns:repeat(7,1fr);gap:7px;margin-bottom:18px;}
+  .kc{background:var(--pp);border-radius:4px;padding:9px 11px;border:1px solid rgba(4,25,36,.07);border-top:2px solid var(--sd);}
+  .kl{font-size:7px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--t4);margin-bottom:4px;}
+  .kv{font-family:'Syne',serif;font-size:12.5px;font-weight:500;letter-spacing:-.01em;line-height:1.2;}
 
-  /* ── GRID GRÁFICOS ── */
-  .gc{display:grid;grid-template-columns:3fr 2fr;gap:16px;margin-bottom:0;}
-  .cb{background:var(--paper);border-radius:5px;border:1px solid rgba(4,25,36,.06);padding:12px 14px;}
-  .cbl{font-size:8px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--t40);margin-bottom:10px;}
-  .donut-row{display:flex;align-items:center;gap:14px;}
-  .leg-item{display:flex;align-items:center;justify-content:space-between;padding:3px 0;border-bottom:.5px solid rgba(4,25,36,.04);}
-  .leg-dot{width:7px;height:7px;border-radius:1px;flex-shrink:0;margin-right:6px;}
-  .leg-l{font-size:8.5px;color:var(--abyss);display:flex;align-items:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .leg-p{font-size:8.5px;font-weight:600;color:var(--t40);flex-shrink:0;padding-left:6px;}
+  /* ── GRÁFICOS: barras 58% | donut 42% ── */
+  .gc{display:grid;grid-template-columns:58fr 42fr;gap:14px;margin-bottom:0;}
+  .cb{background:var(--pp);border-radius:4px;border:1px solid rgba(4,25,36,.06);padding:11px 13px;}
+  .cbl{font-size:7.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--t4);margin-bottom:8px;}
+  .donut-wrap{display:flex;align-items:center;gap:12px;}
+  .leg-i{display:flex;align-items:center;justify-content:space-between;padding:2.5px 0;border-bottom:.5px solid rgba(4,25,36,.04);}
+  .leg-d{width:7px;height:7px;border-radius:1px;flex-shrink:0;margin-right:5px;display:inline-block;}
+  .leg-l{font-size:8px;color:var(--ab);display:flex;align-items:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .leg-p{font-size:8px;font-weight:600;color:var(--t4);flex-shrink:0;padding-left:5px;}
 
-  /* ── PÁG FOOTER ── */
-  .pf{position:absolute;bottom:8mm;left:16mm;right:16mm;display:flex;justify-content:space-between;font-size:7.5px;color:var(--t40);border-top:1px solid rgba(4,25,36,.06);padding-top:5px;}
+  /* ── PÁG 3 barras ── */
+  .bar-section{padding:0;}
+
+  /* ── FOOTER ── */
+  .pf{position:absolute;bottom:8mm;left:16mm;right:16mm;display:flex;justify-content:space-between;font-size:7px;color:var(--t4);border-top:1px solid rgba(4,25,36,.06);padding-top:5px;}
   @media print{.cover,.kc{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}
 </style>
 </head>
 <body>
 
 <!-- PÁG 1: CAPA -->
-<div class="page cover">
-  <div class="cover-brand">
-    <div class="cover-logo">PRAXES</div>
-    <div class="cover-tag">Gestão Patrimonial</div>
+<div class="page">
+<div class="cover">
+  <div class="c-brand">
+    <div class="c-logo">PRAXES</div>
+    <div class="c-tag">Gestão Patrimonial</div>
   </div>
-  <div class="cover-main">
-    <div class="cover-title">Controle<br>Financeiro</div>
-    <div class="cover-client">${clientName}</div>
-    <div class="cover-period">${mesLabel}</div>
+  <div class="c-main">
+    <div class="c-title">Controle<br>Financeiro</div>
+    <div class="c-client">${clientName}</div>
+    <div class="c-period">${mesLabel}</div>
   </div>
-  <div class="cover-kpis">
-    <div class="ck">
-      <div class="ck-l">Rendas</div>
-      <div class="ck-v">${fmtR(kpi.rendaTotal)}</div>
-      <div class="ck-s">no mês</div>
-    </div>
-    <div class="ck">
-      <div class="ck-l">Despesas</div>
-      <div class="ck-v">${fmtR(kpi.despesaTotal)}</div>
-      <div class="ck-s">no mês</div>
-    </div>
-    <div class="ck">
-      <div class="ck-l">Resultado</div>
-      <div class="ck-v" style="color:${posC(saldo)};">${fmtS(saldo)}</div>
-      <div class="ck-s">no mês</div>
-    </div>
-    <div class="ck">
-      <div class="ck-l">Poupança</div>
-      <div class="ck-v">${poupanca}%</div>
-      <div class="ck-s">das rendas</div>
-    </div>
+  <div class="c-kpis">
+    <div class="ck"><div class="ck-l">Rendas</div><div class="ck-v">${fmtR(kpi.rendaTotal)}</div><div class="ck-s">no mês</div></div>
+    <div class="ck"><div class="ck-l">Despesas</div><div class="ck-v">${fmtR(kpi.despesaTotal)}</div><div class="ck-s">no mês</div></div>
+    <div class="ck"><div class="ck-l">Resultado</div><div class="ck-v" style="color:${posC(saldo)}">${fmtS(saldo)}</div><div class="ck-s">no mês</div></div>
+    <div class="ck"><div class="ck-l">Poupança</div><div class="ck-v">${poupanca}%</div><div class="ck-s">das rendas</div></div>
   </div>
+</div>
 </div>
 
 <!-- PÁG 2: KPIs + GRÁFICOS -->
 <div class="page">
+<div class="inner">
   <div class="ph"><span class="ph-l">${clientName}</span><span class="ph-r">${mesLabel}</span></div>
-
-  <section style="margin-bottom:22px;">
-    <div class="ey">Resumo do mês</div>
-    <div class="st">Indicadores financeiros</div>
-    <div class="kg">
-      ${[
-        ['Rendas',       fmtR(kpi.rendaTotal),  posC(kpi.rendaTotal)],
-        ['Despesas',     fmtR(kpi.despesaTotal), '#8c2020'],
-        ['Resultado',    fmtS(saldo),             posC(saldo)],
-        ['Poupança',     poupanca+'%',            '#2a5a66'],
-        ['Rendas YTD',   fmtR(kpi.rendaYTD),     posC(kpi.rendaYTD)],
-        ['Despesas YTD', fmtR(kpi.despYTD),      '#8c2020'],
-        ['Result. YTD',  fmtS(resYTD),            posC(resYTD)],
-      ].map(([l,v,c])=>`<div class="kc"><div class="kl">${l}</div><div class="kv" style="color:${c};">${v}</div></div>`).join('')}
-    </div>
-  </section>
-
+  <div class="ey">Resumo do mês</div>
+  <div class="st">Indicadores financeiros</div>
+  <div class="kg">
+    ${[['Rendas',fmtR(kpi.rendaTotal),'#1a6645'],['Despesas',fmtR(kpi.despesaTotal),'#8c2020'],['Resultado',fmtS(saldo),posC(saldo)],['Poupança',poupanca+'%','#2a5a66'],['Rendas YTD',fmtR(kpi.rendaYTD),'#1a6645'],['Despesas YTD',fmtR(kpi.despYTD),'#8c2020'],['Result. YTD',fmtS(resYTD),posC(resYTD)]].map(([l,v,c])=>`<div class="kc"><div class="kl">${l}</div><div class="kv" style="color:${c}">${v}</div></div>`).join('')}
+  </div>
   <div class="gc">
-    <section>
+    <div>
       <div class="ey">Evolução anual</div>
       <div class="st">Rendas vs Despesas</div>
       <div class="cb">${anualSvg}</div>
-    </section>
-    <section>
+    </div>
+    <div>
       <div class="ey">Composição</div>
       <div class="st">Despesas por grupo</div>
       <div class="cb">
-        <div class="donut-row">
-          <div style="flex-shrink:0;">${donutSvg}</div>
-          <div style="flex:1;min-width:0;">
-            ${grupos.slice(0,8).map((g,i)=>{
-              const pct=totGrupos>0?(g.v/totGrupos*100).toFixed(1):'0';
-              return `<div class="leg-item">
-                <span class="leg-l"><span class="leg-dot" style="background:${C[i%C.length]};"></span>${g.l}</span>
-                <span class="leg-p">${pct}%</span>
-              </div>`;
-            }).join('')}
+        <div class="donut-wrap">
+          <div style="flex-shrink:0">${donutSvg}</div>
+          <div style="flex:1;min-width:0">
+            ${grupos.slice(0,8).map((g,i)=>`<div class="leg-i"><span class="leg-l"><span class="leg-d" style="background:${C[i%C.length]}"></span>${g.l}</span><span class="leg-p">${totGrupos>0?(g.v/totGrupos*100).toFixed(1):'0'}%</span></div>`).join('')}
           </div>
         </div>
       </div>
-    </section>
+    </div>
   </div>
-
   <div class="pf"><span>Praxes Gestão Patrimonial — Confidencial</span><span>2 / 3</span></div>
+</div>
 </div>
 
 <!-- PÁG 3: DETALHAMENTO -->
 <div class="page">
+<div class="inner">
   <div class="ph"><span class="ph-l">${clientName}</span><span class="ph-r">${mesLabel}</span></div>
-  <section>
-    <div class="ey">Detalhe</div>
-    <div class="st">Detalhamento de despesas — ${mesLabel}</div>
-    ${subcatSvg}
-  </section>
-  <div class="pf">
-    <span>Praxes Gestão Patrimonial — Confidencial</span>
-    <span>Gerado em ${hoje.toLocaleDateString('pt-BR')} às ${hoje.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span>
-  </div>
+  <div class="ey">Detalhe</div>
+  <div class="st">Detalhamento de despesas — ${mesLabel}</div>
+  <div class="bar-section">${subcatSvg}</div>
+  <div class="pf"><span>Praxes Gestão Patrimonial — Confidencial</span><span>Gerado em ${hoje.toLocaleDateString('pt-BR')} às ${hoje.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span></div>
+</div>
 </div>
 
 <script>window.onload=()=>{window.print();}<\/script>
@@ -9618,6 +9582,9 @@ Esta ação não pode ser desfeita.`)) return;
         alert('Erro ao gerar PDF: '+e.message);
       }
     }
+
+
+
 
 
     // ================================================================
