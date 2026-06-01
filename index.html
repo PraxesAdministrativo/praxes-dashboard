@@ -757,7 +757,7 @@
       position: fixed;
       inset: 0;
       background: rgba(4,25,36,0.55);
-      z-index: 2000;
+      z-index: 9000;
       align-items: center;
       justify-content: center;
       backdrop-filter: blur(4px);
@@ -1093,6 +1093,18 @@
       color: var(--fg-mute);
       font-size: 14px;
     }
+
+    /* ── REALIZADOS MENSAIS ────────────────────────────── */
+    .realiz-grid-cell { padding: 6px 8px !important; }
+    .realiz-cel { display: inline-flex; flex-direction: column; align-items: center; margin: 2px 3px; vertical-align: top; }
+    .realiz-mes-lbl { font-size: 10px; color: #999; text-transform: capitalize; margin-bottom: 2px; }
+    .realiz-badge { font-size: 11px; font-weight: 600; padding: 2px 6px; border-radius: 4px; white-space: nowrap; }
+    .realiz-ok  { background: #e8f5ee; color: #1a6645; }
+    .realiz-est { background: #f0f4f8; color: #6b7f8d; }
+    .realiz-est em { font-style: normal; opacity: .5; }
+    .tag-orcado { display: inline-block; font-size: 9px; background: #f5efe4; color: #b8924a; border-radius: 3px; padding: 1px 4px; margin-left: 4px; text-transform: uppercase; letter-spacing: .4px; font-weight: 600; vertical-align: middle; }
+    .btn-lancar { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; padding: 3px 9px; background: #e8f1f7; color: #0f3d57; border-radius: 5px; border: 1px solid rgba(15,61,87,0.18); cursor: pointer; font-family: inherit; font-weight: 600; transition: background .15s, color .15s; white-space: nowrap; }
+    .btn-lancar:hover { background: #0f3d57; color: #fff; }
 
     /* RESUMO CARTEIRA */
     .carteira-resumo {
@@ -2059,13 +2071,14 @@
                   <thead>
                     <tr>
                       <th>Tipo</th>
-                      <th>Valor Mensal</th>
+                      <th>Orçado/mês</th>
                       <th>Vencimento</th>
+                      <th>Realizados <span style="font-weight:400;opacity:.55;font-size:11px;">* = orçado</span></th>
                       <th>Ações</th>
                     </tr>
                   </thead>
                   <tbody id="tbody-despesas-rec">
-                    <tr><td colspan="4" class="empty-state">Carregando...</td></tr>
+                    <tr><td colspan="5" class="empty-state">Carregando...</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -2858,6 +2871,46 @@
   </div>
 
   <!-- MODAL DESPESA RECORRENTE -->
+  <!-- MODAL LANÇAR REALIZADO -->
+  <div class="modal" id="modal-lancar-realizado">
+    <div class="modal-content" style="max-width:420px;">
+      <div class="modal-header">
+        <h3 class="modal-title">Lançar Valor Realizado</h3>
+        <button class="modal-close" onclick="closeModal('modal-lancar-realizado')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="background:var(--surface-alt,#f4f6f8);border-radius:8px;padding:12px 16px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px;">Despesa</div>
+            <div style="font-weight:700;font-size:15px;" id="lancar-tipo-display">—</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px;">Orçado</div>
+            <div style="font-weight:700;font-size:15px;color:#b8924a;" id="lancar-orcado-display">—</div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Mês de competência *</label>
+          <select class="form-select" id="lancar-mes-sel"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Valor realizado *</label>
+          <input type="number" class="form-input" id="lancar-valor" placeholder="Ex: 498,50" step="0.01" oninput="lancarAtualizarDiff()">
+          <div id="lancar-diff" style="font-size:12px;margin-top:5px;font-weight:600;min-height:16px;"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Observação</label>
+          <input type="text" class="form-input" id="lancar-obs" placeholder="Ex: Boleto veio diferente por acerto de obra">
+        </div>
+        <p style="font-size:11px;color:#aaa;margin-top:4px;">Se já existe lançamento para esse mês, ele será substituído.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="closeModal('modal-lancar-realizado')">Cancelar</button>
+        <button class="btn-save" onclick="saveDespesaRealizada()">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal" id="modal-despesa-rec">
     <div class="modal-content">
       <div class="modal-header">
@@ -4739,6 +4792,7 @@
       historico: [],
       despesasRec: [],
       despesasExt: [],
+      despesasRealizadas: [],
       ocupacao: [],
       investimentos: [],
       receitas: [],
@@ -4752,6 +4806,7 @@
           'historico': 'Historico_Valores!A2:E100',
           'despesasRec': 'Despesas_Recorrentes!A2:E100',
           'despesasExt': 'Despesas_Extraordinarias!A2:F100',
+          'despesasRealizadas': 'Despesas_Realizadas!A2:F500',
           'ocupacao': 'Ocupacao!A2:M100',
           'investimentos': 'Investimentos!A2:E100',
           'receitas': 'Receitas!A2:F100',
@@ -4795,9 +4850,10 @@
 
         // Abas opcionais — carregadas individualmente para não quebrar se não existirem
         const opcionais = [
-          { key: 'investimentos', range: 'Investimentos!A2:E100' },
-          { key: 'receitas',      range: 'Receitas!A2:F100' },
-          { key: 'caracteristicas', range: 'Características!A2:Z10' }
+          { key: 'investimentos',      range: 'Investimentos!A2:E100' },
+          { key: 'receitas',           range: 'Receitas!A2:F100' },
+          { key: 'caracteristicas',    range: 'Características!A2:Z10' },
+          { key: 'despesasRealizadas', range: 'Despesas_Realizadas!A2:F500' }
         ];
         for (const op of opcionais) {
           try {
@@ -6435,6 +6491,32 @@
         categoria: r[4]
       }));
     }
+
+    async function loadDespesasRealizadas(nomeImovel) {
+      const rows = dataCache.despesasRealizadas || [];
+      return rows
+        .map((r, idx) => ({ idx, r }))
+        .filter(({ r }) => r[0] === nomeImovel)
+        .map(({ idx, r }) => ({
+          rowIndex: idx,
+          tipo: r[1] || '',
+          anoMes: r[2] || '',
+          valor: parseFloat(String(r[3] || '0').replace(/[^\d.-]/g, '')) || 0,
+          observacao: r[4] || ''
+        }));
+    }
+
+    function getRealizadoMes(realizados, tipo, anoMes) {
+      const found = realizados.find(r => r.tipo === tipo && r.anoMes === anoMes);
+      return found ? found.valor : null;
+    }
+
+    function despRecValorMes(despRec, realizados, anoMes) {
+      return despRec.reduce((sum, d) => {
+        const real = getRealizadoMes(realizados, d.tipo, anoMes);
+        return sum + (real !== null ? real : d.valorMensal);
+      }, 0);
+    }
     
     async function loadOcupacao(nomeImovel) {
       const rows = dataCache.ocupacao || [];
@@ -6518,30 +6600,52 @@
     
     async function loadTabDespesas() {
       if (!currentImovelNome) return;
-      
-      // Carrega despesas recorrentes
+
       const despesasRec = await loadDespesasRecorrentes(currentImovelNome);
-      const tbodyRec = document.getElementById('tbody-despesas-rec');
-      
+      const realizados  = await loadDespesasRealizadas(currentImovelNome);
+      const tbodyRec    = document.getElementById('tbody-despesas-rec');
+
       if (despesasRec.length === 0) {
-        tbodyRec.innerHTML = '<tr><td colspan="4" class="empty-state">Nenhuma despesa recorrente cadastrada</td></tr>';
+        tbodyRec.innerHTML = '<tr><td colspan="5" class="empty-state">Nenhuma despesa recorrente cadastrada</td></tr>';
       } else {
-        tbodyRec.innerHTML = despesasRec.map((d, i) => `
-          <tr>
-            <td>${esc(d.tipo)}</td>
-            <td>${fmt(d.valorMensal)}</td>
-            <td>${esc(d.vencimentoDia) || '-'}</td>
-            <td class="gestao-actions">
-              <button class="btn-icon" onclick="deleteDespesaRec(${i})" title="Excluir"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg></button>
-            </td>
-          </tr>
-        `).join('');
+        // Últimos 6 meses para exibir realizados
+        const meses6 = [];
+        let d = new Date(); d.setDate(1);
+        for (let i = 0; i < 6; i++) {
+          const ym = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+          const label = d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.','');
+          meses6.unshift({ ym, label });
+          d.setMonth(d.getMonth() - 1);
+        }
+
+        tbodyRec.innerHTML = despesasRec.map((dep, i) => {
+          const mesesHtml = meses6.map(m => {
+            const real = getRealizadoMes(realizados, dep.tipo, m.ym);
+            const badge = real !== null
+              ? `<span class="realiz-badge realiz-ok" title="Realizado">${fmt(real)}</span>`
+              : `<span class="realiz-badge realiz-est" title="Orçado (estimativa)">${fmt(dep.valorMensal)}<em>*</em></span>`;
+            return `<div class="realiz-cel"><span class="realiz-mes-lbl">${m.label}</span>${badge}</div>`;
+          }).join('');
+
+          return `
+            <tr class="despesa-rec-row">
+              <td><strong>${esc(dep.tipo)}</strong></td>
+              <td>${fmt(dep.valorMensal)}<span class="tag-orcado">orçado</span></td>
+              <td>${dep.vencimentoDia ? `dia ${esc(dep.vencimentoDia)}` : '—'}</td>
+              <td class="realiz-grid-cell">${mesesHtml}</td>
+              <td class="gestao-actions">
+                <button class="btn-lancar" onclick="openModalLancarRealizado('${esc(dep.tipo)}', ${dep.valorMensal})" title="Lançar valor real do mês">✎ Lançar</button>
+                <button class="btn-icon" onclick="deleteDespesaRec(${i})" title="Excluir"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg></button>
+              </td>
+            </tr>
+          `;
+        }).join('');
       }
-      
-      // Carrega despesas extraordinárias
+
+      // Despesas Extraordinárias (inalterado)
       const despesasExt = await loadDespesasExtraordinarias(currentImovelNome);
       const tbodyExt = document.getElementById('tbody-despesas-ext');
-      
+
       if (despesasExt.length === 0) {
         tbodyExt.innerHTML = '<tr><td colspan="5" class="empty-state">Nenhuma despesa extraordinária cadastrada</td></tr>';
       } else {
@@ -6672,6 +6776,84 @@
       viewImovelDocs(currentImovelIndex);
     }
     
+    // ========== CRUD DESPESAS REALIZADAS ==========
+    let _lancarTipo = '', _lancarOrcado = 0;
+
+    function openModalLancarRealizado(tipo, orcado) {
+      _lancarTipo   = tipo;
+      _lancarOrcado = orcado;
+
+      const sel = document.getElementById('lancar-mes-sel');
+      sel.innerHTML = '';
+      let d = new Date(); d.setDate(1);
+      for (let i = 0; i < 24; i++) {
+        const ym    = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+        const label = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+        const opt   = document.createElement('option');
+        opt.value   = ym;
+        opt.textContent = label;
+        if (i === 0) opt.selected = true;
+        sel.appendChild(opt);
+        d.setMonth(d.getMonth() - 1);
+      }
+
+      document.getElementById('lancar-tipo-display').textContent   = tipo;
+      document.getElementById('lancar-orcado-display').textContent = fmt(orcado);
+      document.getElementById('lancar-valor').value = '';
+      document.getElementById('lancar-obs').value   = '';
+      document.getElementById('lancar-diff').textContent = '';
+      openModal('modal-lancar-realizado');
+    }
+
+    function lancarAtualizarDiff() {
+      const val  = parseFloat(document.getElementById('lancar-valor').value) || 0;
+      const diff = val - _lancarOrcado;
+      const el   = document.getElementById('lancar-diff');
+      if (!val) { el.textContent = ''; return; }
+      el.textContent = `${diff >= 0 ? '+' : ''}${fmt(diff)} vs. orçado`;
+      el.style.color = diff > 0 ? '#8c2020' : diff < 0 ? '#1a6645' : '#888';
+    }
+
+    async function saveDespesaRealizada() {
+      const anoMes = document.getElementById('lancar-mes-sel').value;
+      const valor  = parseFloat(document.getElementById('lancar-valor').value);
+      const obs    = document.getElementById('lancar-obs').value || '';
+
+      if (!anoMes || isNaN(valor)) { alert('Preencha o mês e o valor realizado.'); return; }
+
+      const realizados = await loadDespesasRealizadas(currentImovelNome);
+      const existente  = realizados.find(r => r.tipo === _lancarTipo && r.anoMes === anoMes);
+      const row        = [currentImovelNome, _lancarTipo, anoMes, valor, obs];
+
+      try {
+        if (existente !== undefined) {
+          const rowNum = existente.rowIndex + 2;
+          await gapi.client.sheets.spreadsheets.values.update({
+            spreadsheetId: imoveisSheetId,
+            range: `Despesas_Realizadas!A${rowNum}:E${rowNum}`,
+            valueInputOption: 'USER_ENTERED',
+            resource: { values: [row] }
+          });
+        } else {
+          await gapi.client.sheets.spreadsheets.values.append({
+            spreadsheetId: imoveisSheetId,
+            range: 'Despesas_Realizadas!A:E',
+            valueInputOption: 'USER_ENTERED',
+            resource: { values: [row] }
+          });
+        }
+        closeModal('modal-lancar-realizado');
+        await reloadCacheTab('despesasRealizadas');
+        loadTabDespesas();
+        if (document.getElementById('tab-fluxo-caixa')?.classList.contains('active')) {
+          loadTabFluxoCaixa();
+        }
+      } catch (e) {
+        console.error('❌', e);
+        alert('Erro ao salvar: ' + e.message);
+      }
+    }
+
     // ========== CRUD DESPESAS RECORRENTES ==========
     async function saveDespesaRec() {
       const form = document.getElementById('form-despesa-rec');
@@ -6932,6 +7114,7 @@
       const ocupacoes = await loadOcupacao(nome);
       const despRec   = await loadDespesasRecorrentes(nome);
       const despExt   = await loadDespesasExtraordinarias(nome);
+      const realizados= await loadDespesasRealizadas(nome);
       const investim  = await loadInvestimentos(nome);
       const receitas  = await loadReceitas(nome);
 
@@ -6962,17 +7145,16 @@
       }
 
       const labels = [], receitasBars = [], despRecBars = [], despExtBars = [], investimBars = [];
-      const despMensal = despRec.reduce((s,d) => s+(d.valorMensal||0), 0);
       let cur = new Date(inicioMes);
       while (cur <= fimMes) {
         const ym = anoMes(cur);
         labels.push(cur.toLocaleDateString('pt-BR', {month:'short', year:'2-digit'}));
 
         const recManuais = receitas.filter(r => anoMes(new Date(r.data)) === ym).reduce((s,r) => s+r.valor, 0);
-        receitasBars.push(aluguelMes(ym) + recManuais);                                          // positivo (cima)
-        despRecBars.push(-(despMensal));                                                          // negativo (baixo)
-        despExtBars.push(-(despExt.filter(d => anoMes(new Date(d.data)) === ym).reduce((s,d) => s+d.valor, 0)));  // negativo
-        investimBars.push(-(investim.filter(d => anoMes(new Date(d.data)) === ym).reduce((s,d) => s+d.valor, 0))); // negativo
+        receitasBars.push(aluguelMes(ym) + recManuais);
+        despRecBars.push(-(despRecValorMes(despRec, realizados, ym)));                                              // realizado ou orçado
+        despExtBars.push(-(despExt.filter(d => anoMes(new Date(d.data)) === ym).reduce((s,d) => s+d.valor, 0)));
+        investimBars.push(-(investim.filter(d => anoMes(new Date(d.data)) === ym).reduce((s,d) => s+d.valor, 0)));
 
         cur = new Date(cur.getFullYear(), cur.getMonth()+1, 1);
       }
