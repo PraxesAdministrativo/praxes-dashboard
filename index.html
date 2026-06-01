@@ -2127,9 +2127,45 @@
               <div class="gestao-section">
                 <div class="gestao-header">
                   <h3 class="gestao-title">Documentos do Imóvel</h3>
-                  <button class="btn-add-small" onclick="viewImovelDocsFromTab()">Gerenciar</button>
                 </div>
-                <p style="color: var(--text-light); padding: 20px;">Clique em "Gerenciar" para fazer upload, visualizar e excluir documentos.</p>
+
+                <!-- Categoria + Upload -->
+                <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap;">
+                  <select id="tab-docs-cat" class="form-select" style="flex:1;min-width:160px;padding:9px 12px;font-size:13px;" onchange="tabDocsFiltrar()">
+                    <option value="">📂 Todas as categorias</option>
+                    <option value="Contrato">📋 Contrato</option>
+                    <option value="Escritura">🏛️ Escritura</option>
+                    <option value="Financiamento">🏦 Financiamento</option>
+                    <option value="IPTU">📃 IPTU</option>
+                    <option value="Condomínio">🏢 Condomínio</option>
+                    <option value="Laudo">🔍 Laudo / Vistoria</option>
+                    <option value="Seguro">🛡️ Seguro</option>
+                    <option value="Nota Fiscal">🧾 Nota Fiscal</option>
+                    <option value="Foto">📷 Foto</option>
+                    <option value="Outros">📎 Outros</option>
+                  </select>
+                  <label class="btn-save" style="cursor:pointer;margin:0;padding:9px 18px;font-size:13px;display:inline-flex;align-items:center;gap:6px;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/></svg>
+                    Upload
+                    <input type="file" id="tab-file-input" multiple accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.xls,.xlsx" style="display:none;" onchange="tabDocsUpload(this.files)">
+                  </label>
+                </div>
+
+                <!-- Drag & drop -->
+                <div class="upload-area" id="tab-upload-area" style="padding:18px;margin-bottom:16px;" onclick="document.getElementById('tab-file-input').click()">
+                  <div style="display:flex;align-items:center;justify-content:center;gap:10px;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/></svg>
+                    <span style="font-size:13px;color:#777;">Arraste arquivos aqui ou clique para fazer upload</span>
+                  </div>
+                </div>
+
+                <!-- Status upload -->
+                <div id="tab-docs-status" style="display:none;margin-bottom:12px;"></div>
+
+                <!-- Lista inline -->
+                <div id="tab-docs-list">
+                  <p style="color:#999;text-align:center;padding:40px;font-size:13px;">Carregando documentos…</p>
+                </div>
               </div>
             </div>
 
@@ -6432,6 +6468,8 @@
         loadTabReceitasImovel();
       } else if (tabName === 'caracteristicas') {
         loadTabCaracteristicas();
+      } else if (tabName === 'documentos') {
+        loadTabDocumentos();
       }
     }
     
@@ -6611,6 +6649,159 @@
     
     function viewImovelDocsFromTab() {
       viewImovelDocs(currentImovelIndex);
+    }
+
+    // ========== DOCUMENTOS INLINE (aba Documentos) ==========
+    let _tabDocsCache = [];
+
+    async function loadTabDocumentos() {
+      if (!currentImovelNome) return;
+      const row = imoveisData[currentImovelIndex];
+      if (!row) return;
+
+      let folderId = row[17];
+      if (!folderId) {
+        // Cria pasta se não existe
+        try {
+          folderId = await createImovelFolder(currentImovelNome);
+          const rowNum = currentImovelIndex + 2;
+          await gapi.client.sheets.spreadsheets.values.update({
+            spreadsheetId: imoveisSheetId,
+            range: `Lista!R${rowNum}`,
+            valueInputOption: 'USER_ENTERED',
+            resource: { values: [[folderId]] }
+          });
+          imoveisData[currentImovelIndex][17] = folderId;
+        } catch(e) {
+          document.getElementById('tab-docs-list').innerHTML = '<p style="color:red;padding:20px;">Erro ao acessar pasta do Drive.</p>';
+          return;
+        }
+      }
+
+      currentDriveFolderId = folderId;
+      document.getElementById('tab-docs-list').innerHTML = '<p style="color:#999;text-align:center;padding:30px;font-size:13px;">Carregando…</p>';
+
+      try {
+        const response = await gapi.client.drive.files.list({
+          q: `'${folderId}' in parents and trashed=false`,
+          fields: 'files(id,name,mimeType,size,createdTime,webViewLink,webContentLink)',
+          orderBy: 'name',
+          supportsAllDrives: true,
+          includeItemsFromAllDrives: true
+        });
+        _tabDocsCache = response.result.files || [];
+        tabDocsFiltrar();
+      } catch(e) {
+        document.getElementById('tab-docs-list').innerHTML = '<p style="color:red;padding:20px;">Erro ao carregar documentos.</p>';
+      }
+
+      // Drag & drop
+      const area = document.getElementById('tab-upload-area');
+      if (area && !area._ddInit) {
+        area._ddInit = true;
+        area.addEventListener('dragover', e => { e.preventDefault(); area.classList.add('dragging'); });
+        area.addEventListener('dragleave', () => area.classList.remove('dragging'));
+        area.addEventListener('drop', e => {
+          e.preventDefault(); area.classList.remove('dragging');
+          tabDocsUpload(e.dataTransfer.files);
+        });
+      }
+    }
+
+    function tabDocsFiltrar() {
+      const sel  = document.getElementById('tab-docs-cat')?.value || '';
+      const categorias = ['Contrato','Escritura','Financiamento','IPTU','Condomínio','Laudo','Seguro','Nota Fiscal','Foto','Outros'];
+      const icons = {'Contrato':'📋','Escritura':'🏛️','Financiamento':'🏦','IPTU':'📃','Condomínio':'🏢','Laudo':'🔍','Seguro':'🛡️','Nota Fiscal':'🧾','Foto':'📷','Outros':'📎'};
+
+      function getCat(name) {
+        const m = name.match(/^\[(.+?)\]/);
+        return (m && categorias.includes(m[1])) ? m[1] : 'Outros';
+      }
+
+      let files = _tabDocsCache;
+      if (sel) files = files.filter(f => getCat(f.name) === sel);
+
+      const list = document.getElementById('tab-docs-list');
+      if (files.length === 0) {
+        list.innerHTML = `<p style="text-align:center;padding:40px;color:#999;font-size:13px;">${sel ? `Nenhum documento na categoria "${sel}".` : 'Nenhum documento ainda. Faça upload acima!'}</p>`;
+        return;
+      }
+
+      const grupos = {};
+      files.forEach(f => { const c = getCat(f.name); if (!grupos[c]) grupos[c] = []; grupos[c].push(f); });
+
+      let html = '';
+      Object.keys(grupos).sort().forEach(cat => {
+        html += `<div class="docs-grupo">
+          <div class="docs-grupo-header">${icons[cat]||'📎'} ${cat} <span class="docs-grupo-count">${grupos[cat].length}</span></div>`;
+        grupos[cat].forEach(file => {
+          const displayName = file.name.replace(/^\[.+?\]\s*/,'');
+          const size = file.size ? formatBytes(file.size) : '—';
+          const date = new Date(file.createdTime).toLocaleDateString('pt-BR');
+          const icon = getFileIcon(file.mimeType);
+          html += `<div class="doc-item">
+            <div class="doc-info">
+              <div class="doc-icon">${icon}</div>
+              <div class="doc-details">
+                <div class="doc-name">${displayName}</div>
+                <div class="doc-meta">${size} · ${date}</div>
+              </div>
+            </div>
+            <div class="doc-actions">
+              <button class="btn-doc" onclick="window.open('${file.webViewLink}','_blank')">👁 Ver</button>
+              <button class="btn-doc" onclick="window.open('${file.webContentLink}','_blank')">⬇ Baixar</button>
+              <button class="btn-doc btn-doc-del" onclick="tabDocsDelete('${file.id}','${file.name.replace(/'/g,"\\'")}')">🗑</button>
+            </div>
+          </div>`;
+        });
+        html += `</div>`;
+      });
+      list.innerHTML = html;
+    }
+
+    async function tabDocsUpload(fileList) {
+      if (!currentDriveFolderId || !fileList?.length) return;
+      const catSel = document.getElementById('tab-docs-cat')?.value || 'Outros';
+      const statusEl = document.getElementById('tab-docs-status');
+      statusEl.style.display = 'block';
+
+      for (const file of fileList) {
+        if (!validarArquivoUpload(file)) continue;
+        const nomeComCat = `[${catSel}] ${file.name}`;
+        statusEl.innerHTML = `<div style="font-size:12px;color:#555;padding:6px 10px;background:#f0f4f8;border-radius:6px;">⏳ Enviando <strong>${file.name}</strong>…</div>`;
+        try {
+          const metadata = { name: nomeComCat, parents: [currentDriveFolderId] };
+          const formData = new FormData();
+          formData.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+          formData.append('file', file);
+          const token = gapi.client.getToken().access_token;
+          const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name&supportsAllDrives=true', {
+            method: 'POST', headers: { 'Authorization': 'Bearer ' + token }, body: formData
+          });
+          if (!res.ok) { const err = await res.json(); throw new Error(err.error?.message); }
+          console.log('✅', nomeComCat);
+        } catch(e) {
+          statusEl.innerHTML = `<div style="font-size:12px;color:#c00;padding:6px 10px;background:#fceaea;border-radius:6px;">❌ Erro: ${e.message}</div>`;
+        }
+      }
+
+      statusEl.style.display = 'none';
+      await loadTabDocumentos();
+      // Resetar input
+      const inp = document.getElementById('tab-file-input');
+      if (inp) inp.value = '';
+    }
+
+    async function tabDocsDelete(fileId, fileName) {
+      if (!confirm(`Excluir "${fileName.replace(/^\[.+?\]\s*/,'')}"?`)) return;
+      try {
+        await gapi.client.drive.files.delete({ fileId, supportsAllDrives: true });
+      } catch(e) {
+        if (!(e.status === 404 || e.result?.error?.code === 404)) {
+          alert('Erro ao excluir: ' + (e.result?.error?.message || e.message)); return;
+        }
+      }
+      await loadTabDocumentos();
     }
     
     // ========== CRUD DESPESAS REALIZADAS ==========
