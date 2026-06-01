@@ -1957,11 +1957,10 @@
             <div class="tabs-header">
               <button class="tab-btn active" onclick="switchTab('geral')">Visão Geral</button>
               <button class="tab-btn" onclick="switchTab('caracteristicas')">Características</button>
+              <button class="tab-btn" onclick="switchTab('ocupacao')">Ocupação</button>
+              <button class="tab-btn" onclick="switchTab('receitas-imovel')">Receitas</button>
               <button class="tab-btn" onclick="switchTab('despesas')">Despesas</button>
               <button class="tab-btn" onclick="switchTab('investimentos-imovel')">Investimentos</button>
-              <button class="tab-btn" onclick="switchTab('receitas-imovel')">Receitas</button>
-              <button class="tab-btn" onclick="switchTab('fluxo-caixa')">Fluxo de Caixa</button>
-              <button class="tab-btn" onclick="switchTab('ocupacao')">Ocupação</button>
               <button class="tab-btn" onclick="switchTab('documentos')">Documentos</button>
             </div>
 
@@ -2032,14 +2031,23 @@
                   </div>
 
                   <div class="detalhes-section" style="margin-top: 24px;">
-                    <h3 class="detalhes-section-title">Análise Completa</h3>
-                    <div id="detalhes-info"></div>
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+                      <h3 class="detalhes-section-title" style="margin-bottom:0;">Fluxo de Caixa Mensal</h3>
+                      <div style="display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:#777;">
+                        <span><span style="display:inline-block;width:10px;height:10px;background:#16a34a;border-radius:2px;margin-right:4px;"></span>Receitas</span>
+                        <span><span style="display:inline-block;width:10px;height:10px;background:#2e6b8e;border-radius:2px;margin-right:4px;"></span>Desp. Recorrentes</span>
+                        <span><span style="display:inline-block;width:10px;height:10px;background:#f59e0b;border-radius:2px;margin-right:4px;"></span>Desp. Extraordinárias</span>
+                        <span><span style="display:inline-block;width:10px;height:10px;background:#8b5cf6;border-radius:2px;margin-right:4px;"></span>Investimentos</span>
+                      </div>
+                    </div>
+                    <div style="height:300px;"><canvas id="chart-fluxo-caixa"></canvas></div>
+                    <div id="fluxo-resumo" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:16px;"></div>
                   </div>
                 </div>
 
                 <div>
                   <div class="detalhes-section">
-                    <h3 class="detalhes-section-title">📅 Histórico de Valores</h3>
+                    <h3 class="detalhes-section-title">Histórico de Valores</h3>
                     <div class="historico-list" id="detalhes-historico"></div>
                   </div>
                 </div>
@@ -2139,22 +2147,6 @@
             </div>
 
             <!-- ABA: FLUXO DE CAIXA -->
-            <div class="tab-content" id="tab-fluxo-caixa">
-              <div class="gestao-section">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-                  <h3 class="gestao-title" style="margin:0;">Fluxo de Caixa Mensal</h3>
-                  <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:#555;">
-                    <span><span style="display:inline-block;width:12px;height:12px;background:#16a34a;border-radius:3px;margin-right:4px;"></span>Receitas</span>
-                    <span><span style="display:inline-block;width:12px;height:12px;background:#2e6b8e;border-radius:3px;margin-right:4px;"></span>Desp. Recorrentes</span>
-                    <span><span style="display:inline-block;width:12px;height:12px;background:#f59e0b;border-radius:3px;margin-right:4px;"></span>Desp. Extraordinárias</span>
-                    <span><span style="display:inline-block;width:12px;height:12px;background:#8b5cf6;border-radius:3px;margin-right:4px;"></span>Investimentos</span>
-                  </div>
-                </div>
-                <div style="height:320px;"><canvas id="chart-fluxo-caixa"></canvas></div>
-                <div id="fluxo-resumo" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:20px;"></div>
-              </div>
-            </div>
-
             <!-- ABA: OCUPAÇÃO -->
             <div class="tab-content" id="tab-ocupacao">
               <div class="gestao-section">
@@ -5877,6 +5869,13 @@
       await reloadCacheTab('historico');
       await loadHistoricoValores(nome, '', '');
       await loadGraficoRentabilidade(nome, '', '');
+
+      // Reseta para aba Visão Geral e carrega o fluxo
+      document.querySelectorAll('#page-imovel-detalhes .tab-content').forEach(c => c.classList.remove('active'));
+      document.getElementById('tab-geral').classList.add('active');
+      document.querySelectorAll('#page-imovel-detalhes .tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelector('#page-imovel-detalhes .tab-btn').classList.add('active');
+      loadTabFluxoCaixa();
       
       // Muda para página de detalhes
       document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -6583,7 +6582,9 @@
       document.getElementById(`tab-${tabName}`).classList.add('active');
       
       // Carrega dados da aba
-      if (tabName === 'despesas') {
+      if (tabName === 'geral') {
+        loadTabFluxoCaixa();
+      } else if (tabName === 'despesas') {
         loadTabDespesas();
       } else if (tabName === 'ocupacao') {
         loadTabOcupacao();
@@ -6591,8 +6592,6 @@
         loadTabInvestimentosImovel();
       } else if (tabName === 'receitas-imovel') {
         loadTabReceitasImovel();
-      } else if (tabName === 'fluxo-caixa') {
-        loadTabFluxoCaixa();
       } else if (tabName === 'caracteristicas') {
         loadTabCaracteristicas();
       }
@@ -6845,7 +6844,7 @@
         closeModal('modal-lancar-realizado');
         await reloadCacheTab('despesasRealizadas');
         loadTabDespesas();
-        if (document.getElementById('tab-fluxo-caixa')?.classList.contains('active')) {
+        if (document.getElementById('tab-geral')?.classList.contains('active')) {
           loadTabFluxoCaixa();
         }
       } catch (e) {
