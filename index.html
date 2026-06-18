@@ -14162,8 +14162,7 @@ Esta ação não pode ser desfeita.`)) return;
       do {
         const body = {
           page_size: 100,
-          sorts: [{ timestamp: 'created_time', direction: 'descending' }],
-          ...(clientName ? { filter: { property: 'Cliente', people: { contains: clientName } } } : {})
+          sorts: [{ timestamp: 'created_time', direction: 'descending' }]
         };
         if (cursor) body.start_cursor = cursor;
 
@@ -14183,7 +14182,18 @@ Esta ação não pode ser desfeita.`)) return;
         cursor = data.has_more ? data.next_cursor : undefined;
       } while (cursor);
 
-      _tarTarefas = allResults.map(tarPageToObj);
+      let tarefas = allResults.map(tarPageToObj);
+
+      // Filtra pelo cliente atual usando a propriedade Cliente (Person)
+      // O nome vem parseado em tarPageToObj como campo 'cliente'
+      if (clientName) {
+        tarefas = tarefas.filter(t => {
+          const c = (t.cliente || '').toLowerCase();
+          return c.includes(clientName.toLowerCase()) || clientName.toLowerCase().includes(c.split(' ')[0].toLowerCase());
+        });
+      }
+
+      _tarTarefas = tarefas;
       _tarLoaded  = true;
       tarefasPopularResponsaveis();
       tarefasRender();
@@ -14241,6 +14251,13 @@ Esta ação não pode ser desfeita.`)) return;
     const descProp = tarGetProp(p, 'Descrição', 'Descricao', 'Description', 'Observações', 'Notas', 'Notes');
     const descricao = descProp?.rich_text?.map(t => t.plain_text).join('') || '';
 
+    // Cliente (type: people)
+    const clienteProp = tarGetProp(p, 'Cliente', 'Client');
+    let cliente = '';
+    if (clienteProp?.people?.length > 0) {
+      cliente = clienteProp.people.map(p => p.name || '').filter(Boolean).join(', ');
+    }
+
     return {
       id:         page.id,
       titulo,
@@ -14249,6 +14266,7 @@ Esta ação não pode ser desfeita.`)) return;
       prazo,
       responsavel,
       descricao,
+      cliente,
       criado_em:  page.created_time
     };
   }
