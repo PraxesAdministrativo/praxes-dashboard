@@ -2796,7 +2796,7 @@
           <div class="form-group">
             <label class="form-label">Status</label>
             <select class="form-select" id="tar-form-status">
-              <option value="A fazer">A fazer</option>
+              <option value="Não iniciada">Não iniciada</option>
               <option value="Em andamento">Em andamento</option>
               <option value="Concluído">Concluído</option>
             </select>
@@ -14237,7 +14237,7 @@ Esta ação não pode ser desfeita.`)) return;
     const titulo = titleProp?.title?.map(t => t.plain_text).join('') || 'Sem título';
 
     // Status (type: status ou select)
-    const statusProp = tarGetProp(p, 'Status', 'Estado', 'Situação');
+    const statusProp = tarGetProp(p, 'Status da Tarefa', 'Status', 'Estado', 'Situação');
     const status = statusProp?.status?.name || statusProp?.select?.name || '';
 
     // Prioridade (type: select)
@@ -14433,7 +14433,7 @@ Esta ação não pode ser desfeita.`)) return;
     document.getElementById('tar-form-titulo').value      = t?.titulo      || '';
     document.getElementById('tar-form-prioridade').value  = t?.prioridade  || '';
     document.getElementById('tar-form-responsavel').value = t?.responsavel || '';
-    document.getElementById('tar-form-status').value      = t?.status      || 'A fazer';
+    document.getElementById('tar-form-status').value      = t?.status      || 'Não iniciada';
     document.getElementById('tar-form-obs').value         = t?.descricao   || '';
     document.getElementById('tar-form-prazo').value       = t?.prazo ? t.prazo.split('T')[0] : '';
     openModal('modal-tarefa');
@@ -14442,8 +14442,8 @@ Esta ação não pode ser desfeita.`)) return;
   // Monta o body de propriedades para create/update
   function tarBuildProps(titulo, prioridade, responsavel, status, prazo, descricao) {
     const props = {
-      'Nome':        { title:     [{ text: { content: titulo } }] },
-      'Status':      { status:    { name: status || 'A fazer' } },
+      'Nome':           { title:     [{ text: { content: titulo } }] },
+      'Status da Tarefa': { status:  { name: status || 'Não iniciada' } },
       'Prioridade':  { select:    prioridade ? { name: prioridade } : null },
       'Prazo':       { date:      prazo ? { start: prazo } : null },
       'Responsável': { rich_text: responsavel ? [{ text: { content: responsavel } }] : [] },
@@ -14507,7 +14507,7 @@ Esta ação não pode ser desfeita.`)) return;
   async function tarefasToggleDone(id) {
     const t = _tarTarefas.find(x => x.id === id);
     if (!t) return;
-    const novoStatus = tarIsDone(t) ? 'A fazer' : 'Concluído';
+    const novoStatus = tarIsDone(t) ? 'Não iniciada' : 'Concluído';
 
     // Atualização otimista
     t.status = novoStatus;
@@ -14517,7 +14517,7 @@ Esta ação não pode ser desfeita.`)) return;
       const resp = await fetch(tarNotionUrl(`/v1/pages/${id}`), {
         method: 'PATCH',
         headers: tarNotionHeaders(),
-        body: JSON.stringify({ properties: { 'Status': { status: { name: novoStatus } } } })
+        body: JSON.stringify({ properties: { 'Status da Tarefa': { status: { name: novoStatus } } } })
       });
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
     } catch (err) {
