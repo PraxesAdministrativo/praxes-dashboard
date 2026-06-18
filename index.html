@@ -14122,8 +14122,6 @@ Esta ação não pode ser desfeita.`)) return;
 
   const TAR_NOTION_DB      = '1ec701b863e680f381d8d07cc4dacab4';
   const TAR_NOTION_VERSION = '2022-06-28';
-  const TAR_TOKEN_KEY      = 'praxes_notion_token';
-  // Proxy Supabase Edge Function — evita bloqueio CORS do browser para api.notion.com
   const TAR_PROXY_BASE     = 'https://urckolcywijllkdyjcgc.supabase.co/functions/v1/notion-proxy';
 
   let _tarTarefas   = [];
@@ -14131,20 +14129,8 @@ Esta ação não pode ser desfeita.`)) return;
   let _tarEditingId = null;
   let _tarLoaded    = false;
 
-  // ──────────────── TOKEN ────────────────
-  function tarGetToken() {
-    return localStorage.getItem(TAR_TOKEN_KEY) || '';
-  }
-  function tarSetToken(tok) {
-    localStorage.setItem(TAR_TOKEN_KEY, tok.trim());
-  }
-
   function tarNotionHeaders() {
-    return {
-      'x-notion-token':   tarGetToken(),
-      'x-notion-version': TAR_NOTION_VERSION,
-      'Content-Type':     'application/json'
-    };
+    return { 'Content-Type': 'application/json' };
   }
 
   function tarNotionUrl(path) {
@@ -14153,55 +14139,12 @@ Esta ação não pode ser desfeita.`)) return;
 
   // ──────────────── INIT ────────────────
   async function tarefasInit() {
-    if (!tarGetToken()) {
-      tarShowTokenSetup();
-      return;
-    }
     if (!_tarLoaded) await tarefasLoad();
     else tarefasRender();
   }
 
   async function tarefasReload() {
     _tarLoaded = false;
-    await tarefasLoad();
-  }
-
-  // ──────────────── SETUP TOKEN ────────────────
-  function tarShowTokenSetup() {
-    document.getElementById('tar-list').innerHTML = '';
-    document.getElementById('tar-kpis').innerHTML = '';
-    document.getElementById('tar-filters').style.display = 'none';
-
-    // Injeta UI de configuração inline
-    document.getElementById('tar-list').innerHTML = `
-      <div style="max-width:480px;margin:40px auto;text-align:center;">
-        <div style="font-size:36px;margin-bottom:16px;opacity:.5;">🔗</div>
-        <h3 style="font-size:16px;font-weight:700;color:var(--fg-1);margin-bottom:8px;">Conectar ao Notion</h3>
-        <p style="font-size:13px;color:var(--fg-mute);line-height:1.6;margin-bottom:24px;">
-          Para carregar as tarefas, informe o <strong>Internal Integration Token</strong> da sua integração Notion.<br>
-          <a href="https://www.notion.so/my-integrations" target="_blank" style="color:var(--praxes-teal);font-size:12px;">
-            Criar integração em notion.so/my-integrations →
-          </a>
-        </p>
-        <input type="password" id="tar-token-input" placeholder="ntn_xxxxxxxx ou secret_xxxxxxxx"
-          style="width:100%;padding:10px 14px;font-size:13px;font-family:inherit;border:1px solid var(--line-strong);border-radius:var(--r-md);background:var(--surface);color:var(--fg-1);outline:none;box-sizing:border-box;margin-bottom:12px;">
-        <button class="btn-primary" onclick="tarSalvarToken()" style="width:100%;padding:10px;font-size:13px;">
-          Conectar
-        </button>
-        <p style="font-size:11px;color:var(--fg-mute);margin-top:12px;">
-          O token é salvo localmente no seu browser. Certifique-se de que a integração tem acesso ao database de tarefas.
-        </p>
-      </div>`;
-  }
-
-  async function tarSalvarToken() {
-    const tok = document.getElementById('tar-token-input')?.value?.trim();
-    if (!tok || (!tok.startsWith('secret_') && !tok.startsWith('ntn_'))) {
-      alert('Token inválido. Deve começar com "secret_" ou "ntn_".');
-      return;
-    }
-    tarSetToken(tok);
-    document.getElementById('tar-filters').style.display = '';
     await tarefasLoad();
   }
 
@@ -14224,11 +14167,6 @@ Esta ação não pode ser desfeita.`)) return;
           body: JSON.stringify(body)
         });
 
-        if (resp.status === 401) {
-          localStorage.removeItem(TAR_TOKEN_KEY);
-          tarShowTokenSetup();
-          return;
-        }
         if (!resp.ok) {
           const err = await resp.json();
           throw new Error(err.message || `HTTP ${resp.status}`);
@@ -14252,7 +14190,6 @@ Esta ação não pode ser desfeita.`)) return;
         <small style="color:var(--fg-mute);">${esc(err.message)}</small></p>
         <div style="display:flex;gap:8px;justify-content:center;margin-top:14px;">
           <button class="btn-secondary" onclick="tarefasReload()" style="font-size:12px;">Tentar novamente</button>
-          <button class="btn-secondary" onclick="localStorage.removeItem('${TAR_TOKEN_KEY}');tarefasInit()" style="font-size:12px;">Reconfigurar token</button>
         </div>
       </div>`;
     }
