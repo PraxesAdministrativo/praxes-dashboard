@@ -14123,6 +14123,8 @@ Esta ação não pode ser desfeita.`)) return;
   const TAR_NOTION_DB      = '1ec701b863e680f381d8d07cc4dacab4';
   const TAR_NOTION_VERSION = '2022-06-28';
   const TAR_TOKEN_KEY      = 'praxes_notion_token';
+  // Proxy Supabase Edge Function — evita bloqueio CORS do browser para api.notion.com
+  const TAR_PROXY_BASE     = 'https://urckolcywijllkdyjcgc.supabase.co/functions/v1/notion-proxy';
 
   let _tarTarefas   = [];
   let _tarFilter    = 'all';
@@ -14139,10 +14141,14 @@ Esta ação não pode ser desfeita.`)) return;
 
   function tarNotionHeaders() {
     return {
-      'Authorization': 'Bearer ' + tarGetToken(),
-      'Notion-Version': TAR_NOTION_VERSION,
-      'Content-Type': 'application/json'
+      'x-notion-token':   tarGetToken(),
+      'x-notion-version': TAR_NOTION_VERSION,
+      'Content-Type':     'application/json'
     };
+  }
+
+  function tarNotionUrl(path) {
+    return TAR_PROXY_BASE + path;
   }
 
   // ──────────────── INIT ────────────────
@@ -14212,7 +14218,7 @@ Esta ação não pode ser desfeita.`)) return;
         const body = { page_size: 100, sorts: [{ timestamp: 'created_time', direction: 'descending' }] };
         if (cursor) body.start_cursor = cursor;
 
-        const resp = await fetch(`https://api.notion.com/v1/databases/${TAR_NOTION_DB}/query`, {
+        const resp = await fetch(tarNotionUrl(`/v1/databases/${TAR_NOTION_DB}/query`), {
           method: 'POST',
           headers: tarNotionHeaders(),
           body: JSON.stringify(body)
@@ -14495,14 +14501,14 @@ Esta ação não pode ser desfeita.`)) return;
       let resp;
       if (_tarEditingId) {
         // PATCH — atualiza página existente
-        resp = await fetch(`https://api.notion.com/v1/pages/${_tarEditingId}`, {
+        resp = await fetch(tarNotionUrl(`/v1/pages/${_tarEditingId}`), {
           method: 'PATCH',
           headers: tarNotionHeaders(),
           body: JSON.stringify({ properties: tarBuildProps(titulo,prioridade,responsavel,status,prazo,descricao) })
         });
       } else {
         // POST — cria nova página
-        resp = await fetch('https://api.notion.com/v1/pages', {
+        resp = await fetch(tarNotionUrl('/v1/pages'), {
           method: 'POST',
           headers: tarNotionHeaders(),
           body: JSON.stringify({
@@ -14537,7 +14543,7 @@ Esta ação não pode ser desfeita.`)) return;
     tarefasRender();
 
     try {
-      const resp = await fetch(`https://api.notion.com/v1/pages/${id}`, {
+      const resp = await fetch(tarNotionUrl(`/v1/pages/${id}`), {
         method: 'PATCH',
         headers: tarNotionHeaders(),
         body: JSON.stringify({ properties: { 'Status': { status: { name: novoStatus } } } })
