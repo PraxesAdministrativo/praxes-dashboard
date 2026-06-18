@@ -4087,7 +4087,7 @@
       if (pageName === 'investimentos') { invInit(); }
       if (pageName === 'veiculos')   { veiculosInit(); }
       if (pageName === 'documentos') { docsInit(); }
-      if (pageName === 'tarefas')    { tarefasInit(); }
+      if (pageName === 'tarefas')    { _tarLoaded = false; tarefasInit(); }
       if (pageName === 'perfil')     { perfilInit(); }
     }
 
@@ -14153,12 +14153,18 @@ Esta ação não pode ser desfeita.`)) return;
     const listEl = document.getElementById('tar-list');
     listEl.innerHTML = '<div class="loading"><div class="spinner"></div><p>Carregando tarefas…</p></div>';
 
+    const clientName = document.getElementById('sidebar-name')?.textContent?.trim() || '';
+
     try {
       // Busca todas as páginas (paginando se necessário)
       let allResults = [];
       let cursor = undefined;
       do {
-        const body = { page_size: 100, sorts: [{ timestamp: 'created_time', direction: 'descending' }] };
+        const body = {
+          page_size: 100,
+          sorts: [{ timestamp: 'created_time', direction: 'descending' }],
+          ...(clientName ? { filter: { property: 'Cliente', people: { contains: clientName } } } : {})
+        };
         if (cursor) body.start_cursor = cursor;
 
         const resp = await fetch(tarNotionUrl(`/v1/databases/${TAR_NOTION_DB}/query`), {
