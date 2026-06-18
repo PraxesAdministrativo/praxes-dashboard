@@ -14113,19 +14113,44 @@ Esta ação não pode ser desfeita.`)) return;
   // ============================================================
 
   // ============================================================
-  // ========== MÓDULO TAREFAS (Notion) ==========================
+  // ========== MÓDULO TAREFAS (Notion REST API) =================
+  // ============================================================
+  // A API do Notion aceita chamadas diretas do browser (CORS OK)
+  // desde que o token seja de uma Integration com acesso ao DB.
+  // Token configurado via modal de setup na primeira visita.
   // ============================================================
 
-  const TAR_NOTION_DB = '1ec701b863e680f381d8d07cc4dacab4';
+  const TAR_NOTION_DB      = '1ec701b863e680f381d8d07cc4dacab4';
   const TAR_NOTION_VERSION = '2022-06-28';
+  const TAR_TOKEN_KEY      = 'praxes_notion_token';
 
-  let _tarTarefas   = [];      // cache das tarefas carregadas
-  let _tarFilter    = 'all';   // 'all' | 'pending' | 'done'
-  let _tarEditingId = null;    // page_id sendo editado (null = novo)
-  let _tarLoaded    = false;   // para não recarregar desnecessariamente
+  let _tarTarefas   = [];
+  let _tarFilter    = 'all';
+  let _tarEditingId = null;
+  let _tarLoaded    = false;
+
+  // ──────────────── TOKEN ────────────────
+  function tarGetToken() {
+    return localStorage.getItem(TAR_TOKEN_KEY) || '';
+  }
+  function tarSetToken(tok) {
+    localStorage.setItem(TAR_TOKEN_KEY, tok.trim());
+  }
+
+  function tarNotionHeaders() {
+    return {
+      'Authorization': 'Bearer ' + tarGetToken(),
+      'Notion-Version': TAR_NOTION_VERSION,
+      'Content-Type': 'application/json'
+    };
+  }
 
   // ──────────────── INIT ────────────────
   async function tarefasInit() {
+    if (!tarGetToken()) {
+      tarShowTokenSetup();
+      return;
+    }
     if (!_tarLoaded) await tarefasLoad();
     else tarefasRender();
   }
@@ -14135,58 +14160,148 @@ Esta ação não pode ser desfeita.`)) return;
     await tarefasLoad();
   }
 
-  // ──────────────── LOAD via Notion MCP ────────────────
+  // ──────────────── SETUP TOKEN ────────────────
+  function tarShowTokenSetup() {
+    document.getElementById('tar-list').innerHTML = '';
+    document.getElementById('tar-kpis').innerHTML = '';
+    document.getElementById('tar-filters').style.display = 'none';
+
+    // Injeta UI de configuração inline
+    document.getElementById('tar-list').innerHTML = `
+      <div style="max-width:480px;margin:40px auto;text-align:center;">
+        <div style="font-size:36px;margin-bottom:16px;opacity:.5;">🔗</div>
+        <h3 style="font-size:16px;font-weight:700;color:var(--fg-1);margin-bottom:8px;">Conectar ao Notion</h3>
+        <p style="font-size:13px;color:var(--fg-mute);line-height:1.6;margin-bottom:24px;">
+          Para carregar as tarefas, informe o <strong>Internal Integration Token</strong> da sua integração Notion.<br>
+          <a href="https://www.notion.so/my-integrations" target="_blank" style="color:var(--praxes-teal);font-size:12px;">
+            Criar integração em notion.so/my-integrations →
+          </a>
+        </p>
+        <input type="password" id="tar-token-input" placeholder="secret_xxxxxxxxxxxxxxxx"
+          style="width:100%;padding:10px 14px;font-size:13px;font-family:inherit;border:1px solid var(--line-strong);border-radius:var(--r-md);background:var(--surface);color:var(--fg-1);outline:none;box-sizing:border-box;margin-bottom:12px;">
+        <button class="btn-primary" onclick="tarSalvarToken()" style="width:100%;padding:10px;font-size:13px;">
+          Conectar
+        </button>
+        <p style="font-size:11px;color:var(--fg-mute);margin-top:12px;">
+          O token é salvo localmente no seu browser. Certifique-se de que a integração tem acesso ao database de tarefas.
+        </p>
+      </div>`;
+  }
+
+  async function tarSalvarToken() {
+    const tok = document.getElementById('tar-token-input')?.value?.trim();
+    if (!tok || !tok.startsWith('secret_')) {
+      alert('Token inválido. Deve começar com "secret_".');
+      return;
+    }
+    tarSetToken(tok);
+    document.getElementById('tar-filters').style.display = '';
+    await tarefasLoad();
+  }
+
+  // ──────────────── LOAD ────────────────
   async function tarefasLoad() {
     const listEl = document.getElementById('tar-list');
     listEl.innerHTML = '<div class="loading"><div class="spinner"></div><p>Carregando tarefas…</p></div>';
+
     try {
-      const resp = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-6',
-          max_tokens: 4000,
-          system: `Você é um assistente que busca dados do Notion e retorna APENAS JSON válido, sem nenhum texto adicional, sem markdown, sem backticks.
-O JSON deve ter o formato: {"tarefas": [...array de objetos...]}
-Cada objeto deve ter: id, titulo, status, prioridade, prazo, responsavel, descricao, criado_em`,
-          messages: [{ role: 'user', content: `Busque TODAS as tarefas do banco de dados Notion com ID ${TAR_NOTION_DB} e retorne como JSON com o schema descrito. Use a ferramenta query_database com database_id="${TAR_NOTION_DB}" e page_size=100. Mapeie as propriedades: Nome/Title → titulo, Status → status, Prioridade → prioridade, Prazo/Date → prazo (ISO string ou null), Responsável/Person → responsavel (nome ou email), Descrição/Text → descricao, created_time → criado_em. Se uma propriedade não existir, use string vazia ou null.` }],
-          mcp_servers: [{ type: 'url', url: 'https://mcp.notion.com/mcp', name: 'notion-mcp' }]
-        })
-      });
+      // Busca todas as páginas (paginando se necessário)
+      let allResults = [];
+      let cursor = undefined;
+      do {
+        const body = { page_size: 100, sorts: [{ timestamp: 'created_time', direction: 'descending' }] };
+        if (cursor) body.start_cursor = cursor;
 
-      const data = await resp.json();
-      let jsonStr = '';
+        const resp = await fetch(`https://api.notion.com/v1/databases/${TAR_NOTION_DB}/query`, {
+          method: 'POST',
+          headers: tarNotionHeaders(),
+          body: JSON.stringify(body)
+        });
 
-      // Extrai JSON da resposta (pode estar em mcp_tool_result ou text)
-      for (const block of (data.content || [])) {
-        if (block.type === 'text' && block.text) {
-          jsonStr += block.text;
-        } else if (block.type === 'mcp_tool_result') {
-          const txt = block.content?.[0]?.text || '';
-          // Texto de resultado bruto — será processado pela mensagem de texto final
-          jsonStr += txt;
+        if (resp.status === 401) {
+          localStorage.removeItem(TAR_TOKEN_KEY);
+          tarShowTokenSetup();
+          return;
         }
-      }
+        if (!resp.ok) {
+          const err = await resp.json();
+          throw new Error(err.message || `HTTP ${resp.status}`);
+        }
 
-      // Limpa possível markdown
-      jsonStr = jsonStr.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
-      // Pega apenas o primeiro objeto JSON encontrado
-      const match = jsonStr.match(/\{[\s\S]*\}/);
-      if (!match) throw new Error('JSON não encontrado na resposta');
+        const data = await resp.json();
+        allResults = allResults.concat(data.results || []);
+        cursor = data.has_more ? data.next_cursor : undefined;
+      } while (cursor);
 
-      const parsed = JSON.parse(match[0]);
-      _tarTarefas = Array.isArray(parsed.tarefas) ? parsed.tarefas : [];
+      _tarTarefas = allResults.map(tarPageToObj);
       _tarLoaded  = true;
       tarefasPopularResponsaveis();
       tarefasRender();
+
     } catch (err) {
       console.error('Tarefas load error:', err);
       listEl.innerHTML = `<div class="tar-empty">
         <div class="tar-empty-icon">⚠️</div>
-        <p>Erro ao carregar tarefas do Notion.<br><small style="color:var(--fg-mute);">${err.message}</small></p>
-        <button class="btn-secondary" onclick="tarefasReload()" style="margin-top:12px;font-size:12px;">Tentar novamente</button>
+        <p>Erro ao carregar tarefas do Notion.<br>
+        <small style="color:var(--fg-mute);">${esc(err.message)}</small></p>
+        <div style="display:flex;gap:8px;justify-content:center;margin-top:14px;">
+          <button class="btn-secondary" onclick="tarefasReload()" style="font-size:12px;">Tentar novamente</button>
+          <button class="btn-secondary" onclick="localStorage.removeItem('${TAR_TOKEN_KEY}');tarefasInit()" style="font-size:12px;">Reconfigurar token</button>
+        </div>
       </div>`;
     }
+  }
+
+  // ──────────────── PARSE DE PÁGINA NOTION ────────────────
+  function tarGetProp(props, ...nomes) {
+    for (const n of nomes) {
+      if (props[n]) return props[n];
+    }
+    return null;
+  }
+
+  function tarPageToObj(page) {
+    const p = page.properties || {};
+
+    // Título (type: title)
+    const titleProp = tarGetProp(p, 'Nome', 'Name', 'Título', 'Tarefa', 'Title');
+    const titulo = titleProp?.title?.map(t => t.plain_text).join('') || 'Sem título';
+
+    // Status (type: status ou select)
+    const statusProp = tarGetProp(p, 'Status', 'Estado', 'Situação');
+    const status = statusProp?.status?.name || statusProp?.select?.name || '';
+
+    // Prioridade (type: select)
+    const priProp = tarGetProp(p, 'Prioridade', 'Priority');
+    const prioridade = priProp?.select?.name || '';
+
+    // Prazo (type: date)
+    const prazoProp = tarGetProp(p, 'Prazo', 'Data', 'Due Date', 'Vencimento', 'Date');
+    const prazo = prazoProp?.date?.start || null;
+
+    // Responsável (type: people ou rich_text)
+    const respProp = tarGetProp(p, 'Responsável', 'Responsavel', 'Assignee', 'Assigned To', 'Pessoa');
+    let responsavel = '';
+    if (respProp?.people?.length > 0) {
+      responsavel = respProp.people.map(p => p.name || p.person?.email || '').filter(Boolean).join(', ');
+    } else if (respProp?.rich_text?.length > 0) {
+      responsavel = respProp.rich_text.map(t => t.plain_text).join('');
+    }
+
+    // Descrição (type: rich_text)
+    const descProp = tarGetProp(p, 'Descrição', 'Descricao', 'Description', 'Observações', 'Notas', 'Notes');
+    const descricao = descProp?.rich_text?.map(t => t.plain_text).join('') || '';
+
+    return {
+      id:         page.id,
+      titulo,
+      status,
+      prioridade,
+      prazo,
+      responsavel,
+      descricao,
+      criado_em:  page.created_time
+    };
   }
 
   // ──────────────── FILTROS ────────────────
@@ -14203,7 +14318,7 @@ Cada objeto deve ter: id, titulo, status, prioridade, prazo, responsavel, descri
     const responsaveis = [...new Set(_tarTarefas.map(t => t.responsavel).filter(Boolean))].sort();
     const curr = sel.value;
     sel.innerHTML = '<option value="">Responsável</option>' +
-      responsaveis.map(r => `<option value="${r}" ${r===curr?'selected':''}>${r}</option>`).join('');
+      responsaveis.map(r => `<option value="${r}" ${r===curr?'selected':''}>${esc(r)}</option>`).join('');
   }
 
   // ──────────────── RENDER ────────────────
@@ -14224,10 +14339,8 @@ Cada objeto deve ter: id, titulo, status, prioridade, prazo, responsavel, descri
       return true;
     });
 
-    // KPIs
     tarRenderKPIs();
 
-    // Badge total
     const badge = document.getElementById('tar-badge-total');
     if (badge) {
       const aberto = _tarTarefas.filter(t => !tarIsDone(t)).length;
@@ -14243,12 +14356,11 @@ Cada objeto deve ter: id, titulo, status, prioridade, prazo, responsavel, descri
       return;
     }
 
-    // Agrupa por prioridade
     const grupos = { 'Alta': [], 'Media': [], 'Baixa': [], '': [] };
     tarefas.forEach(t => {
       const pri = t.prioridade || '';
-      if (grupos[pri] !== undefined) grupos[pri].push(t);
-      else grupos[''].push(t);
+      const key = ['Alta','Media','Baixa'].includes(pri) ? pri : '';
+      grupos[key].push(t);
     });
 
     const labels = { 'Alta': 'Alta Prioridade', 'Media': 'Média Prioridade', 'Baixa': 'Baixa Prioridade', '': 'Sem Prioridade' };
@@ -14263,13 +14375,15 @@ Cada objeto deve ter: id, titulo, status, prioridade, prazo, responsavel, descri
   }
 
   function tarIsDone(t) {
-    const s = (t.status || '').toLowerCase();
-    return s === 'concluído' || s === 'concluido' || s === 'done' || s === 'feito';
+    const s = (t.status || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    return s === 'concluido' || s === 'done' || s === 'feito' || s === 'completo' || s === 'finalizado';
   }
 
   function tarRenderKPIs() {
     const el = document.getElementById('tar-kpis');
-    if (!el || _tarTarefas.length === 0) return;
+    if (!el) return;
+    if (_tarTarefas.length === 0) { el.innerHTML = ''; return; }
+
     const total    = _tarTarefas.length;
     const done     = _tarTarefas.filter(tarIsDone).length;
     const aberto   = total - done;
@@ -14279,7 +14393,6 @@ Cada objeto deve ter: id, titulo, status, prioridade, prazo, responsavel, descri
       if (tarIsDone(t) || !t.prazo) return false;
       return new Date(t.prazo) < hoje;
     }).length;
-
     const pct = total > 0 ? Math.round(done/total*100) : 0;
 
     el.innerHTML = `
@@ -14306,26 +14419,24 @@ Cada objeto deve ter: id, titulo, status, prioridade, prazo, responsavel, descri
   }
 
   function tarCardHTML(t) {
-    const done  = tarIsDone(t);
-    const hoje  = new Date(); hoje.setHours(0,0,0,0);
+    const done      = tarIsDone(t);
+    const hoje      = new Date(); hoje.setHours(0,0,0,0);
     const prazoDate = t.prazo ? new Date(t.prazo) : null;
     const vencida   = prazoDate && prazoDate < hoje && !done;
 
+    const priKey  = (t.prioridade||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
     const priPill = t.prioridade
-      ? `<span class="tar-pill tar-pill-${(t.prioridade||'').toLowerCase()}">${t.prioridade}</span>`
-      : '';
+      ? `<span class="tar-pill tar-pill-${priKey}">${esc(t.prioridade)}</span>` : '';
     const prazoPill = prazoDate
-      ? `<span class="tar-pill ${vencida ? 'tar-pill-venc' : 'tar-pill-date'}">
-          ${vencida ? '⚠ ' : ''}${prazoDate.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})}
-        </span>`
-      : '';
+      ? `<span class="tar-pill ${vencida?'tar-pill-venc':'tar-pill-date'}">
+           ${vencida?'⚠ ':''}${prazoDate.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})}
+         </span>` : '';
     const respPill = t.responsavel
-      ? `<span class="tar-pill tar-pill-resp">${t.responsavel}</span>` : '';
+      ? `<span class="tar-pill tar-pill-resp">${esc(t.responsavel)}</span>` : '';
+    const statusBadge = (!done && t.status && !['A fazer','To Do',''].includes(t.status))
+      ? `<span class="tar-pill" style="background:var(--praxes-mist);color:var(--praxes-deep);">${esc(t.status)}</span>` : '';
 
-    const statusBadge = done
-      ? '' : (t.status && t.status !== 'A fazer'
-        ? `<span class="tar-pill" style="background:var(--praxes-mist);color:var(--praxes-deep);">${t.status}</span>` : '');
-
+    const safeId = t.id.replace(/-/g,'');
     return `<div class="tar-card ${done?'done':''}" onclick="tarefasAbrirModal('${t.id}')">
       <div class="tar-check ${done?'checked':''}" onclick="event.stopPropagation();tarefasToggleDone('${t.id}')"></div>
       <div style="flex:1;min-width:0;">
@@ -14347,47 +14458,64 @@ Cada objeto deve ter: id, titulo, status, prioridade, prazo, responsavel, descri
     document.getElementById('tar-form-responsavel').value = t?.responsavel || '';
     document.getElementById('tar-form-status').value      = t?.status      || 'A fazer';
     document.getElementById('tar-form-obs').value         = t?.descricao   || '';
-    if (t?.prazo) {
-      document.getElementById('tar-form-prazo').value = t.prazo.split('T')[0];
-    } else {
-      document.getElementById('tar-form-prazo').value = '';
-    }
+    document.getElementById('tar-form-prazo').value       = t?.prazo ? t.prazo.split('T')[0] : '';
     openModal('modal-tarefa');
+  }
+
+  // Monta o body de propriedades para create/update
+  function tarBuildProps(titulo, prioridade, responsavel, status, prazo, descricao) {
+    const props = {
+      'Nome':        { title:     [{ text: { content: titulo } }] },
+      'Status':      { status:    { name: status || 'A fazer' } },
+      'Prioridade':  { select:    prioridade ? { name: prioridade } : null },
+      'Prazo':       { date:      prazo ? { start: prazo } : null },
+      'Responsável': { rich_text: responsavel ? [{ text: { content: responsavel } }] : [] },
+      'Descrição':   { rich_text: descricao   ? [{ text: { content: descricao   } }] : [] }
+    };
+    // Remove nulls que o Notion rejeita
+    if (!prioridade) delete props['Prioridade'];
+    if (!prazo)      delete props['Prazo'];
+    return props;
   }
 
   async function tarefasSalvar() {
     const titulo = document.getElementById('tar-form-titulo').value.trim();
     if (!titulo) { alert('Informe o título da tarefa.'); return; }
 
-    const payload = {
-      titulo:      titulo,
-      prioridade:  document.getElementById('tar-form-prioridade').value,
-      responsavel: document.getElementById('tar-form-responsavel').value.trim(),
-      status:      document.getElementById('tar-form-status').value,
-      prazo:       document.getElementById('tar-form-prazo').value || null,
-      descricao:   document.getElementById('tar-form-obs').value.trim()
-    };
+    const prioridade  = document.getElementById('tar-form-prioridade').value;
+    const responsavel = document.getElementById('tar-form-responsavel').value.trim();
+    const status      = document.getElementById('tar-form-status').value;
+    const prazo       = document.getElementById('tar-form-prazo').value || null;
+    const descricao   = document.getElementById('tar-form-obs').value.trim();
 
     const btn = document.getElementById('tar-btn-salvar');
-    btn.disabled = true;
-    btn.textContent = 'Salvando…';
+    btn.disabled = true; btn.textContent = 'Salvando…';
 
     try {
-      const action = _tarEditingId
-        ? `Atualize a página do Notion com ID "${_tarEditingId}" com as propriedades: ${JSON.stringify(payload)}`
-        : `Crie uma nova página no banco de dados Notion "${TAR_NOTION_DB}" com as propriedades: ${JSON.stringify(payload)}`;
+      let resp;
+      if (_tarEditingId) {
+        // PATCH — atualiza página existente
+        resp = await fetch(`https://api.notion.com/v1/pages/${_tarEditingId}`, {
+          method: 'PATCH',
+          headers: tarNotionHeaders(),
+          body: JSON.stringify({ properties: tarBuildProps(titulo,prioridade,responsavel,status,prazo,descricao) })
+        });
+      } else {
+        // POST — cria nova página
+        resp = await fetch('https://api.notion.com/v1/pages', {
+          method: 'POST',
+          headers: tarNotionHeaders(),
+          body: JSON.stringify({
+            parent: { database_id: TAR_NOTION_DB },
+            properties: tarBuildProps(titulo,prioridade,responsavel,status,prazo,descricao)
+          })
+        });
+      }
 
-      await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-6',
-          max_tokens: 1000,
-          system: 'Execute a operação solicitada no Notion sem retornar texto desnecessário. Mapeie: titulo→Name (title), prioridade→Prioridade (select), responsavel→Responsável (rich_text), status→Status (status), prazo→Prazo (date), descricao→Descrição (rich_text). Retorne apenas {"ok":true} ou {"ok":false,"error":"..."}.',
-          messages: [{ role: 'user', content: action }],
-          mcp_servers: [{ type: 'url', url: 'https://mcp.notion.com/mcp', name: 'notion-mcp' }]
-        })
-      });
+      if (!resp.ok) {
+        const err = await resp.json();
+        throw new Error(err.message || `HTTP ${resp.status}`);
+      }
 
       closeModal('modal-tarefa');
       _tarLoaded = false;
@@ -14395,8 +14523,7 @@ Cada objeto deve ter: id, titulo, status, prioridade, prazo, responsavel, descri
     } catch (err) {
       alert('Erro ao salvar: ' + err.message);
     } finally {
-      btn.disabled = false;
-      btn.textContent = 'Salvar';
+      btn.disabled = false; btn.textContent = 'Salvar';
     }
   }
 
@@ -14405,24 +14532,19 @@ Cada objeto deve ter: id, titulo, status, prioridade, prazo, responsavel, descri
     if (!t) return;
     const novoStatus = tarIsDone(t) ? 'A fazer' : 'Concluído';
 
-    // Otimista: atualiza localmente antes
+    // Atualização otimista
     t.status = novoStatus;
     tarefasRender();
 
     try {
-      await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-6',
-          max_tokens: 500,
-          system: 'Execute a operação no Notion. Retorne apenas {"ok":true}.',
-          messages: [{ role: 'user', content: `Atualize a página Notion ID "${id}" definindo a propriedade Status para "${novoStatus}".` }],
-          mcp_servers: [{ type: 'url', url: 'https://mcp.notion.com/mcp', name: 'notion-mcp' }]
-        })
+      const resp = await fetch(`https://api.notion.com/v1/pages/${id}`, {
+        method: 'PATCH',
+        headers: tarNotionHeaders(),
+        body: JSON.stringify({ properties: { 'Status': { status: { name: novoStatus } } } })
       });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
     } catch (err) {
-      // Reverte em caso de erro
+      // Reverte
       t.status = novoStatus === 'Concluído' ? 'A fazer' : 'Concluído';
       tarefasRender();
       console.error('Toggle done error:', err);
