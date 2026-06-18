@@ -14177,7 +14177,7 @@ Esta ação não pode ser desfeita.`)) return;
             Criar integração em notion.so/my-integrations →
           </a>
         </p>
-        <input type="password" id="tar-token-input" placeholder="secret_xxxxxxxxxxxxxxxx"
+        <input type="password" id="tar-token-input" placeholder="ntn_xxxxxxxx ou secret_xxxxxxxx"
           style="width:100%;padding:10px 14px;font-size:13px;font-family:inherit;border:1px solid var(--line-strong);border-radius:var(--r-md);background:var(--surface);color:var(--fg-1);outline:none;box-sizing:border-box;margin-bottom:12px;">
         <button class="btn-primary" onclick="tarSalvarToken()" style="width:100%;padding:10px;font-size:13px;">
           Conectar
@@ -14190,8 +14190,8 @@ Esta ação não pode ser desfeita.`)) return;
 
   async function tarSalvarToken() {
     const tok = document.getElementById('tar-token-input')?.value?.trim();
-    if (!tok || !tok.startsWith('secret_')) {
-      alert('Token inválido. Deve começar com "secret_".');
+    if (!tok || (!tok.startsWith('secret_') && !tok.startsWith('ntn_'))) {
+      alert('Token inválido. Deve começar com "secret_" ou "ntn_".');
       return;
     }
     tarSetToken(tok);
