@@ -1827,7 +1827,7 @@
           </div>
         </div>
 
-        <div class="nav-item" data-page="tarefas">
+        <div class="nav-item" data-page="tarefas" id="nav-tarefas" style="display:none;">
           <div class="nav-item-main">
             <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg></span>
             Tarefas
@@ -13144,8 +13144,12 @@ Esta ação não pode ser desfeita.`)) return;
 
       // Destaca quando admin está vendo outro cliente
       const backBtn = document.getElementById('admin-back-btn');
+      const navTarefas = document.getElementById('nav-tarefas');
       if (backBtn.style.display === 'block') {
         backBtn.textContent = '← Voltar ao Admin  |  Visualizando: ' + client.name;
+        if (navTarefas) navTarefas.style.display = '';
+      } else {
+        if (navTarefas) navTarefas.style.display = 'none';
       }
 
       navigateTo('dashboard');
@@ -14165,7 +14169,7 @@ Esta ação não pode ser desfeita.`)) return;
           headers: tarNotionHeaders(),
           body: JSON.stringify({
             page_size: 1,
-            filter: { property: 'Nome', title: { equals: clientName } }
+            filter: { property: 'Nome', title: { contains: clientName.split(' ')[0] } }
           })
         });
         if (clientResp.ok) {
