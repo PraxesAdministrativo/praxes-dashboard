@@ -14120,9 +14120,10 @@ Esta ação não pode ser desfeita.`)) return;
   // Token configurado via modal de setup na primeira visita.
   // ============================================================
 
-  const TAR_NOTION_DB      = '1ec701b863e680f381d8d07cc4dacab4';
-  const TAR_NOTION_VERSION = '2022-06-28';
-  const TAR_PROXY_BASE     = 'https://urckolcywijllkdyjcgc.supabase.co/functions/v1/notion-proxy';
+  const TAR_NOTION_DB         = '1ec701b863e680f381d8d07cc4dacab4';
+  const TAR_NOTION_CLIENTS_DB = '1ec701b863e68056bb30f8d6b32617d8';
+  const TAR_NOTION_VERSION    = '2022-06-28';
+  const TAR_PROXY_BASE        = 'https://urckolcywijllkdyjcgc.supabase.co/functions/v1/notion-proxy';
 
   let _tarTarefas   = [];
   let _tarFilter    = 'all';
@@ -14156,13 +14157,33 @@ Esta ação não pode ser desfeita.`)) return;
     const clientName = document.getElementById('sidebar-name')?.textContent?.trim() || '';
 
     try {
-      // Busca todas as páginas (paginando se necessário)
+      // 1. Busca o ID Notion do cliente atual pelo nome no database Clientes Praxes
+      let clientNotionId = null;
+      if (clientName) {
+        const clientResp = await fetch(tarNotionUrl(`/v1/databases/${TAR_NOTION_CLIENTS_DB}/query`), {
+          method: 'POST',
+          headers: tarNotionHeaders(),
+          body: JSON.stringify({
+            page_size: 1,
+            filter: { property: 'Nome', title: { equals: clientName } }
+          })
+        });
+        if (clientResp.ok) {
+          const clientData = await clientResp.json();
+          clientNotionId = clientData.results?.[0]?.id || null;
+        }
+      }
+
+      // 2. Busca tarefas — filtra por relation se achou o ID do cliente
       let allResults = [];
       let cursor = undefined;
       do {
         const body = {
           page_size: 100,
-          sorts: [{ timestamp: 'created_time', direction: 'descending' }]
+          sorts: [{ timestamp: 'created_time', direction: 'descending' }],
+          ...(clientNotionId ? {
+            filter: { property: 'Cliente', relation: { contains: clientNotionId } }
+          } : {})
         };
         if (cursor) body.start_cursor = cursor;
 
@@ -14182,18 +14203,7 @@ Esta ação não pode ser desfeita.`)) return;
         cursor = data.has_more ? data.next_cursor : undefined;
       } while (cursor);
 
-      let tarefas = allResults.map(tarPageToObj);
-
-      // Filtra pelo cliente atual usando a propriedade Cliente (Person)
-      // O nome vem parseado em tarPageToObj como campo 'cliente'
-      if (clientName) {
-        tarefas = tarefas.filter(t => {
-          const c = (t.cliente || '').toLowerCase();
-          return c.includes(clientName.toLowerCase()) || clientName.toLowerCase().includes(c.split(' ')[0].toLowerCase());
-        });
-      }
-
-      _tarTarefas = tarefas;
+      _tarTarefas = allResults.map(tarPageToObj);
       _tarLoaded  = true;
       tarefasPopularResponsaveis();
       tarefasRender();
