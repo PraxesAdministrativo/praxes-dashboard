@@ -1682,6 +1682,70 @@
   .fin-fluxo-val.neg { color: #ef4444; font-weight: 600; }
   /* ========== FIM MÓDULO FINANCIAMENTO ========== */
 
+  /* ========== TAREFAS ========== */
+  .tar-filter-btn {
+    padding: 6px 14px; font-size: 12px; font-weight: 500; font-family: inherit;
+    border: 1px solid var(--line-strong); border-radius: var(--r-pill);
+    background: transparent; color: var(--fg-mute); cursor: pointer; transition: all .15s;
+  }
+  .tar-filter-btn:hover { background: var(--praxes-shell); color: var(--fg-1); }
+  .tar-filter-btn.active { background: var(--praxes-teal); color: #fff; border-color: var(--praxes-teal); }
+
+  .tar-kpi-card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg);
+    padding: 16px 18px;
+  }
+  .tar-kpi-label { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--fg-mute); margin-bottom: 6px; }
+  .tar-kpi-value { font-size: 28px; font-weight: 700; color: var(--fg-1); line-height: 1; }
+  .tar-kpi-sub   { font-size: 11px; color: var(--fg-mute); margin-top: 4px; }
+
+  .tar-group-label {
+    font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--fg-mute); padding: 6px 0 8px; margin-top: 4px;
+    border-bottom: 1px solid var(--line); margin-bottom: 6px;
+  }
+
+  .tar-card {
+    display: flex; align-items: flex-start; gap: 14px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg);
+    padding: 14px 16px; margin-bottom: 8px; cursor: pointer;
+    transition: box-shadow .15s, border-color .15s;
+  }
+  .tar-card:hover { box-shadow: var(--shadow-2); border-color: var(--line-strong); }
+  .tar-card.done { opacity: .55; }
+
+  .tar-check {
+    width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--line-strong);
+    flex-shrink: 0; margin-top: 1px; cursor: pointer; display: flex; align-items: center;
+    justify-content: center; transition: all .15s; background: transparent;
+  }
+  .tar-check.checked { background: var(--success); border-color: var(--success); }
+  .tar-check.checked::after { content:'✓'; color:#fff; font-size:10px; font-weight:700; }
+
+  .tar-title { font-size: 13px; font-weight: 600; color: var(--fg-1); line-height: 1.3; margin-bottom: 4px; }
+  .tar-title.done-text { text-decoration: line-through; color: var(--fg-mute); }
+  .tar-meta  { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+  .tar-pill {
+    font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: var(--r-pill);
+    letter-spacing: .04em; white-space: nowrap;
+  }
+  .tar-pill-alta   { background: #fceaea; color: #c0392b; }
+  .tar-pill-media  { background: #fff8e1; color: #b45309; }
+  .tar-pill-baixa  { background: var(--success-bg); color: var(--success); }
+  .tar-pill-date   { background: var(--praxes-shell); color: var(--fg-3); }
+  .tar-pill-resp   { background: var(--praxes-mist); color: var(--praxes-deep); }
+  .tar-pill-venc   { background: #fceaea; color: #c0392b; }
+
+  .tar-desc { font-size: 11px; color: var(--fg-mute); margin-top: 3px; line-height: 1.5; }
+
+  .tar-empty { text-align:center; padding: 60px 20px; color: var(--fg-mute); font-size: 13px; }
+  .tar-empty-icon { font-size: 36px; margin-bottom: 12px; opacity:.4; }
+
+  /* Modal de tarefa */
+  #modal-tarefa .modal-content { max-width: 560px; }
+  /* ========== FIM TAREFAS ========== */
+
   </style>
 </head>
 <body>
@@ -1761,6 +1825,14 @@
             <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span>
             Documentos
           </div>
+        </div>
+
+        <div class="nav-item" data-page="tarefas">
+          <div class="nav-item-main">
+            <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg></span>
+            Tarefas
+          </div>
+          <div class="nav-item-sub">Pendências, follow-ups, ações</div>
         </div>
 
         <div class="nav-item" data-page="perfil">
@@ -2636,6 +2708,48 @@
           <div id="docs-sections"></div>
         </div>
 
+        <!-- TAREFAS PAGE -->
+        <div class="page" id="page-tarefas">
+          <div class="page-header" style="margin-bottom:0;">
+            <div style="display:flex;align-items:center;gap:12px;">
+              <h2 style="font-size:24px;color:var(--fg-1);font-weight:700;letter-spacing:-0.3px;margin:0;">Tarefas</h2>
+              <span id="tar-badge-total" style="display:none;background:var(--praxes-teal);color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:var(--r-pill);letter-spacing:.04em;"></span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <button class="btn-secondary" onclick="tarefasReload()" id="tar-btn-reload" style="padding:8px 14px;font-size:12px;display:flex;align-items:center;gap:6px;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+                Atualizar
+              </button>
+              <button class="btn-primary" onclick="tarefasAbrirModal(null)" style="padding:8px 16px;font-size:12px;">+ Nova tarefa</button>
+            </div>
+          </div>
+
+          <!-- Filtros -->
+          <div id="tar-filters" style="display:flex;align-items:center;gap:8px;margin:18px 0 20px;flex-wrap:wrap;">
+            <button class="tar-filter-btn active" data-filter="all" onclick="tarefasSetFilter('all',this)">Todas</button>
+            <button class="tar-filter-btn" data-filter="pending" onclick="tarefasSetFilter('pending',this)">Em aberto</button>
+            <button class="tar-filter-btn" data-filter="done" onclick="tarefasSetFilter('done',this)">Concluídas</button>
+            <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+              <input id="tar-search" type="text" placeholder="Buscar tarefas…" oninput="tarefasRender()" style="padding:7px 12px;font-size:12px;font-family:inherit;border:1px solid var(--line-strong);border-radius:var(--r-md);background:var(--surface);color:var(--fg-1);outline:none;width:200px;">
+              <select id="tar-filter-priority" onchange="tarefasRender()" style="padding:7px 10px;font-size:12px;font-family:inherit;border:1px solid var(--line-strong);border-radius:var(--r-md);background:var(--surface);color:var(--fg-1);outline:none;">
+                <option value="">Prioridade</option>
+                <option value="Alta">Alta</option>
+                <option value="Media">Média</option>
+                <option value="Baixa">Baixa</option>
+              </select>
+              <select id="tar-filter-responsavel" onchange="tarefasRender()" style="padding:7px 10px;font-size:12px;font-family:inherit;border:1px solid var(--line-strong);border-radius:var(--r-md);background:var(--surface);color:var(--fg-1);outline:none;min-width:120px;">
+                <option value="">Responsável</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- KPI strip -->
+          <div id="tar-kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px;"></div>
+
+          <!-- Lista de tarefas -->
+          <div id="tar-list"></div>
+        </div>
+
         <!-- PERFIL PAGE -->
         <div class="page" id="page-perfil">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;" id="perfil-grid">
@@ -2645,6 +2759,59 @@
 
       </div>
     </main>
+  </div>
+
+  <!-- MODAL TAREFA -->
+  <div class="modal" id="modal-tarefa">
+    <div class="modal-content" style="max-width:560px;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-tarefa-title">Nova Tarefa</h3>
+        <button class="modal-close" onclick="closeModal('modal-tarefa')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Título *</label>
+          <input type="text" class="form-input" id="tar-form-titulo" placeholder="Descrição da tarefa">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Prioridade</label>
+            <select class="form-select" id="tar-form-prioridade">
+              <option value="">Sem prioridade</option>
+              <option value="Alta">Alta</option>
+              <option value="Media">Média</option>
+              <option value="Baixa">Baixa</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Prazo</label>
+            <input type="date" class="form-input" id="tar-form-prazo">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Responsável</label>
+            <input type="text" class="form-input" id="tar-form-responsavel" placeholder="Nome do responsável">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Status</label>
+            <select class="form-select" id="tar-form-status">
+              <option value="A fazer">A fazer</option>
+              <option value="Em andamento">Em andamento</option>
+              <option value="Concluído">Concluído</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Observações</label>
+          <textarea class="form-input" id="tar-form-obs" rows="3" placeholder="Detalhes adicionais…" style="resize:vertical;"></textarea>
+        </div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px;">
+          <button class="btn-cancel" onclick="closeModal('modal-tarefa')">Cancelar</button>
+          <button class="btn-save" onclick="tarefasSalvar()" id="tar-btn-salvar">Salvar</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- MODAL ADD IMOVEL -->
@@ -3908,6 +4075,7 @@
         financeiro:     'Controle Financeiro',
         veiculos:       'Veículos & Embarcações',
         documentos:     'Documentos',
+        tarefas:        'Tarefas',
         perfil:         'Perfil & Família'
       };
       document.getElementById('top-title').textContent = titles[pageName] || 'Praxes';
@@ -3919,6 +4087,7 @@
       if (pageName === 'investimentos') { invInit(); }
       if (pageName === 'veiculos')   { veiculosInit(); }
       if (pageName === 'documentos') { docsInit(); }
+      if (pageName === 'tarefas')    { tarefasInit(); }
       if (pageName === 'perfil')     { perfilInit(); }
     }
 
@@ -13941,6 +14110,327 @@ Esta ação não pode ser desfeita.`)) return;
   }
   // ============================================================
   // ========== FIM MÓDULO IMPORTAÇÃO ===========================
+  // ============================================================
+
+  // ============================================================
+  // ========== MÓDULO TAREFAS (Notion) ==========================
+  // ============================================================
+
+  const TAR_NOTION_DB = '1ec701b863e680f381d8d07cc4dacab4';
+  const TAR_NOTION_VERSION = '2022-06-28';
+
+  let _tarTarefas   = [];      // cache das tarefas carregadas
+  let _tarFilter    = 'all';   // 'all' | 'pending' | 'done'
+  let _tarEditingId = null;    // page_id sendo editado (null = novo)
+  let _tarLoaded    = false;   // para não recarregar desnecessariamente
+
+  // ──────────────── INIT ────────────────
+  async function tarefasInit() {
+    if (!_tarLoaded) await tarefasLoad();
+    else tarefasRender();
+  }
+
+  async function tarefasReload() {
+    _tarLoaded = false;
+    await tarefasLoad();
+  }
+
+  // ──────────────── LOAD via Notion MCP ────────────────
+  async function tarefasLoad() {
+    const listEl = document.getElementById('tar-list');
+    listEl.innerHTML = '<div class="loading"><div class="spinner"></div><p>Carregando tarefas…</p></div>';
+    try {
+      const resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 4000,
+          system: `Você é um assistente que busca dados do Notion e retorna APENAS JSON válido, sem nenhum texto adicional, sem markdown, sem backticks.
+O JSON deve ter o formato: {"tarefas": [...array de objetos...]}
+Cada objeto deve ter: id, titulo, status, prioridade, prazo, responsavel, descricao, criado_em`,
+          messages: [{ role: 'user', content: `Busque TODAS as tarefas do banco de dados Notion com ID ${TAR_NOTION_DB} e retorne como JSON com o schema descrito. Use a ferramenta query_database com database_id="${TAR_NOTION_DB}" e page_size=100. Mapeie as propriedades: Nome/Title → titulo, Status → status, Prioridade → prioridade, Prazo/Date → prazo (ISO string ou null), Responsável/Person → responsavel (nome ou email), Descrição/Text → descricao, created_time → criado_em. Se uma propriedade não existir, use string vazia ou null.` }],
+          mcp_servers: [{ type: 'url', url: 'https://mcp.notion.com/mcp', name: 'notion-mcp' }]
+        })
+      });
+
+      const data = await resp.json();
+      let jsonStr = '';
+
+      // Extrai JSON da resposta (pode estar em mcp_tool_result ou text)
+      for (const block of (data.content || [])) {
+        if (block.type === 'text' && block.text) {
+          jsonStr += block.text;
+        } else if (block.type === 'mcp_tool_result') {
+          const txt = block.content?.[0]?.text || '';
+          // Texto de resultado bruto — será processado pela mensagem de texto final
+          jsonStr += txt;
+        }
+      }
+
+      // Limpa possível markdown
+      jsonStr = jsonStr.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+      // Pega apenas o primeiro objeto JSON encontrado
+      const match = jsonStr.match(/\{[\s\S]*\}/);
+      if (!match) throw new Error('JSON não encontrado na resposta');
+
+      const parsed = JSON.parse(match[0]);
+      _tarTarefas = Array.isArray(parsed.tarefas) ? parsed.tarefas : [];
+      _tarLoaded  = true;
+      tarefasPopularResponsaveis();
+      tarefasRender();
+    } catch (err) {
+      console.error('Tarefas load error:', err);
+      listEl.innerHTML = `<div class="tar-empty">
+        <div class="tar-empty-icon">⚠️</div>
+        <p>Erro ao carregar tarefas do Notion.<br><small style="color:var(--fg-mute);">${err.message}</small></p>
+        <button class="btn-secondary" onclick="tarefasReload()" style="margin-top:12px;font-size:12px;">Tentar novamente</button>
+      </div>`;
+    }
+  }
+
+  // ──────────────── FILTROS ────────────────
+  function tarefasSetFilter(filter, btn) {
+    _tarFilter = filter;
+    document.querySelectorAll('.tar-filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    tarefasRender();
+  }
+
+  function tarefasPopularResponsaveis() {
+    const sel = document.getElementById('tar-filter-responsavel');
+    if (!sel) return;
+    const responsaveis = [...new Set(_tarTarefas.map(t => t.responsavel).filter(Boolean))].sort();
+    const curr = sel.value;
+    sel.innerHTML = '<option value="">Responsável</option>' +
+      responsaveis.map(r => `<option value="${r}" ${r===curr?'selected':''}>${r}</option>`).join('');
+  }
+
+  // ──────────────── RENDER ────────────────
+  function tarefasRender() {
+    const listEl  = document.getElementById('tar-list');
+    const search  = (document.getElementById('tar-search')?.value || '').toLowerCase();
+    const priSel  = document.getElementById('tar-filter-priority')?.value || '';
+    const respSel = document.getElementById('tar-filter-responsavel')?.value || '';
+    if (!listEl) return;
+
+    let tarefas = _tarTarefas.filter(t => {
+      if (_tarFilter === 'pending' && tarIsDone(t)) return false;
+      if (_tarFilter === 'done'    && !tarIsDone(t)) return false;
+      if (priSel   && t.prioridade !== priSel) return false;
+      if (respSel  && t.responsavel !== respSel) return false;
+      if (search   && !t.titulo?.toLowerCase().includes(search) &&
+                      !t.descricao?.toLowerCase().includes(search)) return false;
+      return true;
+    });
+
+    // KPIs
+    tarRenderKPIs();
+
+    // Badge total
+    const badge = document.getElementById('tar-badge-total');
+    if (badge) {
+      const aberto = _tarTarefas.filter(t => !tarIsDone(t)).length;
+      badge.textContent = `${aberto} em aberto`;
+      badge.style.display = aberto > 0 ? '' : 'none';
+    }
+
+    if (tarefas.length === 0) {
+      listEl.innerHTML = `<div class="tar-empty">
+        <div class="tar-empty-icon">✅</div>
+        <p>${_tarFilter === 'done' ? 'Nenhuma tarefa concluída.' : 'Nenhuma tarefa encontrada.'}</p>
+      </div>`;
+      return;
+    }
+
+    // Agrupa por prioridade
+    const grupos = { 'Alta': [], 'Media': [], 'Baixa': [], '': [] };
+    tarefas.forEach(t => {
+      const pri = t.prioridade || '';
+      if (grupos[pri] !== undefined) grupos[pri].push(t);
+      else grupos[''].push(t);
+    });
+
+    const labels = { 'Alta': 'Alta Prioridade', 'Media': 'Média Prioridade', 'Baixa': 'Baixa Prioridade', '': 'Sem Prioridade' };
+    let html = '';
+    ['Alta','Media','Baixa',''].forEach(key => {
+      if (grupos[key].length === 0) return;
+      html += `<div class="tar-group-label">${labels[key]}</div>`;
+      grupos[key].forEach(t => { html += tarCardHTML(t); });
+    });
+
+    listEl.innerHTML = html;
+  }
+
+  function tarIsDone(t) {
+    const s = (t.status || '').toLowerCase();
+    return s === 'concluído' || s === 'concluido' || s === 'done' || s === 'feito';
+  }
+
+  function tarRenderKPIs() {
+    const el = document.getElementById('tar-kpis');
+    if (!el || _tarTarefas.length === 0) return;
+    const total    = _tarTarefas.length;
+    const done     = _tarTarefas.filter(tarIsDone).length;
+    const aberto   = total - done;
+    const alta     = _tarTarefas.filter(t => t.prioridade === 'Alta' && !tarIsDone(t)).length;
+    const hoje     = new Date(); hoje.setHours(0,0,0,0);
+    const vencidas = _tarTarefas.filter(t => {
+      if (tarIsDone(t) || !t.prazo) return false;
+      return new Date(t.prazo) < hoje;
+    }).length;
+
+    const pct = total > 0 ? Math.round(done/total*100) : 0;
+
+    el.innerHTML = `
+      <div class="tar-kpi-card">
+        <div class="tar-kpi-label">Total</div>
+        <div class="tar-kpi-value">${total}</div>
+        <div class="tar-kpi-sub">${pct}% concluídas</div>
+      </div>
+      <div class="tar-kpi-card">
+        <div class="tar-kpi-label">Em Aberto</div>
+        <div class="tar-kpi-value" style="color:var(--praxes-teal);">${aberto}</div>
+        <div class="tar-kpi-sub">pendentes</div>
+      </div>
+      <div class="tar-kpi-card">
+        <div class="tar-kpi-label">Alta Prioridade</div>
+        <div class="tar-kpi-value" style="color:var(--danger);">${alta}</div>
+        <div class="tar-kpi-sub">em aberto</div>
+      </div>
+      <div class="tar-kpi-card">
+        <div class="tar-kpi-label">Vencidas</div>
+        <div class="tar-kpi-value" style="color:${vencidas>0?'var(--danger)':'var(--success)'};">${vencidas}</div>
+        <div class="tar-kpi-sub">${vencidas>0?'atenção necessária':'em dia'}</div>
+      </div>`;
+  }
+
+  function tarCardHTML(t) {
+    const done  = tarIsDone(t);
+    const hoje  = new Date(); hoje.setHours(0,0,0,0);
+    const prazoDate = t.prazo ? new Date(t.prazo) : null;
+    const vencida   = prazoDate && prazoDate < hoje && !done;
+
+    const priPill = t.prioridade
+      ? `<span class="tar-pill tar-pill-${(t.prioridade||'').toLowerCase()}">${t.prioridade}</span>`
+      : '';
+    const prazoPill = prazoDate
+      ? `<span class="tar-pill ${vencida ? 'tar-pill-venc' : 'tar-pill-date'}">
+          ${vencida ? '⚠ ' : ''}${prazoDate.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})}
+        </span>`
+      : '';
+    const respPill = t.responsavel
+      ? `<span class="tar-pill tar-pill-resp">${t.responsavel}</span>` : '';
+
+    const statusBadge = done
+      ? '' : (t.status && t.status !== 'A fazer'
+        ? `<span class="tar-pill" style="background:var(--praxes-mist);color:var(--praxes-deep);">${t.status}</span>` : '');
+
+    return `<div class="tar-card ${done?'done':''}" onclick="tarefasAbrirModal('${t.id}')">
+      <div class="tar-check ${done?'checked':''}" onclick="event.stopPropagation();tarefasToggleDone('${t.id}')"></div>
+      <div style="flex:1;min-width:0;">
+        <div class="tar-title ${done?'done-text':''}">${esc(t.titulo||'Sem título')}</div>
+        ${t.descricao ? `<div class="tar-desc">${esc(t.descricao)}</div>` : ''}
+        <div class="tar-meta" style="margin-top:6px;">${priPill}${prazoPill}${respPill}${statusBadge}</div>
+      </div>
+    </div>`;
+  }
+
+  // ──────────────── MODAL ────────────────
+  function tarefasAbrirModal(idOuNull) {
+    _tarEditingId = idOuNull;
+    const t = idOuNull ? _tarTarefas.find(x => x.id === idOuNull) : null;
+
+    document.getElementById('modal-tarefa-title').textContent = t ? 'Editar Tarefa' : 'Nova Tarefa';
+    document.getElementById('tar-form-titulo').value      = t?.titulo      || '';
+    document.getElementById('tar-form-prioridade').value  = t?.prioridade  || '';
+    document.getElementById('tar-form-responsavel').value = t?.responsavel || '';
+    document.getElementById('tar-form-status').value      = t?.status      || 'A fazer';
+    document.getElementById('tar-form-obs').value         = t?.descricao   || '';
+    if (t?.prazo) {
+      document.getElementById('tar-form-prazo').value = t.prazo.split('T')[0];
+    } else {
+      document.getElementById('tar-form-prazo').value = '';
+    }
+    openModal('modal-tarefa');
+  }
+
+  async function tarefasSalvar() {
+    const titulo = document.getElementById('tar-form-titulo').value.trim();
+    if (!titulo) { alert('Informe o título da tarefa.'); return; }
+
+    const payload = {
+      titulo:      titulo,
+      prioridade:  document.getElementById('tar-form-prioridade').value,
+      responsavel: document.getElementById('tar-form-responsavel').value.trim(),
+      status:      document.getElementById('tar-form-status').value,
+      prazo:       document.getElementById('tar-form-prazo').value || null,
+      descricao:   document.getElementById('tar-form-obs').value.trim()
+    };
+
+    const btn = document.getElementById('tar-btn-salvar');
+    btn.disabled = true;
+    btn.textContent = 'Salvando…';
+
+    try {
+      const action = _tarEditingId
+        ? `Atualize a página do Notion com ID "${_tarEditingId}" com as propriedades: ${JSON.stringify(payload)}`
+        : `Crie uma nova página no banco de dados Notion "${TAR_NOTION_DB}" com as propriedades: ${JSON.stringify(payload)}`;
+
+      await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 1000,
+          system: 'Execute a operação solicitada no Notion sem retornar texto desnecessário. Mapeie: titulo→Name (title), prioridade→Prioridade (select), responsavel→Responsável (rich_text), status→Status (status), prazo→Prazo (date), descricao→Descrição (rich_text). Retorne apenas {"ok":true} ou {"ok":false,"error":"..."}.',
+          messages: [{ role: 'user', content: action }],
+          mcp_servers: [{ type: 'url', url: 'https://mcp.notion.com/mcp', name: 'notion-mcp' }]
+        })
+      });
+
+      closeModal('modal-tarefa');
+      _tarLoaded = false;
+      await tarefasLoad();
+    } catch (err) {
+      alert('Erro ao salvar: ' + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Salvar';
+    }
+  }
+
+  async function tarefasToggleDone(id) {
+    const t = _tarTarefas.find(x => x.id === id);
+    if (!t) return;
+    const novoStatus = tarIsDone(t) ? 'A fazer' : 'Concluído';
+
+    // Otimista: atualiza localmente antes
+    t.status = novoStatus;
+    tarefasRender();
+
+    try {
+      await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 500,
+          system: 'Execute a operação no Notion. Retorne apenas {"ok":true}.',
+          messages: [{ role: 'user', content: `Atualize a página Notion ID "${id}" definindo a propriedade Status para "${novoStatus}".` }],
+          mcp_servers: [{ type: 'url', url: 'https://mcp.notion.com/mcp', name: 'notion-mcp' }]
+        })
+      });
+    } catch (err) {
+      // Reverte em caso de erro
+      t.status = novoStatus === 'Concluído' ? 'A fazer' : 'Concluído';
+      tarefasRender();
+      console.error('Toggle done error:', err);
+    }
+  }
+
+  // ============================================================
+  // ========== FIM MÓDULO TAREFAS ==============================
   // ============================================================
 
   </script>
