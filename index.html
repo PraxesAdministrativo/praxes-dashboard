@@ -14991,7 +14991,7 @@ Esta ação não pode ser desfeita.`)) return;
         <div id="reu-det-titulo-edit" style="display:none;margin-bottom:8px;">
           <input type="text" class="reu-block-editor" id="reu-det-titulo-input" value="${esc(reu?.titulo||'')}" style="font-size:18px;font-weight:700;">
           <div style="display:flex;gap:6px;margin-top:6px;">
-            <button class="btn-save" style="font-size:12px;padding:6px 14px;" onclick="reuSalvarTitulo('${id}')">Salvar</button>
+            <button class="btn-save" style="font-size:12px;padding:6px 14px;" onclick="reuSalvarTitulo('${reu.id}')">Salvar</button>
             <button class="btn-cancel" style="font-size:12px;padding:6px 14px;" onclick="reuCancelarTitulo()">Cancelar</button>
           </div>
         </div>
