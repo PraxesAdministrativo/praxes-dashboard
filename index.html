@@ -14169,7 +14169,7 @@ Esta ação não pode ser desfeita.`)) return;
           headers: tarNotionHeaders(),
           body: JSON.stringify({
             page_size: 1,
-            filter: { property: 'Nome', title: { contains: clientName.split(' ')[0] } }
+            filter: { property: 'Nome', title: { contains: clientName.split(' ').slice(0,2).join(' ') } }
           })
         });
         if (clientResp.ok) {
