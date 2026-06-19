@@ -1777,6 +1777,28 @@
   .reu-empty-icon { font-size:36px; margin-bottom:12px; opacity:.4; }
   /* ========== FIM REUNIÕES ========== */
 
+  /* ========== REUNIÃO DETALHE ========== */
+  .reu-det-header { margin-bottom: 24px; }
+  .reu-det-titulo { font-size: 22px; font-weight: 700; color: var(--fg-1); letter-spacing: -.3px; margin-bottom: 8px; }
+  .reu-det-meta   { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+
+  .reu-block-section { margin: 24px 0 8px; }
+  .reu-block-h3 { font-size: 14px; font-weight: 700; color: var(--fg-1); padding-bottom: 6px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+  .reu-block-bullet { font-size: 13px; color: var(--fg-2); line-height: 1.6; padding: 3px 0 3px 16px; position: relative; }
+  .reu-block-bullet::before { content: '•'; position: absolute; left: 4px; color: var(--praxes-teal); }
+  .reu-block-para { font-size: 13px; color: var(--fg-2); line-height: 1.6; padding: 4px 0; }
+  .reu-block-unsupported { font-size: 12px; color: var(--fg-mute); font-style: italic; padding: 4px 0; }
+
+  .reu-edit-btn { font-size: 11px; padding: 4px 10px; background: transparent; border: 1px solid var(--line-strong); border-radius: var(--r-pill); color: var(--fg-mute); cursor: pointer; transition: all .15s; }
+  .reu-edit-btn:hover { background: var(--praxes-shell); color: var(--fg-1); }
+
+  .reu-block-editor { width: 100%; padding: 8px 10px; font-size: 13px; font-family: inherit; border: 1px solid var(--praxes-teal); border-radius: var(--r-md); background: var(--surface); color: var(--fg-1); resize: vertical; outline: none; margin: 4px 0; line-height: 1.6; }
+
+  .reu-tarefas-inline { margin-top: 8px; }
+  .reu-tarefa-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md); margin-bottom: 6px; font-size: 12px; }
+  .reu-tarefa-status { padding: 2px 8px; border-radius: var(--r-pill); font-size: 10px; font-weight: 600; }
+  /* ========== FIM REUNIÃO DETALHE ========== */
+
   </style>
 </head>
 <body>
@@ -2792,6 +2814,12 @@
           <div id="tar-list"></div>
         </div>
 
+        <!-- REUNIÃO DETALHE PAGE -->
+        <div class="page" id="page-reuniao-detalhe">
+          <div class="detalhes-back" onclick="navigateTo('reunioes')">← Voltar para Reuniões</div>
+          <div id="reu-det-content"></div>
+        </div>
+
         <!-- REUNIÕES PAGE -->
         <div class="page" id="page-reunioes">
           <div class="page-header" style="margin-bottom:0;">
@@ -2804,7 +2832,7 @@
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
                 Atualizar
               </button>
-              <button class="btn-primary" onclick="reunioesAbrirModal(null)" style="padding:8px 16px;font-size:12px;">+ Nova reunião</button>
+              <button class="btn-primary" onclick="reunioesNovaModal()" style="padding:8px 16px;font-size:12px;">+ Nova reunião</button>
             </div>
           </div>
 
@@ -4177,8 +4205,9 @@
         veiculos:       'Veículos & Embarcações',
         documentos:     'Documentos',
         tarefas:        'Tarefas',
-        reunioes:       'Reuniões',
-        perfil:         'Perfil & Família'
+        reunioes:         'Reuniões',
+        'reuniao-detalhe': 'Ata de Reunião',
+        perfil:           'Perfil & Família'
       };
       document.getElementById('top-title').textContent = titles[pageName] || 'Praxes';
       
@@ -14836,16 +14865,194 @@ Esta ação não pode ser desfeita.`)) return;
     </div>`;
   }
 
-  // ──────────────── MODAL VER/EDITAR ────────────────
-  function reunioesAbrirModal(idOuNull) {
-    _reuEditingId = idOuNull;
-    const r = idOuNull ? _reuReunioes.find(x => x.id === idOuNull) : null;
+  // ──────────────── DETALHE DA ATA ────────────────
+  let _reuDetId = null;
+  let _reuDetBlocks = [];
 
-    document.getElementById('modal-reuniao-title').textContent = r ? 'Editar Reunião' : 'Nova Reunião';
-    document.getElementById('reu-form-titulo').value       = r?.titulo       || '';
-    document.getElementById('reu-form-data').value         = r?.data         || '';
-    document.getElementById('reu-form-participantes').value = r?.participantes || '';
-    openModal('modal-reuniao');
+  async function reunioesAbrirModal(id) {
+    _reuDetId = id;
+    navigateTo('reuniao-detalhe');
+    await reuCarregarDetalhe(id);
+  }
+
+  async function reuCarregarDetalhe(id) {
+    const el = document.getElementById('reu-det-content');
+    el.innerHTML = '<div class="loading"><div class="spinner"></div><p>Carregando ata…</p></div>';
+
+    const reu = _reuReunioes.find(r => r.id === id);
+
+    try {
+      // Busca blocks da página
+      const resp = await fetch(reuUrl(`/v1/blocks/${id.replace(/-/g,'')}/children?page_size=100`), {
+        headers: reuHeaders()
+      });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const data = await resp.json();
+      _reuDetBlocks = data.results || [];
+
+      // Busca tarefas relacionadas se houver
+      let tarefasData = [];
+      if (reu?.tarefasRel?.length > 0) {
+        for (const tid of reu.tarefasRel.slice(0,10)) {
+          const tr = await fetch(reuUrl(`/v1/pages/${tid.replace(/-/g,'')}`), { headers: reuHeaders() });
+          if (tr.ok) {
+            const tp = await tr.json();
+            const titulo = tp.properties?.['Nome']?.title?.map(t=>t.plain_text).join('') || 'Tarefa';
+            const status = tp.properties?.['Status da Tarefa']?.status?.name || '';
+            tarefasData.push({ titulo, status });
+          }
+        }
+      }
+
+      reuRenderDetalhe(reu, tarefasData);
+    } catch(err) {
+      el.innerHTML = `<div class="reu-empty"><div class="reu-empty-icon">⚠️</div><p>Erro ao carregar ata.<br><small>${esc(err.message)}</small></p></div>`;
+    }
+  }
+
+  function reuRenderDetalhe(reu, tarefasData) {
+    const el = document.getElementById('reu-det-content');
+    const dataFmt = reu?.data ? new Date(reu.data).toLocaleDateString('pt-BR', {day:'2-digit',month:'long',year:'numeric'}) : '';
+
+    const partPills = (reu?.participantes || '').split(', ').filter(Boolean)
+      .map(p => `<span class="reu-pill reu-pill-part">${esc(p)}</span>`).join('');
+
+    // Render dos blocks
+    let blocksHtml = '';
+    _reuDetBlocks.forEach((block, i) => {
+      const type = block.type;
+      const richText = block[type]?.rich_text || [];
+      const text = richText.map(rt => rt.plain_text).join('');
+
+      if (type === 'heading_3' || type === 'heading_2' || type === 'heading_1') {
+        blocksHtml += `<div class="reu-block-section">
+          <div class="reu-block-h3" style="display:flex;align-items:center;justify-content:space-between;">
+            <span id="reu-blk-view-${i}">${esc(text)}</span>
+            <button class="reu-edit-btn" onclick="reuEditarBloco(${i},'${block.id}','${type}')">Editar</button>
+          </div>
+          <div id="reu-blk-edit-${i}" style="display:none;">
+            <input type="text" class="reu-block-editor" value="${esc(text)}" id="reu-blk-input-${i}" style="resize:none;">
+            <div style="display:flex;gap:6px;margin-top:4px;">
+              <button class="btn-save" style="font-size:11px;padding:5px 12px;" onclick="reuSalvarBloco(${i},'${block.id}','${type}')">Salvar</button>
+              <button class="btn-cancel" style="font-size:11px;padding:5px 12px;" onclick="reuCancelarBloco(${i})">Cancelar</button>
+            </div>
+          </div>
+        </div>`;
+      } else if (type === 'bulleted_list_item' || type === 'numbered_list_item') {
+        blocksHtml += `<div class="reu-block-bullet" id="reu-blk-view-wrap-${i}">
+          <span id="reu-blk-view-${i}">${esc(text)}</span>
+          <button class="reu-edit-btn" style="margin-left:8px;" onclick="reuEditarBloco(${i},'${block.id}','${type}')">✏️</button>
+          <div id="reu-blk-edit-${i}" style="display:none;margin-top:4px;">
+            <textarea class="reu-block-editor" rows="2" id="reu-blk-input-${i}">${esc(text)}</textarea>
+            <div style="display:flex;gap:6px;margin-top:4px;">
+              <button class="btn-save" style="font-size:11px;padding:5px 12px;" onclick="reuSalvarBloco(${i},'${block.id}','${type}')">Salvar</button>
+              <button class="btn-cancel" style="font-size:11px;padding:5px 12px;" onclick="reuCancelarBloco(${i})">Cancelar</button>
+            </div>
+          </div>
+        </div>`;
+      } else if (type === 'paragraph') {
+        blocksHtml += `<div class="reu-block-para">
+          <span id="reu-blk-view-${i}">${esc(text) || '&nbsp;'}</span>
+          ${text ? `<button class="reu-edit-btn" style="margin-left:8px;" onclick="reuEditarBloco(${i},'${block.id}','${type}')">✏️</button>` : ''}
+          <div id="reu-blk-edit-${i}" style="display:none;margin-top:4px;">
+            <textarea class="reu-block-editor" rows="3" id="reu-blk-input-${i}">${esc(text)}</textarea>
+            <div style="display:flex;gap:6px;margin-top:4px;">
+              <button class="btn-save" style="font-size:11px;padding:5px 12px;" onclick="reuSalvarBloco(${i},'${block.id}','${type}')">Salvar</button>
+              <button class="btn-cancel" style="font-size:11px;padding:5px 12px;" onclick="reuCancelarBloco(${i})">Cancelar</button>
+            </div>
+          </div>
+        </div>`;
+      } else if (type === 'child_database') {
+        blocksHtml += `<div style="margin-top:16px;">
+          <div class="reu-block-h3">Tarefas vinculadas</div>
+          <div class="reu-tarefas-inline">
+            ${tarefasData.length > 0
+              ? tarefasData.map(t => `
+                <div class="reu-tarefa-row">
+                  <span style="flex:1;">${esc(t.titulo)}</span>
+                  <span class="reu-tarefa-status" style="background:${t.status==='Concluído'?'var(--success-bg)':'var(--praxes-shell)'};color:${t.status==='Concluído'?'var(--success)':'var(--fg-mute)'};">${esc(t.status||'—')}</span>
+                </div>`).join('')
+              : '<p style="font-size:12px;color:var(--fg-mute);">Nenhuma tarefa vinculada.</p>'
+            }
+          </div>
+        </div>`;
+      } else {
+        blocksHtml += `<div class="reu-block-unsupported">[bloco não suportado: ${type}]</div>`;
+      }
+    });
+
+    el.innerHTML = `
+      <div class="reu-det-header">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:8px;">
+          <div class="reu-det-titulo" id="reu-det-titulo-view">${esc(reu?.titulo||'')}</div>
+          <button class="reu-edit-btn" onclick="reuEditarTitulo()">Editar título</button>
+        </div>
+        <div id="reu-det-titulo-edit" style="display:none;margin-bottom:8px;">
+          <input type="text" class="reu-block-editor" id="reu-det-titulo-input" value="${esc(reu?.titulo||'')}" style="font-size:18px;font-weight:700;">
+          <div style="display:flex;gap:6px;margin-top:6px;">
+            <button class="btn-save" style="font-size:12px;padding:6px 14px;" onclick="reuSalvarTitulo('${id}')">Salvar</button>
+            <button class="btn-cancel" style="font-size:12px;padding:6px 14px;" onclick="reuCancelarTitulo()">Cancelar</button>
+          </div>
+        </div>
+        <div class="reu-det-meta">
+          ${dataFmt ? `<span class="reu-pill">📅 ${dataFmt}</span>` : ''}
+          ${partPills}
+        </div>
+      </div>
+      <div id="reu-det-blocks">${blocksHtml}</div>`;
+  }
+
+  // ── Edição inline de título ──
+  function reuEditarTitulo() {
+    document.getElementById('reu-det-titulo-view').closest('div').style.display = 'none';
+    document.getElementById('reu-det-titulo-edit').style.display = '';
+    document.getElementById('reu-det-titulo-input').focus();
+  }
+  function reuCancelarTitulo() {
+    document.getElementById('reu-det-titulo-view').closest('div').style.display = '';
+    document.getElementById('reu-det-titulo-edit').style.display = 'none';
+  }
+  async function reuSalvarTitulo(id) {
+    const novoTitulo = document.getElementById('reu-det-titulo-input').value.trim();
+    if (!novoTitulo) return;
+    try {
+      const resp = await fetch(reuUrl(`/v1/pages/${id.replace(/-/g,'')}`), {
+        method: 'PATCH', headers: reuHeaders(),
+        body: JSON.stringify({ properties: { 'Nome': { title: [{ text: { content: novoTitulo } }] } } })
+      });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      // Atualiza cache
+      const r = _reuReunioes.find(x => x.id === id);
+      if (r) r.titulo = novoTitulo;
+      document.getElementById('reu-det-titulo-view').textContent = novoTitulo;
+      reuCancelarTitulo();
+    } catch(err) { alert('Erro: ' + err.message); }
+  }
+
+  // ── Edição inline de blocos ──
+  function reuEditarBloco(i, blockId, type) {
+    document.getElementById(`reu-blk-view-${i}`).style.display = 'none';
+    document.getElementById(`reu-blk-edit-${i}`).style.display = '';
+    document.getElementById(`reu-blk-input-${i}`)?.focus();
+  }
+  function reuCancelarBloco(i) {
+    document.getElementById(`reu-blk-view-${i}`).style.display = '';
+    document.getElementById(`reu-blk-edit-${i}`).style.display = 'none';
+  }
+  async function reuSalvarBloco(i, blockId, type) {
+    const novoTexto = document.getElementById(`reu-blk-input-${i}`)?.value || '';
+    const cleanId = blockId.replace(/-/g,'');
+    try {
+      const resp = await fetch(reuUrl(`/v1/blocks/${cleanId}`), {
+        method: 'PATCH', headers: reuHeaders(),
+        body: JSON.stringify({
+          [type]: { rich_text: [{ type: 'text', text: { content: novoTexto } }] }
+        })
+      });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      document.getElementById(`reu-blk-view-${i}`).textContent = novoTexto;
+      reuCancelarBloco(i);
+    } catch(err) { alert('Erro: ' + err.message); }
   }
 
   async function reunioesSalvar() {
@@ -14895,6 +15102,14 @@ Esta ação não pode ser desfeita.`)) return;
     }
   }
 
+  function reunioesNovaModal() {
+    _reuEditingId = null;
+    document.getElementById('modal-reuniao-title').textContent = 'Nova Reunião';
+    document.getElementById('reu-form-titulo').value        = '';
+    document.getElementById('reu-form-data').value          = '';
+    document.getElementById('reu-form-participantes').value = '';
+    openModal('modal-reuniao');
+  }
   async function reuBuscarClienteId(clientName) {
     const cr = await fetch(reuUrl(`/v1/databases/${REU_NOTION_CLIENTS_DB}/query`), {
       method: 'POST', headers: reuHeaders(),
