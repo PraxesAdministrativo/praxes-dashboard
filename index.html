@@ -4195,7 +4195,8 @@
       document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
       
       document.getElementById('page-' + pageName).classList.add('active');
-      document.querySelector(`.nav-item[data-page="${pageName}"]`).classList.add('active');
+      const navItem = document.querySelector(`.nav-item[data-page="${pageName}"]`);
+      if (navItem) navItem.classList.add('active');
       
       const titles = {
         dashboard:      'Visão Geral',
