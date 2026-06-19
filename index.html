@@ -14178,7 +14178,17 @@ Esta ação não pode ser desfeita.`)) return;
         }
       }
 
-      // 2. Busca tarefas — filtra por relation se achou o ID do cliente
+      // SEGURANÇA: se não encontrou o cliente no Notion, não exibe nada
+      if (!clientNotionId) {
+        listEl.innerHTML = `<div class="tar-empty">
+          <div class="tar-empty-icon">🔍</div>
+          <p>Cliente não encontrado no Notion.<br>
+          <small style="color:var(--fg-mute);">Verifique se o nome "<strong>${esc(clientName)}</strong>" está cadastrado no database Clientes Praxes.</small></p>
+        </div>`;
+        document.getElementById('tar-kpis').innerHTML = '';
+        _tarLoaded = false;
+        return;
+      }
       let allResults = [];
       let cursor = undefined;
       do {
