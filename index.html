@@ -14933,27 +14933,41 @@ Esta ação não pode ser desfeita.`)) return;
       const data = await resp.json();
       _reuDetBlocks = data.results || [];
 
-      // Busca tarefas relacionadas se houver
-      let tarefasData = [];
-      if (reu?.tarefasRel?.length > 0) {
-        for (const tid of reu.tarefasRel.slice(0,10)) {
-          const tr = await fetch(reuUrl(`/v1/pages/${tid.replace(/-/g,'')}`), { headers: reuHeaders() });
-          if (tr.ok) {
-            const tp = await tr.json();
-            const titulo = tp.properties?.['Nome']?.title?.map(t=>t.plain_text).join('') || 'Tarefa';
-            const status = tp.properties?.['Status da Tarefa']?.status?.name || '';
-            tarefasData.push({ titulo, status });
-          }
+      // Busca tarefas do cliente no database de Tarefas filtradas pela data da ata
+      let tarefasDaAta = [];
+      const clientName = document.getElementById('sidebar-name')?.textContent?.trim() || '';
+      const clientNotionId = await buscarClienteNotionId(clientName, REU_PROXY_BASE, reuHeaders(), REU_NOTION_CLIENTS_DB);
+
+      if (clientNotionId) {
+        const dataAta = reu?.data ? reu.data.split('T')[0] : null;
+        const filtro = {
+          and: [
+            { property: 'Cliente', relation: { contains: clientNotionId } },
+            ...(dataAta ? [{ property: 'Data de Vencimento', date: { equals: dataAta } }] : [])
+          ]
+        };
+        const tarResp = await fetch(reuUrl(`/v1/databases/${TAR_NOTION_DB}/query`), {
+          method: 'POST', headers: reuHeaders(),
+          body: JSON.stringify({ page_size: 50, filter: filtro })
+        });
+        if (tarResp.ok) {
+          const tarData = await tarResp.json();
+          tarefasDaAta = (tarData.results || []).map(p => ({
+            id:     p.id,
+            titulo: p.properties?.['Nome']?.title?.map(t=>t.plain_text).join('') || 'Tarefa',
+            status: p.properties?.['Status da Tarefa']?.status?.name || '',
+            prioridade: p.properties?.['Prioridade']?.select?.name || ''
+          }));
         }
       }
 
-      reuRenderDetalhe(reu, tarefasData);
+      reuRenderDetalhe(reu, tarefasDaAta, clientNotionId);
     } catch(err) {
       el.innerHTML = `<div class="reu-empty"><div class="reu-empty-icon">⚠️</div><p>Erro ao carregar ata.<br><small>${esc(err.message)}</small></p></div>`;
     }
   }
 
-  function reuRenderDetalhe(reu, tarefasData) {
+  function reuRenderDetalhe(reu, tarefasDaAta, clientNotionId) {
     const el = document.getElementById('reu-det-content');
     const dataFmt = reu?.data ? new Date(reu.data).toLocaleDateString('pt-BR', {day:'2-digit',month:'long',year:'numeric'}) : '';
     const partPills = (reu?.participantes || '').split(', ').filter(Boolean)
@@ -14975,7 +14989,7 @@ Esta ação não pode ser desfeita.`)) return;
         blocksHtml += `<div class="reu-block-para">${esc(text) || '&nbsp;'}</div>`;
         textoEditavel += `${text}\n`;
       } else if (type === 'child_database') {
-        blocksHtml += `<div style="margin-top:16px;"><div class="reu-block-h3">Tarefas vinculadas</div><div class="reu-tarefas-inline">${tarefasData.length > 0 ? tarefasData.map(t => `<div class="reu-tarefa-row"><span style="flex:1;">${esc(t.titulo)}</span><span class="reu-tarefa-status" style="background:${t.status==='Concluído'?'var(--success-bg)':'var(--praxes-shell)'};color:${t.status==='Concluído'?'var(--success)':'var(--fg-mute)'};">${esc(t.status||'—')}</span></div>`).join('') : '<p style="font-size:12px;color:var(--fg-mute);">Nenhuma tarefa vinculada.</p>'}</div></div>`;
+        // ignorar — To-dos é renderizado separadamente abaixo
       } else {
         blocksHtml += `<div class="reu-block-unsupported">[bloco não suportado: ${type}]</div>`;
       }
@@ -15018,9 +15032,89 @@ Esta ação não pode ser desfeita.`)) return;
           </div>
         </div>
         <textarea id="reu-editor-textarea" class="reu-block-editor" rows="20" style="width:100%;box-sizing:border-box;font-family:monospace;font-size:13px;line-height:1.7;"></textarea>
+      </div>
+
+      <!-- TO-DOS -->
+      <div style="margin-top:32px;border-top:1px solid var(--line);padding-top:20px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+          <div class="reu-block-h3" style="border:none;margin:0;padding:0;font-size:14px;">To-dos</div>
+          <button class="btn-secondary" onclick="reuToggleNovarTarefa()" id="reu-btn-nova-tarefa" style="font-size:12px;padding:6px 12px;">+ Adicionar tarefa</button>
+        </div>
+
+        <!-- Formulário inline de nova tarefa -->
+        <div id="reu-nova-tarefa-form" style="display:none;background:var(--praxes-shell);border-radius:var(--r-lg);padding:14px 16px;margin-bottom:14px;">
+          <div class="form-row" style="margin-bottom:10px;">
+            <div class="form-group" style="flex:2;">
+              <label class="form-label">Título *</label>
+              <input type="text" class="form-input" id="reu-nt-titulo" placeholder="Descrição da tarefa" style="font-size:13px;">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Prioridade</label>
+              <select class="form-select" id="reu-nt-prioridade" style="font-size:13px;">
+                <option value="">—</option>
+                <option value="Alta">Alta</option>
+                <option value="Media">Média</option>
+                <option value="Baixa">Baixa</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Prazo</label>
+              <input type="date" class="form-input" id="reu-nt-prazo" style="font-size:13px;">
+            </div>
+          </div>
+          <div class="form-row" style="margin-bottom:10px;">
+            <div class="form-group">
+              <label class="form-label">Responsável</label>
+              <input type="text" class="form-input" id="reu-nt-responsavel" placeholder="Nome" style="font-size:13px;">
+            </div>
+            <div class="form-group" style="flex:2;">
+              <label class="form-label">Observações</label>
+              <input type="text" class="form-input" id="reu-nt-obs" placeholder="Detalhes opcionais" style="font-size:13px;">
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;justify-content:flex-end;">
+            <button class="btn-cancel" onclick="reuToggleNovarTarefa()" style="font-size:12px;padding:6px 12px;">Cancelar</button>
+            <button class="btn-save" onclick="reuCriarTarefa('${reu.id}','${clientNotionId||''}')" id="reu-nt-btn" style="font-size:12px;padding:6px 14px;">Criar tarefa</button>
+          </div>
+        </div>
+
+        <!-- Lista de tarefas -->
+        <div id="reu-todos-list"></div>
       </div>`;
     const ta = document.getElementById('reu-editor-textarea');
     if (ta) ta.value = window._reuTextoEditavel;
+
+    // Popula lista de To-dos separadamente para evitar template literal aninhado
+    reuRenderTodos(tarefasDaAta, reu.id, clientNotionId);
+  }
+
+  function reuRenderTodos(tarefas, reuId, clientNotionId) {
+    const el = document.getElementById('reu-todos-list');
+    if (!el) return;
+    if (tarefas.length === 0) {
+      el.innerHTML = '<p style="font-size:12px;color:var(--fg-mute);padding:8px 0;">Nenhuma tarefa ainda.</p>';
+      return;
+    }
+    const isDone = s => {
+      const n = (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+      return n === 'concluido';
+    };
+    const norm = s => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    el.innerHTML = tarefas.map(t => {
+      const done = isDone(t.status);
+      const priClass = t.prioridade ? 'tar-pill tar-pill-' + norm(t.prioridade) : '';
+      const priHtml  = t.prioridade ? '<span class="' + priClass + '">' + esc(t.prioridade) + '</span>' : '';
+      const statusBg = done ? 'var(--success-bg)' : 'var(--praxes-shell)';
+      const statusCl = done ? 'var(--success)'    : 'var(--fg-mute)';
+      const checkCl  = done ? 'tar-check checked' : 'tar-check';
+      const titleSt  = done ? 'text-decoration:line-through;color:var(--fg-mute);' : '';
+      return '<div class="reu-tarefa-row">' +
+        '<div class="' + checkCl + '" onclick="reuToggleTarefa(\'' + t.id + '\',\'' + reuId + '\',\'' + (clientNotionId||'') + '\')"></div>' +
+        '<span style="flex:1;font-size:13px;' + titleSt + '">' + esc(t.titulo) + '</span>' +
+        priHtml +
+        '<span class="reu-tarefa-status" style="background:' + statusBg + ';color:' + statusCl + ';">' + esc(t.status||'—') + '</span>' +
+        '</div>';
+    }).join('');
   }
 
   function reuEntrarEdicao() {
@@ -15181,7 +15275,79 @@ Esta ação não pode ser desfeita.`)) return;
     document.getElementById('reu-form-participantes').value = '';
     openModal('modal-reuniao');
   }
-  async function reuBuscarClienteId(clientName) {
+  // ── To-dos inline ──
+  function reuToggleNovarTarefa() {
+    const form = document.getElementById('reu-nova-tarefa-form');
+    form.style.display = form.style.display === 'none' ? '' : 'none';
+    if (form.style.display !== 'none') document.getElementById('reu-nt-titulo').focus();
+  }
+
+  async function reuCriarTarefa(reuId, clientNotionId) {
+    const titulo      = document.getElementById('reu-nt-titulo').value.trim();
+    if (!titulo) { alert('Informe o título da tarefa.'); return; }
+    const prioridade  = document.getElementById('reu-nt-prioridade').value;
+    const prazo       = document.getElementById('reu-nt-prazo').value || null;
+    const responsavel = document.getElementById('reu-nt-responsavel').value.trim();
+    const obs         = document.getElementById('reu-nt-obs').value.trim();
+
+    const btn = document.getElementById('reu-nt-btn');
+    btn.disabled = true; btn.textContent = 'Criando…';
+
+    const props = {
+      'Nome':             { title:     [{ text: { content: titulo } }] },
+      'Status da Tarefa': { status:    { name: 'Não iniciada' } },
+      ...(prioridade  ? { 'Prioridade':  { select:    { name: prioridade } } } : {}),
+      ...(prazo       ? { 'Data de Vencimento': { date: { start: prazo } } } : {}),
+      ...(responsavel ? { 'Responsável': { rich_text: [{ text: { content: responsavel } }] } } : {}),
+      ...(obs         ? { 'Descrição':   { rich_text: [{ text: { content: obs         } }] } } : {}),
+      ...(clientNotionId ? { 'Cliente': { relation: [{ id: clientNotionId }] } } : {})
+    };
+
+    try {
+      const resp = await fetch(reuUrl('/v1/pages'), {
+        method: 'POST', headers: reuHeaders(),
+        body: JSON.stringify({ parent: { database_id: TAR_NOTION_DB }, properties: props })
+      });
+      if (!resp.ok) { const e = await resp.json(); throw new Error(e.message || `HTTP ${resp.status}`); }
+
+      // Limpa form e recarrega detalhe
+      document.getElementById('reu-nt-titulo').value      = '';
+      document.getElementById('reu-nt-prioridade').value  = '';
+      document.getElementById('reu-nt-prazo').value       = '';
+      document.getElementById('reu-nt-responsavel').value = '';
+      document.getElementById('reu-nt-obs').value         = '';
+      document.getElementById('reu-nova-tarefa-form').style.display = 'none';
+
+      // Invalida cache de tarefas e recarrega
+      _tarLoaded = false;
+      await reuCarregarDetalhe(reuId);
+    } catch(err) {
+      alert('Erro ao criar tarefa: ' + err.message);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Criar tarefa';
+    }
+  }
+
+  async function reuToggleTarefa(tarefaId, reuId, clientNotionId) {
+    // Busca status atual da tarefa no cache
+    const tarRef = document.querySelector(`[onclick*="reuToggleTarefa('${tarefaId}'"]`);
+    const isDone  = tarRef?.classList.contains('checked');
+    const novoStatus = isDone ? 'Não iniciada' : 'Concluído';
+
+    try {
+      const resp = await fetch(reuUrl(`/v1/pages/${tarefaId.replace(/-/g,'')}`), {
+        method: 'PATCH', headers: reuHeaders(),
+        body: JSON.stringify({ properties: { 'Status da Tarefa': { status: { name: novoStatus } } } })
+      });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      _tarLoaded = false;
+      await reuCarregarDetalhe(reuId);
+    } catch(err) {
+      console.error('Toggle tarefa error:', err);
+    }
+  }
+
+  
     return buscarClienteNotionId(clientName, REU_PROXY_BASE, reuHeaders(), REU_NOTION_CLIENTS_DB);
   }
 
