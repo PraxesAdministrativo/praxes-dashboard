@@ -15106,7 +15106,6 @@ Esta ação não pode ser desfeita.`)) return;
     const btn = document.getElementById('reu-btn-salvar');
     btn.disabled = true; btn.textContent = 'Salvando…';
 
-    // Monta participantes como multi_select
     const partArray = participantes.split(',').map(s => s.trim()).filter(Boolean).map(name => ({ name }));
 
     const props = {
@@ -15118,21 +15117,52 @@ Esta ação não pode ser desfeita.`)) return;
     try {
       let resp;
       if (_reuEditingId) {
+        // Edição — só atualiza propriedades
         resp = await fetch(reuUrl(`/v1/pages/${_reuEditingId}`), {
           method: 'PATCH', headers: reuHeaders(), body: JSON.stringify({ properties: props })
         });
+        if (!resp.ok) { const e = await resp.json(); throw new Error(e.message || `HTTP ${resp.status}`); }
       } else {
-        // Busca ID do cliente para linkar na relação
-        const clientName   = document.getElementById('sidebar-name')?.textContent?.trim() || '';
-        const clientNId    = await reuBuscarClienteId(clientName);
+        // Criação — duplica o template e aplica propriedades
+
+        // 1. Busca cliente
+        const clientName = document.getElementById('sidebar-name')?.textContent?.trim() || '';
+        const clientNId  = await reuBuscarClienteId(clientName);
         if (clientNId) props['Cliente'] = { relation: [{ id: clientNId }] };
 
+        // 2. Busca blocks do template
+        const REU_TEMPLATE_ID = '1ec701b863e68053842bc7b54b597e91';
+        const tmplResp = await fetch(reuUrl(`/v1/blocks/${REU_TEMPLATE_ID}/children?page_size=100`), {
+          headers: reuHeaders()
+        });
+        if (!tmplResp.ok) throw new Error('Erro ao buscar template');
+        const tmplData = await tmplResp.json();
+
+        // 3. Converte blocks do template para o formato de criação
+        // child_database não pode ser copiado via API — mantemos só os blocos de conteúdo
+        const templateBlocks = (tmplData.results || [])
+          .filter(b => b.type !== 'child_database' && b.type !== 'unsupported' && b.type !== 'child_page')
+          .map(b => {
+            const type = b.type;
+            const richText = b[type]?.rich_text || [];
+            if (['heading_1','heading_2','heading_3','paragraph','bulleted_list_item','numbered_list_item'].includes(type)) {
+              return { object: 'block', type, [type]: { rich_text: richText.map(rt => ({ type: 'text', text: { content: rt.plain_text } })) } };
+            }
+            return null;
+          }).filter(Boolean);
+
+        // 4. Cria a página no database com os blocks do template
         resp = await fetch(reuUrl('/v1/pages'), {
           method: 'POST', headers: reuHeaders(),
-          body: JSON.stringify({ parent: { database_id: REU_NOTION_DB }, properties: props })
+          body: JSON.stringify({
+            parent: { database_id: REU_NOTION_DB },
+            properties: props,
+            children: templateBlocks
+          })
         });
+        if (!resp.ok) { const e = await resp.json(); throw new Error(e.message || `HTTP ${resp.status}`); }
       }
-      if (!resp.ok) { const e = await resp.json(); throw new Error(e.message || `HTTP ${resp.status}`); }
+
       closeModal('modal-reuniao');
       _reuLoaded = false;
       await reunioesLoad();
