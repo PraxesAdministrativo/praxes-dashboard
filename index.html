@@ -15348,6 +15348,7 @@ Esta ação não pode ser desfeita.`)) return;
   }
 
   
+  async function reuBuscarClienteId(clientName) {
     return buscarClienteNotionId(clientName, REU_PROXY_BASE, reuHeaders(), REU_NOTION_CLIENTS_DB);
   }
 
