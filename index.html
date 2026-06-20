@@ -14980,6 +14980,8 @@ Esta ação não pode ser desfeita.`)) return;
       const richText = block[type]?.rich_text || [];
       const text = richText.map(rt => rt.plain_text).join('');
       if (type === 'heading_3' || type === 'heading_2' || type === 'heading_1') {
+        // Ignora headings que são "To-dos" — será renderizado pela seção própria
+        if (text.toLowerCase().trim() === 'to-dos' || text.toLowerCase().trim() === 'to dos') return;
         blocksHtml += `<div class="reu-block-section"><div class="reu-block-h3">${esc(text)}</div></div>`;
         textoEditavel += `### ${text}\n`;
       } else if (type === 'bulleted_list_item' || type === 'numbered_list_item') {
