@@ -14253,6 +14253,66 @@ Esta ação não pode ser desfeita.`)) return;
   // ============================================================
 
   // ============================================================
+  // ========== UTILITÁRIO: busca ID Notion do cliente ==========
+  // Usado por Tarefas e Reuniões — match exato por nome completo
+  // ============================================================
+  const _notionClienteCache = {};
+
+  async function buscarClienteNotionId(clientName, proxyUrl, headers, dbId) {
+    if (!clientName) return null;
+    const cacheKey = clientName + dbId;
+    if (_notionClienteCache[cacheKey]) return _notionClienteCache[cacheKey];
+
+    try {
+      let allClients = [];
+      let cursor;
+      do {
+        const body = { page_size: 100 };
+        if (cursor) body.start_cursor = cursor;
+        const cr = await fetch(proxyUrl + `/v1/databases/${dbId}/query`, {
+          method: 'POST', headers, body: JSON.stringify(body)
+        });
+        if (!cr.ok) return null;
+        const cd = await cr.json();
+        allClients = allClients.concat(cd.results || []);
+        cursor = cd.has_more ? cd.next_cursor : undefined;
+      } while (cursor);
+
+      const norm = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+      const nNorm = norm(clientName);
+      const palavras = nNorm.split(' ').filter(Boolean);
+
+      // 1. Match exato
+      let found = allClients.find(c => {
+        const nome = c.properties?.['Nome']?.title?.map(t => t.plain_text).join('') || '';
+        return norm(nome) === nNorm;
+      });
+
+      // 2. Primeira + última palavra iguais
+      if (!found && palavras.length >= 2) {
+        found = allClients.find(c => {
+          const nome = norm(c.properties?.['Nome']?.title?.map(t => t.plain_text).join('') || '');
+          const p = nome.split(' ').filter(Boolean);
+          return p[0] === palavras[0] && p[p.length-1] === palavras[palavras.length-1];
+        });
+      }
+
+      // 3. Primeira palavra + qualquer outra palavra em comum
+      if (!found) {
+        found = allClients.find(c => {
+          const nome = norm(c.properties?.['Nome']?.title?.map(t => t.plain_text).join('') || '');
+          const p = nome.split(' ').filter(Boolean);
+          return p[0] === palavras[0] && palavras.some(w => w.length > 3 && p.includes(w));
+        });
+      }
+
+      const id = found?.id || null;
+      if (id) _notionClienteCache[cacheKey] = id;
+      return id;
+    } catch(e) { return null; }
+  }
+
+  // ============================================================
   // ========== MÓDULO TAREFAS (Notion REST API) =================
   // ============================================================
   // A API do Notion aceita chamadas diretas do browser (CORS OK)
@@ -14297,21 +14357,10 @@ Esta ação não pode ser desfeita.`)) return;
     const clientName = document.getElementById('sidebar-name')?.textContent?.trim() || '';
 
     try {
-      // 1. Busca o ID Notion do cliente atual pelo nome no database Clientes Praxes
+      // 1. Busca o ID Notion do cliente atual
       let clientNotionId = null;
       if (clientName) {
-        const clientResp = await fetch(tarNotionUrl(`/v1/databases/${TAR_NOTION_CLIENTS_DB}/query`), {
-          method: 'POST',
-          headers: tarNotionHeaders(),
-          body: JSON.stringify({
-            page_size: 1,
-            filter: { property: 'Nome', title: { contains: clientName.split(' ').slice(0,2).join(' ') } }
-          })
-        });
-        if (clientResp.ok) {
-          const clientData = await clientResp.json();
-          clientNotionId = clientData.results?.[0]?.id || null;
-        }
+        clientNotionId = await buscarClienteNotionId(clientName, TAR_PROXY_BASE, tarNotionHeaders(), TAR_NOTION_CLIENTS_DB);
       }
 
       // SEGURANÇA: se não encontrou o cliente no Notion, não exibe nada
@@ -14719,14 +14768,7 @@ Esta ação não pode ser desfeita.`)) return;
       // 1. Busca ID Notion do cliente
       let clientNotionId = null;
       if (clientName) {
-        const cr = await fetch(reuUrl(`/v1/databases/${REU_NOTION_CLIENTS_DB}/query`), {
-          method: 'POST', headers: reuHeaders(),
-          body: JSON.stringify({ page_size: 1, filter: { property: 'Nome', title: { contains: clientName.split(' ').slice(0,2).join(' ') } } })
-        });
-        if (cr.ok) {
-          const cd = await cr.json();
-          clientNotionId = cd.results?.[0]?.id || null;
-        }
+        clientNotionId = await buscarClienteNotionId(clientName, REU_PROXY_BASE, reuHeaders(), REU_NOTION_CLIENTS_DB);
       }
 
       // SEGURANÇA: sem cliente identificado, não exibe nada
@@ -15110,22 +15152,7 @@ Esta ação não pode ser desfeita.`)) return;
     openModal('modal-reuniao');
   }
   async function reuBuscarClienteId(clientName) {
-    // Tenta com as 2 primeiras palavras, depois só a primeira
-    const tentativas = [
-      clientName.split(' ').slice(0,2).join(' '),
-      clientName.split(' ')[0]
-    ];
-    for (const termo of tentativas) {
-      const cr = await fetch(reuUrl(`/v1/databases/${REU_NOTION_CLIENTS_DB}/query`), {
-        method: 'POST', headers: reuHeaders(),
-        body: JSON.stringify({ page_size: 1, filter: { property: 'Nome', title: { contains: termo } } })
-      });
-      if (!cr.ok) continue;
-      const cd = await cr.json();
-      const id = cd.results?.[0]?.id || null;
-      if (id) return id;
-    }
-    return null;
+    return buscarClienteNotionId(clientName, REU_PROXY_BASE, reuHeaders(), REU_NOTION_CLIENTS_DB);
   }
 
   // ============================================================
