@@ -14914,73 +14914,31 @@ Esta ação não pode ser desfeita.`)) return;
   function reuRenderDetalhe(reu, tarefasData) {
     const el = document.getElementById('reu-det-content');
     const dataFmt = reu?.data ? new Date(reu.data).toLocaleDateString('pt-BR', {day:'2-digit',month:'long',year:'numeric'}) : '';
-
     const partPills = (reu?.participantes || '').split(', ').filter(Boolean)
       .map(p => `<span class="reu-pill reu-pill-part">${esc(p)}</span>`).join('');
 
-    // Render dos blocks
     let blocksHtml = '';
-    _reuDetBlocks.forEach((block, i) => {
+    let textoEditavel = '';
+    _reuDetBlocks.forEach((block) => {
       const type = block.type;
       const richText = block[type]?.rich_text || [];
       const text = richText.map(rt => rt.plain_text).join('');
-
       if (type === 'heading_3' || type === 'heading_2' || type === 'heading_1') {
-        blocksHtml += `<div class="reu-block-section">
-          <div class="reu-block-h3" style="display:flex;align-items:center;justify-content:space-between;">
-            <span id="reu-blk-view-${i}">${esc(text)}</span>
-            <button class="reu-edit-btn" onclick="reuEditarBloco(${i},'${block.id}','${type}')">Editar</button>
-          </div>
-          <div id="reu-blk-edit-${i}" style="display:none;">
-            <input type="text" class="reu-block-editor" value="${esc(text)}" id="reu-blk-input-${i}" style="resize:none;">
-            <div style="display:flex;gap:6px;margin-top:4px;">
-              <button class="btn-save" style="font-size:11px;padding:5px 12px;" onclick="reuSalvarBloco(${i},'${block.id}','${type}')">Salvar</button>
-              <button class="btn-cancel" style="font-size:11px;padding:5px 12px;" onclick="reuCancelarBloco(${i})">Cancelar</button>
-            </div>
-          </div>
-        </div>`;
+        blocksHtml += `<div class="reu-block-section"><div class="reu-block-h3">${esc(text)}</div></div>`;
+        textoEditavel += `### ${text}\n`;
       } else if (type === 'bulleted_list_item' || type === 'numbered_list_item') {
-        blocksHtml += `<div class="reu-block-bullet" id="reu-blk-view-wrap-${i}">
-          <span id="reu-blk-view-${i}">${esc(text)}</span>
-          <button class="reu-edit-btn" style="margin-left:8px;" onclick="reuEditarBloco(${i},'${block.id}','${type}')">✏️</button>
-          <div id="reu-blk-edit-${i}" style="display:none;margin-top:4px;">
-            <textarea class="reu-block-editor" rows="2" id="reu-blk-input-${i}">${esc(text)}</textarea>
-            <div style="display:flex;gap:6px;margin-top:4px;">
-              <button class="btn-save" style="font-size:11px;padding:5px 12px;" onclick="reuSalvarBloco(${i},'${block.id}','${type}')">Salvar</button>
-              <button class="btn-cancel" style="font-size:11px;padding:5px 12px;" onclick="reuCancelarBloco(${i})">Cancelar</button>
-            </div>
-          </div>
-        </div>`;
+        blocksHtml += `<div class="reu-block-bullet">${esc(text)}</div>`;
+        textoEditavel += `- ${text}\n`;
       } else if (type === 'paragraph') {
-        blocksHtml += `<div class="reu-block-para">
-          <span id="reu-blk-view-${i}">${esc(text) || '&nbsp;'}</span>
-          ${text ? `<button class="reu-edit-btn" style="margin-left:8px;" onclick="reuEditarBloco(${i},'${block.id}','${type}')">✏️</button>` : ''}
-          <div id="reu-blk-edit-${i}" style="display:none;margin-top:4px;">
-            <textarea class="reu-block-editor" rows="3" id="reu-blk-input-${i}">${esc(text)}</textarea>
-            <div style="display:flex;gap:6px;margin-top:4px;">
-              <button class="btn-save" style="font-size:11px;padding:5px 12px;" onclick="reuSalvarBloco(${i},'${block.id}','${type}')">Salvar</button>
-              <button class="btn-cancel" style="font-size:11px;padding:5px 12px;" onclick="reuCancelarBloco(${i})">Cancelar</button>
-            </div>
-          </div>
-        </div>`;
+        blocksHtml += `<div class="reu-block-para">${esc(text) || '&nbsp;'}</div>`;
+        textoEditavel += `${text}\n`;
       } else if (type === 'child_database') {
-        blocksHtml += `<div style="margin-top:16px;">
-          <div class="reu-block-h3">Tarefas vinculadas</div>
-          <div class="reu-tarefas-inline">
-            ${tarefasData.length > 0
-              ? tarefasData.map(t => `
-                <div class="reu-tarefa-row">
-                  <span style="flex:1;">${esc(t.titulo)}</span>
-                  <span class="reu-tarefa-status" style="background:${t.status==='Concluído'?'var(--success-bg)':'var(--praxes-shell)'};color:${t.status==='Concluído'?'var(--success)':'var(--fg-mute)'};">${esc(t.status||'—')}</span>
-                </div>`).join('')
-              : '<p style="font-size:12px;color:var(--fg-mute);">Nenhuma tarefa vinculada.</p>'
-            }
-          </div>
-        </div>`;
+        blocksHtml += `<div style="margin-top:16px;"><div class="reu-block-h3">Tarefas vinculadas</div><div class="reu-tarefas-inline">${tarefasData.length > 0 ? tarefasData.map(t => `<div class="reu-tarefa-row"><span style="flex:1;">${esc(t.titulo)}</span><span class="reu-tarefa-status" style="background:${t.status==='Concluído'?'var(--success-bg)':'var(--praxes-shell)'};color:${t.status==='Concluído'?'var(--success)':'var(--fg-mute)'};">${esc(t.status||'—')}</span></div>`).join('') : '<p style="font-size:12px;color:var(--fg-mute);">Nenhuma tarefa vinculada.</p>'}</div></div>`;
       } else {
         blocksHtml += `<div class="reu-block-unsupported">[bloco não suportado: ${type}]</div>`;
       }
     });
+    window._reuTextoEditavel = textoEditavel.trim();
 
     el.innerHTML = `
       <div class="reu-det-header">
@@ -15000,10 +14958,77 @@ Esta ação não pode ser desfeita.`)) return;
           ${partPills}
         </div>
       </div>
-      <div id="reu-det-blocks">${blocksHtml}</div>`;
+      <div id="reu-view-mode">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+          <button class="btn-secondary" onclick="reuEntrarEdicao()" style="font-size:12px;padding:7px 14px;display:flex;align-items:center;gap:6px;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            Editar ata
+          </button>
+        </div>
+        <div id="reu-blocks-view">${blocksHtml}</div>
+      </div>
+      <div id="reu-edit-mode" style="display:none;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <span style="font-size:11px;color:var(--fg-mute);">Use ### para títulos, - para bullets</span>
+          <div style="display:flex;gap:8px;">
+            <button class="btn-cancel" onclick="reuCancelarEdicao()" style="font-size:12px;padding:7px 14px;">Cancelar</button>
+            <button class="btn-save" onclick="reuSalvarEdicao('${reu.id}')" id="reu-salvar-edicao-btn" style="font-size:12px;padding:7px 14px;">Salvar alterações</button>
+          </div>
+        </div>
+        <textarea id="reu-editor-textarea" class="reu-block-editor" rows="20" style="width:100%;box-sizing:border-box;font-family:monospace;font-size:13px;line-height:1.7;"></textarea>
+      </div>`;
+    const ta = document.getElementById('reu-editor-textarea');
+    if (ta) ta.value = window._reuTextoEditavel;
   }
 
-  // ── Edição inline de título ──
+  function reuEntrarEdicao() {
+    document.getElementById('reu-view-mode').style.display = 'none';
+    document.getElementById('reu-edit-mode').style.display = '';
+    document.getElementById('reu-editor-textarea').focus();
+  }
+  function reuCancelarEdicao() {
+    document.getElementById('reu-edit-mode').style.display = 'none';
+    document.getElementById('reu-view-mode').style.display = '';
+  }
+  async function reuSalvarEdicao(pageId) {
+    const texto = document.getElementById('reu-editor-textarea').value;
+    const btn   = document.getElementById('reu-salvar-edicao-btn');
+    btn.disabled = true; btn.textContent = 'Salvando…';
+    const linhas = texto.split('\n');
+    const children = [];
+    for (const linha of linhas) {
+      const trimmed = linha.trim();
+      if (!trimmed) {
+        children.push({ object:'block', type:'paragraph', paragraph:{ rich_text:[] } });
+      } else if (trimmed.startsWith('### ')) {
+        children.push({ object:'block', type:'heading_3', heading_3:{ rich_text:[{ type:'text', text:{ content: trimmed.slice(4) } }] } });
+      } else if (trimmed.startsWith('## ')) {
+        children.push({ object:'block', type:'heading_2', heading_2:{ rich_text:[{ type:'text', text:{ content: trimmed.slice(3) } }] } });
+      } else if (trimmed.startsWith('- ') || trimmed.startsWith('• ')) {
+        children.push({ object:'block', type:'bulleted_list_item', bulleted_list_item:{ rich_text:[{ type:'text', text:{ content: trimmed.slice(2) } }] } });
+      } else {
+        children.push({ object:'block', type:'paragraph', paragraph:{ rich_text:[{ type:'text', text:{ content: trimmed } }] } });
+      }
+    }
+    try {
+      const cleanId = pageId.replace(/-/g,'');
+      for (const block of _reuDetBlocks) {
+        if (['heading_1','heading_2','heading_3','paragraph','bulleted_list_item','numbered_list_item'].includes(block.type)) {
+          await fetch(reuUrl(`/v1/blocks/${block.id.replace(/-/g,'')}`), { method: 'DELETE', headers: reuHeaders() });
+        }
+      }
+      const resp = await fetch(reuUrl(`/v1/blocks/${cleanId}/children`), {
+        method: 'PATCH', headers: reuHeaders(), body: JSON.stringify({ children })
+      });
+      if (!resp.ok) { const e = await resp.json(); throw new Error(e.message || `HTTP ${resp.status}`); }
+      await reuCarregarDetalhe(pageId);
+    } catch(err) {
+      alert('Erro ao salvar: ' + err.message);
+      btn.disabled = false; btn.textContent = 'Salvar alterações';
+    }
+  }
+
+  // ── Edição de título ──
   function reuEditarTitulo() {
     document.getElementById('reu-det-titulo-view').closest('div').style.display = 'none';
     document.getElementById('reu-det-titulo-edit').style.display = '';
@@ -15022,7 +15047,6 @@ Esta ação não pode ser desfeita.`)) return;
         body: JSON.stringify({ properties: { 'Nome': { title: [{ text: { content: novoTitulo } }] } } })
       });
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
-      // Atualiza cache
       const r = _reuReunioes.find(x => x.id === id);
       if (r) r.titulo = novoTitulo;
       document.getElementById('reu-det-titulo-view').textContent = novoTitulo;
@@ -15030,33 +15054,7 @@ Esta ação não pode ser desfeita.`)) return;
     } catch(err) { alert('Erro: ' + err.message); }
   }
 
-  // ── Edição inline de blocos ──
-  function reuEditarBloco(i, blockId, type) {
-    document.getElementById(`reu-blk-view-${i}`).style.display = 'none';
-    document.getElementById(`reu-blk-edit-${i}`).style.display = '';
-    document.getElementById(`reu-blk-input-${i}`)?.focus();
-  }
-  function reuCancelarBloco(i) {
-    document.getElementById(`reu-blk-view-${i}`).style.display = '';
-    document.getElementById(`reu-blk-edit-${i}`).style.display = 'none';
-  }
-  async function reuSalvarBloco(i, blockId, type) {
-    const novoTexto = document.getElementById(`reu-blk-input-${i}`)?.value || '';
-    const cleanId = blockId.replace(/-/g,'');
-    try {
-      const resp = await fetch(reuUrl(`/v1/blocks/${cleanId}`), {
-        method: 'PATCH', headers: reuHeaders(),
-        body: JSON.stringify({
-          [type]: { rich_text: [{ type: 'text', text: { content: novoTexto } }] }
-        })
-      });
-      if (!resp.ok) throw new Error('HTTP ' + resp.status);
-      document.getElementById(`reu-blk-view-${i}`).textContent = novoTexto;
-      reuCancelarBloco(i);
-    } catch(err) { alert('Erro: ' + err.message); }
-  }
-
-  async function reunioesSalvar() {
+    async function reunioesSalvar() {
     const titulo       = document.getElementById('reu-form-titulo').value.trim();
     const data         = document.getElementById('reu-form-data').value;
     const participantes = document.getElementById('reu-form-participantes').value.trim();
@@ -15112,13 +15110,22 @@ Esta ação não pode ser desfeita.`)) return;
     openModal('modal-reuniao');
   }
   async function reuBuscarClienteId(clientName) {
-    const cr = await fetch(reuUrl(`/v1/databases/${REU_NOTION_CLIENTS_DB}/query`), {
-      method: 'POST', headers: reuHeaders(),
-      body: JSON.stringify({ page_size: 1, filter: { property: 'Nome', title: { contains: clientName.split(' ').slice(0,2).join(' ') } } })
-    });
-    if (!cr.ok) return null;
-    const cd = await cr.json();
-    return cd.results?.[0]?.id || null;
+    // Tenta com as 2 primeiras palavras, depois só a primeira
+    const tentativas = [
+      clientName.split(' ').slice(0,2).join(' '),
+      clientName.split(' ')[0]
+    ];
+    for (const termo of tentativas) {
+      const cr = await fetch(reuUrl(`/v1/databases/${REU_NOTION_CLIENTS_DB}/query`), {
+        method: 'POST', headers: reuHeaders(),
+        body: JSON.stringify({ page_size: 1, filter: { property: 'Nome', title: { contains: termo } } })
+      });
+      if (!cr.ok) continue;
+      const cd = await cr.json();
+      const id = cd.results?.[0]?.id || null;
+      if (id) return id;
+    }
+    return null;
   }
 
   // ============================================================
