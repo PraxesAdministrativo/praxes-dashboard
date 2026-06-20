@@ -15310,7 +15310,8 @@ Esta ação não pode ser desfeita.`)) return;
       ...(prazo       ? { 'Data de Vencimento': { date:     { start: prazo    } } } : {}),
       ...(responsavel ? { 'Responsável':        { people:   [{ object: 'user', id: responsavel }] } } : {}),
       ...(referencia  ? { 'Referência':         { select:   { name: referencia } } } : {}),
-      ...(clientNotionId ? { 'Cliente':         { relation: [{ id: clientNotionId }] } } : {})
+      ...(clientNotionId ? { 'Cliente':         { relation: [{ id: clientNotionId }] } } : {}),
+      ...(reuId       ? { 'Reunião de Origem':  { relation: [{ id: reuId        }] } } : {})
     };
 
     try {
