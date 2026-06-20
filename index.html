@@ -15062,6 +15062,26 @@ Esta ação não pode ser desfeita.`)) return;
               <input type="date" class="form-input" id="reu-nt-prazo" style="font-size:13px;">
             </div>
           </div>
+          <div class="form-row" style="margin-bottom:10px;">
+            <div class="form-group">
+              <label class="form-label">Responsável</label>
+              <select class="form-select" id="reu-nt-responsavel" style="font-size:13px;">
+                <option value="">—</option>
+                <option value="1a7d872b-594c-8187-93b9-0002690009a5">Administrativo Praxes</option>
+                <option value="1e7d872b-594c-813b-8865-0002b484a81e">Caio H. Alberconi</option>
+                <option value="1f2d872b-594c-8115-9dd0-000256f46389">Alexandre Amorim</option>
+                <option value="1f2d872b-594c-817b-bb7d-00026db7ced4">Luiz Beck</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Referência</label>
+              <select class="form-select" id="reu-nt-referencia" style="font-size:13px;">
+                <option value="">—</option>
+                <option value="Tarefa">Tarefa</option>
+                <option value="Objetivo">Objetivo</option>
+              </select>
+            </div>
+          </div>
           <div style="display:flex;gap:8px;justify-content:flex-end;">
             <button class="btn-cancel" onclick="reuToggleNovarTarefa()" style="font-size:12px;padding:6px 12px;">Cancelar</button>
             <button class="btn-save" onclick="reuCriarTarefa('${reu.id}','${clientNotionId||''}')" id="reu-nt-btn" style="font-size:12px;padding:6px 14px;">Criar tarefa</button>
@@ -15277,6 +15297,8 @@ Esta ação não pode ser desfeita.`)) return;
     if (!titulo) { alert('Informe o título da tarefa.'); return; }
     const prioridade  = document.getElementById('reu-nt-prioridade').value;
     const prazo       = document.getElementById('reu-nt-prazo').value || null;
+    const responsavel = document.getElementById('reu-nt-responsavel').value;
+    const referencia  = document.getElementById('reu-nt-referencia').value;
 
     const btn = document.getElementById('reu-nt-btn');
     btn.disabled = true; btn.textContent = 'Criando…';
@@ -15284,9 +15306,11 @@ Esta ação não pode ser desfeita.`)) return;
     const props = {
       'Nome':             { title:  [{ text: { content: titulo } }] },
       'Status da Tarefa': { status: { name: 'Não iniciada' } },
-      ...(prioridade ? { 'Prioridade':        { select: { name: prioridade } } } : {}),
-      ...(prazo      ? { 'Data de Vencimento': { date:   { start: prazo    } } } : {}),
-      ...(clientNotionId ? { 'Cliente': { relation: [{ id: clientNotionId }] } } : {})
+      ...(prioridade  ? { 'Prioridade':         { select:   { name: prioridade } } } : {}),
+      ...(prazo       ? { 'Data de Vencimento': { date:     { start: prazo    } } } : {}),
+      ...(responsavel ? { 'Responsável':        { people:   [{ object: 'user', id: responsavel }] } } : {}),
+      ...(referencia  ? { 'Referência':         { select:   { name: referencia } } } : {}),
+      ...(clientNotionId ? { 'Cliente':         { relation: [{ id: clientNotionId }] } } : {})
     };
 
     try {
@@ -15300,6 +15324,8 @@ Esta ação não pode ser desfeita.`)) return;
       document.getElementById('reu-nt-titulo').value      = '';
       document.getElementById('reu-nt-prioridade').value  = '';
       document.getElementById('reu-nt-prazo').value       = '';
+      document.getElementById('reu-nt-responsavel').value = '';
+      document.getElementById('reu-nt-referencia').value  = '';
       document.getElementById('reu-nova-tarefa-form').style.display = 'none';
 
       // Invalida cache de tarefas e recarrega
