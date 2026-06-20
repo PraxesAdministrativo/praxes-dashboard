@@ -14939,23 +14939,19 @@ Esta ação não pode ser desfeita.`)) return;
       const clientNotionId = await buscarClienteNotionId(clientName, REU_PROXY_BASE, reuHeaders(), REU_NOTION_CLIENTS_DB);
 
       if (clientNotionId) {
-        const dataAta = reu?.data ? reu.data.split('T')[0] : null;
-        const filtro = {
-          and: [
-            { property: 'Cliente', relation: { contains: clientNotionId } },
-            ...(dataAta ? [{ property: 'Data de Vencimento', date: { equals: dataAta } }] : [])
-          ]
-        };
         const tarResp = await fetch(reuUrl(`/v1/databases/${TAR_NOTION_DB}/query`), {
           method: 'POST', headers: reuHeaders(),
-          body: JSON.stringify({ page_size: 50, filter: filtro })
+          body: JSON.stringify({
+            page_size: 50,
+            filter: { property: 'Reunião de Origem', relation: { contains: id } }
+          })
         });
         if (tarResp.ok) {
           const tarData = await tarResp.json();
           tarefasDaAta = (tarData.results || []).map(p => ({
-            id:     p.id,
-            titulo: p.properties?.['Nome']?.title?.map(t=>t.plain_text).join('') || 'Tarefa',
-            status: p.properties?.['Status da Tarefa']?.status?.name || '',
+            id:         p.id,
+            titulo:     p.properties?.['Nome']?.title?.map(t=>t.plain_text).join('') || 'Tarefa',
+            status:     p.properties?.['Status da Tarefa']?.status?.name || '',
             prioridade: p.properties?.['Prioridade']?.select?.name || ''
           }));
         }
