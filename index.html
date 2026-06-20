@@ -14998,6 +14998,11 @@ Esta ação não pode ser desfeita.`)) return;
       <div class="reu-det-header">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:8px;">
           <div class="reu-det-titulo" id="reu-det-titulo-view">${esc(reu?.titulo||'')}</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button class="btn-secondary" onclick="reuGerarPDF()" style="padding:7px 14px;font-size:12px;display:flex;align-items:center;gap:6px;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Exportar PDF
+          </button>
           <button class="reu-edit-btn" onclick="reuEditarTitulo()">Editar título</button>
         </div>
         <div id="reu-det-titulo-edit" style="display:none;margin-bottom:8px;">
@@ -15363,6 +15368,202 @@ Esta ação não pode ser desfeita.`)) return;
 
   // ============================================================
   // ========== FIM MÓDULO REUNIÕES =============================
+  // ============================================================
+
+  // ============================================================
+  // ========== PDF — ATA DE REUNIÃO ============================
+  // ============================================================
+  async function reuGerarPDF() {
+    const reu = _reuReunioes.find(r => r.id === _reuDetId);
+    if (!reu) return;
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const PW = doc.internal.pageSize.getWidth();
+    const PH = doc.internal.pageSize.getHeight();
+    const M  = 16;
+    const CW = PW - 2 * M;
+
+    const C = {
+      abyss:  [4,   25,  36],
+      teal:   [42,  90, 102],
+      sand:   [242,221,198],
+      white:  [255,255,255],
+      muted:  [120,140,160],
+      border: [220,228,236],
+      dark:   [30,  40,  50],
+    };
+
+    const clientName = document.getElementById('sidebar-name')?.textContent?.trim() || '';
+    const dataFmt    = reu.data ? new Date(reu.data).toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'}) : '';
+    const dataShort  = reu.data ? reu.data.split('T')[0].split('-').reverse().join('/') : '';
+    const mesAno     = reu.data ? new Date(reu.data).toLocaleDateString('pt-BR',{month:'long',year:'numeric'}).toUpperCase() : '';
+    const agora      = new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'});
+    const agoraH     = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+
+    let logoB64 = null;
+    try {
+      const resp = await fetch('./logo.png');
+      const blob = await resp.blob();
+      logoB64 = await new Promise(res => { const r = new FileReader(); r.onload = ()=>res(r.result); r.readAsDataURL(blob); });
+    } catch(e) {}
+
+    function addFooter(pageNum, total) {
+      doc.setFillColor(...C.border);
+      doc.rect(M, PH-10, CW, 0.3, 'F');
+      doc.setFontSize(6.5); doc.setFont('helvetica','normal'); doc.setTextColor(...C.muted);
+      doc.text('Praxes Gestão Patrimonial — Confidencial', M, PH-5.5);
+      doc.text(`Gerado em ${agora} às ${agoraH}`, PW-M, PH-5.5, { align:'right' });
+      if (total > 1) doc.text(`${pageNum} / ${total}`, PW/2, PH-5.5, { align:'center' });
+    }
+
+    function addHeader() {
+      doc.setFillColor(...C.border);
+      doc.rect(M, 10, CW, 0.3, 'F');
+      doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(...C.dark);
+      doc.text(clientName, M, 8);
+      doc.setFont('helvetica','normal'); doc.setTextColor(...C.muted);
+      doc.text(mesAno, PW-M, 8, { align:'right' });
+    }
+
+    // ── CAPA ──────────────────────────────────────────────────
+    doc.setFillColor(...C.abyss);
+    doc.rect(0, 0, PW, PH, 'F');
+
+    if (logoB64) {
+      try {
+        const props = doc.getImageProperties(logoB64);
+        const ratio = Math.min(40/props.width, 22/props.height);
+        doc.addImage(logoB64, 'PNG', M, 18, props.width*ratio, props.height*ratio);
+      } catch(e) {
+        doc.setTextColor(...C.white); doc.setFontSize(22); doc.setFont('helvetica','bold');
+        doc.text('PRAXES', M, 30);
+      }
+    } else {
+      doc.setTextColor(...C.white); doc.setFontSize(22); doc.setFont('helvetica','bold');
+      doc.text('PRAXES', M, 30);
+    }
+    doc.setTextColor(...C.sand); doc.setFontSize(8); doc.setFont('helvetica','normal');
+    doc.text('GESTÃO PATRIMONIAL', M, 46);
+
+    doc.setTextColor(...C.sand); doc.setFontSize(36); doc.setFont('helvetica','bold');
+    doc.text('Ata de', M, 148);
+    doc.text('Reunião', M, 165);
+
+    doc.setTextColor(...C.white); doc.setFontSize(13); doc.setFont('helvetica','normal');
+    doc.text(clientName, M, 178);
+    doc.setTextColor(160,200,230); doc.setFontSize(8);
+    doc.text(mesAno, M, 187);
+
+    const partArr = (reu.participantes||'').split(', ').filter(Boolean);
+    doc.setFillColor(10,40,55); doc.rect(M, PH-42, CW, 0.3, 'F');
+    const cols = [
+      { label:'DATA',          value: dataShort || '—' },
+      { label:'PARTICIPANTES', value: String(partArr.length) },
+      { label:'TO-DOS',        value: String(document.querySelectorAll('#reu-todos-list .reu-tarefa-row').length) },
+    ];
+    cols.forEach((col, i) => {
+      const x = M + i * (CW / cols.length);
+      doc.setTextColor(120,160,190); doc.setFontSize(5.5); doc.setFont('helvetica','bold');
+      doc.text(col.label, x, PH-34);
+      doc.setTextColor(...C.sand); doc.setFontSize(14); doc.setFont('helvetica','bold');
+      doc.text(col.value, x, PH-26);
+    });
+    addFooter(1, 2);
+
+    // ── CONTEÚDO ──────────────────────────────────────────────
+    doc.addPage();
+    addHeader();
+    let y = 20;
+
+    // Info
+    doc.setFontSize(6); doc.setFont('helvetica','bold'); doc.setTextColor(...C.teal);
+    doc.text('INFORMAÇÕES DA REUNIÃO', M, y); y += 5;
+    doc.setFillColor(...C.border); doc.rect(M, y, CW, 0.3, 'F'); y += 5;
+    [['Data', dataFmt], ['Participantes', partArr.join('  ·  ') || '—']].forEach(([lbl, val]) => {
+      doc.setFontSize(7); doc.setFont('helvetica','bold'); doc.setTextColor(...C.dark);
+      doc.text(lbl, M, y);
+      doc.setFont('helvetica','normal'); doc.setTextColor(60,80,100);
+      const lines = doc.splitTextToSize(val, CW - 32);
+      doc.text(lines, M+30, y);
+      y += Math.max(6, lines.length * 5);
+    });
+    y += 6;
+
+    // Temas
+    doc.setFontSize(6); doc.setFont('helvetica','bold'); doc.setTextColor(...C.teal);
+    doc.text('TEMAS ABORDADOS', M, y); y += 5;
+    doc.setFillColor(...C.border); doc.rect(M, y, CW, 0.3, 'F'); y += 6;
+
+    _reuDetBlocks.forEach(block => {
+      const type = block.type;
+      if (['child_database','unsupported'].includes(type)) return;
+      const text = (block[type]?.rich_text || []).map(rt => rt.plain_text).join('');
+      if (!text.trim()) { y += 2; return; }
+      const tLower = text.toLowerCase().trim();
+      if (tLower === 'to-dos' || tLower === 'to dos' || tLower === 'temas abordados') return;
+
+      if (y > PH - 25) { doc.addPage(); addHeader(); y = 20; }
+
+      if (['heading_1','heading_2','heading_3'].includes(type)) {
+        doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.setTextColor(...C.dark);
+        doc.text(text, M, y); y += 7;
+      } else if (['bulleted_list_item','numbered_list_item'].includes(type)) {
+        doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(50,70,90);
+        const lines = doc.splitTextToSize('• ' + text, CW - 4);
+        doc.text(lines, M+3, y); y += lines.length * 5 + 1;
+      } else if (type === 'paragraph') {
+        doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(50,70,90);
+        const lines = doc.splitTextToSize(text, CW);
+        doc.text(lines, M, y); y += lines.length * 5 + 1;
+      }
+    });
+
+    y += 8;
+    if (y > PH - 50) { doc.addPage(); addHeader(); y = 20; }
+
+    // To-dos
+    doc.setFontSize(6); doc.setFont('helvetica','bold'); doc.setTextColor(...C.teal);
+    doc.text('TO-DOS', M, y); y += 5;
+    doc.setFillColor(...C.border); doc.rect(M, y, CW, 0.3, 'F'); y += 6;
+
+    const todoRows = document.querySelectorAll('#reu-todos-list .reu-tarefa-row');
+    if (todoRows.length === 0) {
+      doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(...C.muted);
+      doc.text('Nenhuma tarefa registrada.', M, y);
+    } else {
+      doc.setFillColor(240,245,248); doc.rect(M, y-3, CW, 6, 'F');
+      doc.setFontSize(6); doc.setFont('helvetica','bold'); doc.setTextColor(...C.muted);
+      doc.text('TAREFA', M+1, y+0.5);
+      doc.text('PRIORIDADE', M+CW*0.65, y+0.5);
+      doc.text('STATUS', M+CW*0.85, y+0.5);
+      y += 5; doc.setFillColor(...C.border); doc.rect(M, y-1, CW, 0.3, 'F'); y += 2;
+
+      Array.from(todoRows).forEach((row, i) => {
+        if (y > PH - 25) { doc.addPage(); addHeader(); y = 20; }
+        const titulo     = row.querySelector('span')?.textContent?.trim() || '—';
+        const prioridade = row.querySelector('.tar-pill')?.textContent?.trim() || '—';
+        const status     = row.querySelector('.reu-tarefa-status')?.textContent?.trim() || '—';
+        doc.setFillColor(...(i%2===0 ? C.white : [248,250,252]));
+        doc.rect(M, y-3, CW, 6, 'F');
+        doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(...C.dark);
+        doc.text(doc.splitTextToSize(titulo, CW*0.6)[0], M+1, y+0.5);
+        doc.setFontSize(7); doc.setTextColor(...C.muted);
+        doc.text(prioridade, M+CW*0.65, y+0.5);
+        doc.text(status, M+CW*0.85, y+0.5);
+        y += 6;
+      });
+    }
+
+    const totalPages = doc.getNumberOfPages();
+    for (let p = 1; p <= totalPages; p++) { doc.setPage(p); addFooter(p, totalPages); }
+
+    const nomeArq = clientName.replace(/\s+/g,'-');
+    const dataArq = reu.data ? reu.data.split('T')[0].split('-').reverse().join('-') : 'sem-data';
+    doc.save(`Ata-de-Reunião-${dataArq}-${nomeArq}.pdf`);
+  }
+  // ============================================================
+  // ========== FIM PDF ATA =====================================
   // ============================================================
 
   </script>
