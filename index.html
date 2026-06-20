@@ -15062,16 +15062,6 @@ Esta ação não pode ser desfeita.`)) return;
               <input type="date" class="form-input" id="reu-nt-prazo" style="font-size:13px;">
             </div>
           </div>
-          <div class="form-row" style="margin-bottom:10px;">
-            <div class="form-group">
-              <label class="form-label">Responsável</label>
-              <input type="text" class="form-input" id="reu-nt-responsavel" placeholder="Nome" style="font-size:13px;">
-            </div>
-            <div class="form-group" style="flex:2;">
-              <label class="form-label">Observações</label>
-              <input type="text" class="form-input" id="reu-nt-obs" placeholder="Detalhes opcionais" style="font-size:13px;">
-            </div>
-          </div>
           <div style="display:flex;gap:8px;justify-content:flex-end;">
             <button class="btn-cancel" onclick="reuToggleNovarTarefa()" style="font-size:12px;padding:6px 12px;">Cancelar</button>
             <button class="btn-save" onclick="reuCriarTarefa('${reu.id}','${clientNotionId||''}')" id="reu-nt-btn" style="font-size:12px;padding:6px 14px;">Criar tarefa</button>
@@ -15287,19 +15277,15 @@ Esta ação não pode ser desfeita.`)) return;
     if (!titulo) { alert('Informe o título da tarefa.'); return; }
     const prioridade  = document.getElementById('reu-nt-prioridade').value;
     const prazo       = document.getElementById('reu-nt-prazo').value || null;
-    const responsavel = document.getElementById('reu-nt-responsavel').value.trim();
-    const obs         = document.getElementById('reu-nt-obs').value.trim();
 
     const btn = document.getElementById('reu-nt-btn');
     btn.disabled = true; btn.textContent = 'Criando…';
 
     const props = {
-      'Nome':             { title:     [{ text: { content: titulo } }] },
-      'Status da Tarefa': { status:    { name: 'Não iniciada' } },
-      ...(prioridade  ? { 'Prioridade':  { select:    { name: prioridade } } } : {}),
-      ...(prazo       ? { 'Data de Vencimento': { date: { start: prazo } } } : {}),
-      ...(responsavel ? { 'Responsável': { rich_text: [{ text: { content: responsavel } }] } } : {}),
-      ...(obs         ? { 'Descrição':   { rich_text: [{ text: { content: obs         } }] } } : {}),
+      'Nome':             { title:  [{ text: { content: titulo } }] },
+      'Status da Tarefa': { status: { name: 'Não iniciada' } },
+      ...(prioridade ? { 'Prioridade':        { select: { name: prioridade } } } : {}),
+      ...(prazo      ? { 'Data de Vencimento': { date:   { start: prazo    } } } : {}),
       ...(clientNotionId ? { 'Cliente': { relation: [{ id: clientNotionId }] } } : {})
     };
 
@@ -15314,8 +15300,6 @@ Esta ação não pode ser desfeita.`)) return;
       document.getElementById('reu-nt-titulo').value      = '';
       document.getElementById('reu-nt-prioridade').value  = '';
       document.getElementById('reu-nt-prazo').value       = '';
-      document.getElementById('reu-nt-responsavel').value = '';
-      document.getElementById('reu-nt-obs').value         = '';
       document.getElementById('reu-nova-tarefa-form').style.display = 'none';
 
       // Invalida cache de tarefas e recarrega
