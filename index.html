@@ -15887,6 +15887,7 @@ Esta ação não pode ser desfeita.`)) return;
         '<span class="obj-pill" style="background:' + (done?'var(--success-bg)':'var(--praxes-shell)') + ';color:' + (done?'var(--success)':'var(--fg-mute)') + ';">' + esc(t.status||'—') + '</span>' +
         '</div>';
     }).join('');
+  }
 
   async function objToggleTarefa(tarefaId, objId) {
     const tarefas = _objTarefasMap[objId] || [];
