@@ -1799,6 +1799,80 @@
   .reu-tarefa-status { padding: 2px 8px; border-radius: var(--r-pill); font-size: 10px; font-weight: 600; }
   /* ========== FIM REUNIÃO DETALHE ========== */
 
+  /* ========== OBJETIVOS ========== */
+  .obj-categoria-label {
+    font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--fg-mute); padding: 6px 0 8px; margin-top: 8px;
+    border-bottom: 1px solid var(--line); margin-bottom: 10px;
+  }
+
+  .obj-card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg);
+    margin-bottom: 10px; overflow: hidden; transition: box-shadow .15s, border-color .15s;
+  }
+  .obj-card:hover { box-shadow: var(--shadow-2); border-color: var(--line-strong); }
+
+  .obj-card-header {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 16px; cursor: pointer;
+  }
+
+  .obj-status-dot {
+    width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+  }
+  .obj-status-dot.em-andamento { background: var(--praxes-teal); }
+  .obj-status-dot.concluido    { background: var(--success); }
+  .obj-status-dot.pausado      { background: #f59e0b; }
+  .obj-status-dot.nao-iniciada { background: var(--line-strong); }
+
+  .obj-title { font-size: 13px; font-weight: 600; color: var(--fg-1); flex: 1; }
+
+  .obj-progress-wrap {
+    flex-shrink: 0; display: flex; align-items: center; gap: 8px;
+  }
+  .obj-progress-bar-bg {
+    width: 80px; height: 5px; background: var(--line); border-radius: 3px; overflow: hidden;
+  }
+  .obj-progress-bar-fill {
+    height: 100%; border-radius: 3px; background: var(--praxes-teal); transition: width .3s;
+  }
+  .obj-progress-pct { font-size: 11px; font-weight: 700; color: var(--fg-mute); min-width: 28px; text-align: right; }
+
+  .obj-meta { display: flex; align-items: center; gap: 8px; }
+  .obj-pill {
+    font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: var(--r-pill);
+    background: var(--praxes-shell); color: var(--fg-3); white-space: nowrap;
+  }
+  .obj-pill-status-em-andamento { background: var(--praxes-mist); color: var(--praxes-deep); }
+  .obj-pill-status-concluido    { background: var(--success-bg); color: var(--success); }
+  .obj-pill-status-pausado      { background: #fef3c7; color: #b45309; }
+
+  .obj-chevron {
+    flex-shrink: 0; transition: transform .2s; color: var(--fg-mute);
+  }
+  .obj-chevron.open { transform: rotate(90deg); }
+
+  .obj-tarefas-wrap {
+    display: none; padding: 0 16px 14px; border-top: 1px solid var(--line);
+  }
+  .obj-tarefas-wrap.open { display: block; }
+
+  .obj-tarefa-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 0; border-bottom: 1px solid var(--line);
+    font-size: 12px;
+  }
+  .obj-tarefa-row:last-child { border-bottom: none; }
+
+  .obj-empty { text-align:center; padding:60px 20px; color:var(--fg-mute); font-size:13px; }
+  .obj-empty-icon { font-size:36px; margin-bottom:12px; opacity:.4; }
+
+  /* KPIs objetivos */
+  .obj-kpi-strip {
+    display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 24px;
+  }
+  /* ========== FIM OBJETIVOS ========== */
+
   </style>
 </head>
 <body>
@@ -1904,6 +1978,14 @@
             Reuniões
           </div>
           <div class="nav-item-sub">Atas, histórico, próximos passos</div>
+        </div>
+
+        <div class="nav-item" data-page="objetivos" id="nav-objetivos" style="display:none;">
+          <div class="nav-item-main">
+            <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span>
+            Objetivos
+          </div>
+          <div class="nav-item-sub">Metas, macro e micro</div>
         </div>
 
         <div class="sidebar-divider"></div>
@@ -2820,6 +2902,38 @@
           <div id="reu-det-content"></div>
         </div>
 
+        <!-- OBJETIVOS PAGE -->
+        <div class="page" id="page-objetivos">
+          <div class="page-header" style="margin-bottom:0;">
+            <div style="display:flex;align-items:center;gap:12px;">
+              <h2 style="font-size:24px;color:var(--fg-1);font-weight:700;letter-spacing:-0.3px;margin:0;">Objetivos</h2>
+              <span id="obj-badge" style="display:none;background:var(--praxes-teal);color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:var(--r-pill);letter-spacing:.04em;"></span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <button class="btn-secondary" onclick="objetivosReload()" style="padding:8px 14px;font-size:12px;display:flex;align-items:center;gap:6px;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+                Atualizar
+              </button>
+              <button class="btn-primary" onclick="objetivosAbrirModal(null)" style="padding:8px 16px;font-size:12px;">+ Novo objetivo</button>
+            </div>
+          </div>
+
+          <!-- Filtro status -->
+          <div style="display:flex;gap:8px;margin:18px 0 20px;flex-wrap:wrap;align-items:center;">
+            <button class="tar-filter-btn active" data-filter="all"        onclick="objSetFilter('all',this)">Todos</button>
+            <button class="tar-filter-btn"        data-filter="Em andamento" onclick="objSetFilter('Em andamento',this)">Em andamento</button>
+            <button class="tar-filter-btn"        data-filter="Não iniciada" onclick="objSetFilter('Não iniciada',this)">Não iniciados</button>
+            <button class="tar-filter-btn"        data-filter="Pausado"    onclick="objSetFilter('Pausado',this)">Pausados</button>
+            <button class="tar-filter-btn"        data-filter="Concluído"  onclick="objSetFilter('Concluído',this)">Concluídos</button>
+          </div>
+
+          <!-- KPIs -->
+          <div class="obj-kpi-strip" id="obj-kpis"></div>
+
+          <!-- Lista -->
+          <div id="obj-list"></div>
+        </div>
+
         <!-- REUNIÕES PAGE -->
         <div class="page" id="page-reunioes">
           <div class="page-header" style="margin-bottom:0;">
@@ -2857,6 +2971,53 @@
 
       </div>
     </main>
+  </div>
+
+  <!-- MODAL OBJETIVO -->
+  <div class="modal" id="modal-objetivo">
+    <div class="modal-content" style="max-width:520px;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-objetivo-title">Novo Objetivo</h3>
+        <button class="modal-close" onclick="closeModal('modal-objetivo')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Nome *</label>
+          <input type="text" class="form-input" id="obj-form-nome" placeholder="Ex: Diversificar carteira internacional">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Categoria</label>
+            <select class="form-select" id="obj-form-categoria">
+              <option value="">—</option>
+              <option>Investimentos</option>
+              <option>Imóveis</option>
+              <option>Planejamento Fiscal</option>
+              <option>Riscos & Seguros</option>
+              <option>Planejamento Sucessório</option>
+              <option>Outros</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Status</label>
+            <select class="form-select" id="obj-form-status">
+              <option value="Não iniciada">Não iniciada</option>
+              <option value="Em andamento">Em andamento</option>
+              <option value="Pausado">Pausado</option>
+              <option value="Concluído">Concluído</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Prazo de Conclusão</label>
+          <input type="date" class="form-input" id="obj-form-prazo">
+        </div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px;">
+          <button class="btn-cancel" onclick="closeModal('modal-objetivo')">Cancelar</button>
+          <button class="btn-save" onclick="objetivosSalvar()" id="obj-btn-salvar">Salvar</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- MODAL REUNIÃO -->
@@ -4208,6 +4369,7 @@
         tarefas:        'Tarefas',
         reunioes:         'Reuniões',
         'reuniao-detalhe': 'Ata de Reunião',
+        objetivos:        'Objetivos',
         perfil:           'Perfil & Família'
       };
       document.getElementById('top-title').textContent = titles[pageName] || 'Praxes';
@@ -4221,6 +4383,7 @@
       if (pageName === 'documentos') { docsInit(); }
       if (pageName === 'tarefas')    { _tarLoaded = false; tarefasInit(); }
       if (pageName === 'reunioes')   { _reuLoaded = false; reunioesInit(); }
+      if (pageName === 'objetivos')  { _objLoaded = false; objetivosInit(); }
       if (pageName === 'perfil')     { perfilInit(); }
     }
 
@@ -13279,13 +13442,16 @@ Esta ação não pode ser desfeita.`)) return;
       const backBtn = document.getElementById('admin-back-btn');
       const navTarefas  = document.getElementById('nav-tarefas');
       const navReunioes = document.getElementById('nav-reunioes');
+      const navObjetivos = document.getElementById('nav-objetivos');
       if (backBtn.style.display === 'block') {
         backBtn.textContent = '← Voltar ao Admin  |  Visualizando: ' + client.name;
-        if (navTarefas)  navTarefas.style.display  = '';
-        if (navReunioes) navReunioes.style.display = '';
+        if (navTarefas)   navTarefas.style.display   = '';
+        if (navReunioes)  navReunioes.style.display  = '';
+        if (navObjetivos) navObjetivos.style.display = '';
       } else {
-        if (navTarefas)  navTarefas.style.display  = 'none';
-        if (navReunioes) navReunioes.style.display = 'none';
+        if (navTarefas)   navTarefas.style.display   = 'none';
+        if (navReunioes)  navReunioes.style.display  = 'none';
+        if (navObjetivos) navObjetivos.style.display = 'none';
       }
 
       navigateTo('dashboard');
@@ -14678,13 +14844,21 @@ Esta ação não pode ser desfeita.`)) return;
         });
       } else {
         // POST — cria nova página
+        const props = tarBuildProps(titulo,prioridade,responsavel,status,prazo,descricao);
+
+        // Se chamado a partir da aba Objetivos, linka ao objetivo
+        if (_objTarefaParaObjetivoId) {
+          props['Objetivo'] = { relation: [{ id: _objTarefaParaObjetivoId }] };
+          // Também linka o cliente
+          const clientName = document.getElementById('sidebar-name')?.textContent?.trim() || '';
+          const clientNId  = await buscarClienteNotionId(clientName, TAR_PROXY_BASE, tarNotionHeaders(), TAR_NOTION_CLIENTS_DB);
+          if (clientNId) props['Cliente'] = { relation: [{ id: clientNId }] };
+        }
+
         resp = await fetch(tarNotionUrl('/v1/pages'), {
           method: 'POST',
           headers: tarNotionHeaders(),
-          body: JSON.stringify({
-            parent: { database_id: TAR_NOTION_DB },
-            properties: tarBuildProps(titulo,prioridade,responsavel,status,prazo,descricao)
-          })
+          body: JSON.stringify({ parent: { database_id: TAR_NOTION_DB }, properties: props })
         });
       }
 
@@ -14694,8 +14868,17 @@ Esta ação não pode ser desfeita.`)) return;
       }
 
       closeModal('modal-tarefa');
-      _tarLoaded = false;
-      await tarefasLoad();
+
+      // Recarrega contexto correto
+      if (_objTarefaParaObjetivoId) {
+        delete _objTarefasMap[_objTarefaParaObjetivoId];
+        const objId = _objTarefaParaObjetivoId;
+        _objTarefaParaObjetivoId = null;
+        await objCarregarTarefas(objId);
+      } else {
+        _tarLoaded = false;
+        await tarefasLoad();
+      }
     } catch (err) {
       alert('Erro ao salvar: ' + err.message);
     } finally {
@@ -15368,6 +15551,414 @@ Esta ação não pode ser desfeita.`)) return;
 
   // ============================================================
   // ========== FIM MÓDULO REUNIÕES =============================
+  // ============================================================
+
+  // ============================================================
+  // ========== MÓDULO OBJETIVOS (Notion REST API) ===============
+  // ============================================================
+
+  const OBJ_NOTION_DB      = '387701b863e6806194f3c04af9069c09';
+  const OBJ_NOTION_CLIENTS_DB = '1ec701b863e68056bb30f8d6b32617d8';
+  const OBJ_PROXY_BASE     = 'https://urckolcywijllkdyjcgc.supabase.co/functions/v1/notion-proxy';
+
+  let _objObjetivos  = [];
+  let _objFilter     = 'all';
+  let _objLoaded     = false;
+  let _objEditingId  = null;
+  let _objTarefasMap = {}; // cache: objetivoId → tarefas[]
+
+  function objHeaders() { return { 'Content-Type': 'application/json' }; }
+  function objUrl(path) { return OBJ_PROXY_BASE + path; }
+
+  // ──────────────── INIT ────────────────
+  async function objetivosInit() {
+    if (!_objLoaded) await objetivosLoad();
+    else objetivosRender();
+  }
+
+  async function objetivosReload() {
+    _objLoaded = false;
+    _objTarefasMap = {};
+    await objetivosLoad();
+  }
+
+  // ──────────────── LOAD ────────────────
+  async function objetivosLoad() {
+    const listEl = document.getElementById('obj-list');
+    listEl.innerHTML = '<div class="loading"><div class="spinner"></div><p>Carregando objetivos…</p></div>';
+
+    const clientName = document.getElementById('sidebar-name')?.textContent?.trim() || '';
+
+    try {
+      const clientNotionId = await buscarClienteNotionId(clientName, OBJ_PROXY_BASE, objHeaders(), OBJ_NOTION_CLIENTS_DB);
+
+      if (!clientNotionId) {
+        listEl.innerHTML = '<div class="obj-empty"><div class="obj-empty-icon">🔍</div><p>Cliente não encontrado no Notion.</p></div>';
+        return;
+      }
+
+      let allResults = [];
+      let cursor;
+      do {
+        const body = {
+          page_size: 100,
+          sorts: [{ property: 'Prazo de Conclusão', direction: 'ascending' }],
+          filter: { property: '👨‍👩‍👦 Clientes Praxes', relation: { contains: clientNotionId } }
+        };
+        if (cursor) body.start_cursor = cursor;
+        const resp = await fetch(objUrl(`/v1/databases/${OBJ_NOTION_DB}/query`), {
+          method: 'POST', headers: objHeaders(), body: JSON.stringify(body)
+        });
+        if (!resp.ok) { const e = await resp.json(); throw new Error(e.message || `HTTP ${resp.status}`); }
+        const data = await resp.json();
+        allResults = allResults.concat(data.results || []);
+        cursor = data.has_more ? data.next_cursor : undefined;
+      } while (cursor);
+
+      _objObjetivos = allResults.map(objPageToObj);
+      _objLoaded = true;
+      objetivosRender();
+
+    } catch(err) {
+      listEl.innerHTML = `<div class="obj-empty"><div class="obj-empty-icon">⚠️</div><p>Erro ao carregar objetivos.<br><small>${esc(err.message)}</small></p><button class="btn-secondary" onclick="objetivosReload()" style="margin-top:12px;font-size:12px;">Tentar novamente</button></div>`;
+    }
+  }
+
+  // ──────────────── PARSE ────────────────
+  function objPageToObj(page) {
+    const p = page.properties || {};
+    const nome      = p['Nome']?.title?.map(t => t.plain_text).join('') || 'Sem título';
+    const status    = p['Status']?.status?.name || '';
+    const categoria = p['Selecionar']?.select?.name || '';
+    const prazo     = p['Prazo de Conclusão']?.date?.start || null;
+    const tarefasRel = p['Tarefas']?.relation?.map(r => r.id) || [];
+    return { id: page.id, nome, status, categoria, prazo, tarefasRel };
+  }
+
+  // ──────────────── FILTER ────────────────
+  function objSetFilter(filter, btn) {
+    _objFilter = filter;
+    document.querySelectorAll('[onclick^="objSetFilter"]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    objetivosRender();
+  }
+
+  // ──────────────── KPIs ────────────────
+  function objRenderKPIs() {
+    const el = document.getElementById('obj-kpis');
+    if (!el) return;
+    const total      = _objObjetivos.length;
+    const andamento  = _objObjetivos.filter(o => o.status === 'Em andamento').length;
+    const concluidos = _objObjetivos.filter(o => o.status === 'Concluído').length;
+    const pct        = total > 0 ? Math.round(concluidos/total*100) : 0;
+    const hoje       = new Date(); hoje.setHours(0,0,0,0);
+    const atrasados  = _objObjetivos.filter(o => o.prazo && new Date(o.prazo) < hoje && o.status !== 'Concluído').length;
+
+    el.innerHTML = `
+      <div class="tar-kpi-card">
+        <div class="tar-kpi-label">Total</div>
+        <div class="tar-kpi-value">${total}</div>
+        <div class="tar-kpi-sub">${pct}% concluídos</div>
+      </div>
+      <div class="tar-kpi-card">
+        <div class="tar-kpi-label">Em Andamento</div>
+        <div class="tar-kpi-value" style="color:var(--praxes-teal);">${andamento}</div>
+        <div class="tar-kpi-sub">em progresso</div>
+      </div>
+      <div class="tar-kpi-card">
+        <div class="tar-kpi-label">Concluídos</div>
+        <div class="tar-kpi-value" style="color:var(--success);">${concluidos}</div>
+        <div class="tar-kpi-sub">objetivos atingidos</div>
+      </div>
+      <div class="tar-kpi-card">
+        <div class="tar-kpi-label">Atrasados</div>
+        <div class="tar-kpi-value" style="color:${atrasados>0?'var(--danger)':'var(--success)'};">${atrasados}</div>
+        <div class="tar-kpi-sub">${atrasados>0?'atenção':'em dia'}</div>
+      </div>`;
+  }
+
+  // ──────────────── RENDER ────────────────
+  function objetivosRender() {
+    const listEl = document.getElementById('obj-list');
+    if (!listEl) return;
+
+    objRenderKPIs();
+
+    const badge = document.getElementById('obj-badge');
+    const ativos = _objObjetivos.filter(o => o.status !== 'Concluído').length;
+    if (badge) { badge.textContent = ativos + ' ativos'; badge.style.display = ativos > 0 ? '' : 'none'; }
+
+    let objs = _objObjetivos.filter(o => {
+      if (_objFilter === 'all') return true;
+      return o.status === _objFilter;
+    });
+
+    if (objs.length === 0) {
+      listEl.innerHTML = '<div class="obj-empty"><div class="obj-empty-icon">🎯</div><p>Nenhum objetivo encontrado.</p></div>';
+      return;
+    }
+
+    // Agrupa por categoria
+    const cats = ['Investimentos','Imóveis','Planejamento Fiscal','Riscos & Seguros','Planejamento Sucessório','Outros',''];
+    const grupos = {};
+    objs.forEach(o => {
+      const k = cats.includes(o.categoria) ? o.categoria : '';
+      if (!grupos[k]) grupos[k] = [];
+      grupos[k].push(o);
+    });
+
+    let html = '';
+    cats.forEach(cat => {
+      if (!grupos[cat]?.length) return;
+      html += '<div class="obj-categoria-label">' + (cat || 'Sem categoria') + '</div>';
+      grupos[cat].forEach(o => { html += objCardHTML(o); });
+    });
+
+    listEl.innerHTML = html;
+  }
+
+  function objStatusClass(status) {
+    const s = (status||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    if (s === 'em andamento') return 'em-andamento';
+    if (s === 'concluido')    return 'concluido';
+    if (s === 'pausado')      return 'pausado';
+    return 'nao-iniciada';
+  }
+
+  function objCardHTML(o) {
+    const totalT  = o.tarefasRel.length;
+    // Progresso calculado a partir das tarefas carregadas no cache
+    const cached  = _objTarefasMap[o.id];
+    const doneT   = cached ? cached.filter(t => {
+      const s = (t.status||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+      return s === 'concluido';
+    }).length : 0;
+    const pct     = totalT > 0 ? Math.round(doneT/totalT*100) : 0;
+    const statusCl = objStatusClass(o.status);
+
+    const prazoFmt = o.prazo ? new Date(o.prazo).toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric'}) : null;
+    const hoje = new Date(); hoje.setHours(0,0,0,0);
+    const atrasado = o.prazo && new Date(o.prazo) < hoje && o.status !== 'Concluído';
+
+    return '<div class="obj-card" id="obj-card-' + o.id.replace(/-/g,'') + '">' +
+      '<div class="obj-card-header" onclick="objToggle(\'' + o.id + '\')">' +
+        '<div class="obj-status-dot ' + statusCl + '"></div>' +
+        '<div class="obj-title">' + esc(o.nome) + '</div>' +
+        '<div class="obj-meta">' +
+          (prazoFmt ? '<span class="obj-pill' + (atrasado?' tar-pill-venc':'') + '">📅 ' + prazoFmt + '</span>' : '') +
+          '<span class="obj-pill obj-pill-status-' + statusCl + '">' + esc(o.status) + '</span>' +
+          (totalT > 0 ? '<div class="obj-progress-wrap"><div class="obj-progress-bar-bg"><div class="obj-progress-bar-fill" style="width:' + pct + '%"></div></div><span class="obj-progress-pct">' + pct + '%</span></div>' : '') +
+        '</div>' +
+        '<button class="btn-secondary" onclick="event.stopPropagation();objetivosAbrirModal(\'' + o.id + '\')" style="font-size:11px;padding:4px 10px;margin-left:8px;">Editar</button>' +
+        '<svg class="obj-chevron" id="obj-chev-' + o.id.replace(/-/g,'') + '" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg>' +
+      '</div>' +
+      '<div class="obj-tarefas-wrap" id="obj-tarefas-' + o.id.replace(/-/g,'') + '">' +
+        '<div id="obj-tarefas-inner-' + o.id.replace(/-/g,'') + '" style="padding-top:10px;">' +
+          '<div style="font-size:12px;color:var(--fg-mute);padding:8px 0;">Carregando tarefas…</div>' +
+        '</div>' +
+        '<div style="margin-top:10px;">' +
+          '<button class="btn-secondary" onclick="objAdicionarTarefa(\'' + o.id + '\')" style="font-size:11px;padding:5px 12px;">+ Adicionar tarefa</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }
+
+  // ──────────────── TOGGLE / TAREFAS ────────────────
+  async function objToggle(id) {
+    const wrap = document.getElementById('obj-tarefas-' + id.replace(/-/g,''));
+    const chev = document.getElementById('obj-chev-' + id.replace(/-/g,''));
+    if (!wrap) return;
+
+    const isOpen = wrap.classList.contains('open');
+    wrap.classList.toggle('open');
+    chev?.classList.toggle('open');
+
+    if (!isOpen && !_objTarefasMap[id]) {
+      await objCarregarTarefas(id);
+    }
+  }
+
+  async function objCarregarTarefas(objId) {
+    const innerEl = document.getElementById('obj-tarefas-inner-' + objId.replace(/-/g,''));
+    const obj = _objObjetivos.find(o => o.id === objId);
+    if (!obj || obj.tarefasRel.length === 0) {
+      if (innerEl) innerEl.innerHTML = '<div style="font-size:12px;color:var(--fg-mute);padding:4px 0;">Nenhuma tarefa vinculada ainda.</div>';
+      _objTarefasMap[objId] = [];
+      return;
+    }
+
+    try {
+      // Busca tarefas via filter relation
+      const resp = await fetch(objUrl('/v1/databases/' + TAR_NOTION_DB + '/query'), {
+        method: 'POST', headers: objHeaders(),
+        body: JSON.stringify({
+          page_size: 50,
+          filter: { property: 'Objetivo', relation: { contains: objId } }
+        })
+      });
+
+      let tarefas = [];
+      if (resp.ok) {
+        const data = await resp.json();
+        tarefas = (data.results || []).map(p => ({
+          id:         p.id,
+          titulo:     p.properties?.['Nome']?.title?.map(t=>t.plain_text).join('') || '—',
+          status:     p.properties?.['Status da Tarefa']?.status?.name || '',
+          prioridade: p.properties?.['Prioridade']?.select?.name || '',
+          prazo:      p.properties?.['Data de Vencimento']?.date?.start || null
+        }));
+      }
+
+      _objTarefasMap[objId] = tarefas;
+
+      // Atualiza barra de progresso
+      const card = document.getElementById('obj-card-' + objId.replace(/-/g,''));
+      if (card) {
+        const total = tarefas.length;
+        const done  = tarefas.filter(t => {
+          const s = (t.status||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+          return s === 'concluido';
+        }).length;
+        const pct = total > 0 ? Math.round(done/total*100) : 0;
+        const bar = card.querySelector('.obj-progress-bar-fill');
+        const pctEl = card.querySelector('.obj-progress-pct');
+        if (bar) bar.style.width = pct + '%';
+        if (pctEl) pctEl.textContent = pct + '%';
+        if (!bar && total > 0) {
+          // Adiciona barra se não existia
+          const progressWrap = card.querySelector('.obj-progress-wrap');
+          if (!progressWrap) {
+            const metaEl = card.querySelector('.obj-meta');
+            if (metaEl) metaEl.insertAdjacentHTML('beforeend',
+              '<div class="obj-progress-wrap"><div class="obj-progress-bar-bg"><div class="obj-progress-bar-fill" style="width:' + pct + '%"></div></div><span class="obj-progress-pct">' + pct + '%</span></div>');
+          }
+        }
+      }
+
+      if (!innerEl) return;
+      if (tarefas.length === 0) {
+        innerEl.innerHTML = '<div style="font-size:12px;color:var(--fg-mute);padding:4px 0;">Nenhuma tarefa vinculada ainda.</div>';
+        return;
+      }
+
+      const isDone = s => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'') === 'concluido';
+      const norm   = s => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+
+      innerEl.innerHTML = tarefas.map(t => {
+        const done = isDone(t.status);
+        const priCl = t.prioridade ? 'tar-pill tar-pill-' + norm(t.prioridade) : '';
+        const priH  = t.prioridade ? '<span class="' + priCl + '">' + esc(t.prioridade) + '</span>' : '';
+        const prazoPill = t.prazo ? '<span class="obj-pill">📅 ' + new Date(t.prazo).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}) + '</span>' : '';
+        return '<div class="obj-tarefa-row">' +
+          '<div class="tar-check ' + (done?'checked':'') + '" onclick="objToggleTarefa(\'' + t.id + '\',\'' + objId + '\')"></div>' +
+          '<span style="flex:1;' + (done?'text-decoration:line-through;color:var(--fg-mute);':'') + '">' + esc(t.titulo) + '</span>' +
+          priH + prazoPill +
+          '<span class="obj-pill" style="background:' + (done?'var(--success-bg)':'var(--praxes-shell)') + ';color:' + (done?'var(--success)':'var(--fg-mute)') + ';">' + esc(t.status||'—') + '</span>' +
+          '</div>';
+      }).join('');
+
+    } catch(err) {
+      if (innerEl) innerEl.innerHTML = '<div style="font-size:12px;color:var(--danger);">Erro ao carregar tarefas.</div>';
+    }
+  }
+
+  async function objToggleTarefa(tarefaId, objId) {
+    const tarefas = _objTarefasMap[objId] || [];
+    const t = tarefas.find(x => x.id === tarefaId);
+    if (!t) return;
+    const isDone = (t.status||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'') === 'concluido';
+    const novoStatus = isDone ? 'Não iniciada' : 'Concluído';
+    t.status = novoStatus;
+    objCarregarTarefas(objId); // re-render
+
+    try {
+      await fetch(objUrl('/v1/pages/' + tarefaId.replace(/-/g,'')), {
+        method: 'PATCH', headers: objHeaders(),
+        body: JSON.stringify({ properties: { 'Status da Tarefa': { status: { name: novoStatus } } } })
+      });
+    } catch(err) {
+      t.status = isDone ? 'Concluído' : 'Não iniciada';
+      objCarregarTarefas(objId);
+    }
+  }
+
+  // ──────────────── ADICIONAR TAREFA AO OBJETIVO ────────────────
+  function objAdicionarTarefa(objId) {
+    // Reutiliza o modal de tarefa da aba Tarefas, mas com objetivo linkado
+    _tarEditingId = null;
+    _objTarefaParaObjetivoId = objId;
+    document.getElementById('modal-tarefa-title').textContent = 'Nova Tarefa';
+    document.getElementById('tar-form-titulo').value      = '';
+    document.getElementById('tar-form-prioridade').value  = '';
+    document.getElementById('tar-form-responsavel').value = '';
+    document.getElementById('tar-form-status').value      = 'Não iniciada';
+    document.getElementById('tar-form-obs').value         = '';
+    document.getElementById('tar-form-prazo').value       = '';
+    openModal('modal-tarefa');
+  }
+  let _objTarefaParaObjetivoId = null;
+
+  // ──────────────── MODAL OBJETIVO ────────────────
+  function objetivosAbrirModal(idOuNull) {
+    _objEditingId = idOuNull;
+    const o = idOuNull ? _objObjetivos.find(x => x.id === idOuNull) : null;
+    document.getElementById('modal-objetivo-title').textContent = o ? 'Editar Objetivo' : 'Novo Objetivo';
+    document.getElementById('obj-form-nome').value      = o?.nome      || '';
+    document.getElementById('obj-form-categoria').value = o?.categoria || '';
+    document.getElementById('obj-form-status').value    = o?.status    || 'Não iniciada';
+    document.getElementById('obj-form-prazo').value     = o?.prazo?.split('T')[0] || '';
+    openModal('modal-objetivo');
+  }
+
+  async function objetivosSalvar() {
+    const nome = document.getElementById('obj-form-nome').value.trim();
+    if (!nome) { alert('Informe o nome do objetivo.'); return; }
+
+    const categoria = document.getElementById('obj-form-categoria').value;
+    const status    = document.getElementById('obj-form-status').value;
+    const prazo     = document.getElementById('obj-form-prazo').value || null;
+
+    const btn = document.getElementById('obj-btn-salvar');
+    btn.disabled = true; btn.textContent = 'Salvando…';
+
+    const props = {
+      'Nome':   { title: [{ text: { content: nome } }] },
+      'Status': { status: { name: status } },
+      ...(categoria ? { 'Selecionar': { select: { name: categoria } } } : {}),
+      ...(prazo     ? { 'Prazo de Conclusão': { date: { start: prazo } } } : {})
+    };
+
+    try {
+      let resp;
+      if (_objEditingId) {
+        resp = await fetch(objUrl('/v1/pages/' + _objEditingId.replace(/-/g,'')), {
+          method: 'PATCH', headers: objHeaders(), body: JSON.stringify({ properties: props })
+        });
+      } else {
+        // Busca ID do cliente para linkar
+        const clientName = document.getElementById('sidebar-name')?.textContent?.trim() || '';
+        const clientNId  = await buscarClienteNotionId(clientName, OBJ_PROXY_BASE, objHeaders(), OBJ_NOTION_CLIENTS_DB);
+        if (clientNId) props['👨‍👩‍👦 Clientes Praxes'] = { relation: [{ id: clientNId }] };
+
+        resp = await fetch(objUrl('/v1/pages'), {
+          method: 'POST', headers: objHeaders(),
+          body: JSON.stringify({ parent: { database_id: OBJ_NOTION_DB }, properties: props })
+        });
+      }
+      if (!resp.ok) { const e = await resp.json(); throw new Error(e.message || `HTTP ${resp.status}`); }
+      closeModal('modal-objetivo');
+      _objLoaded = false;
+      _objTarefasMap = {};
+      await objetivosLoad();
+    } catch(err) {
+      alert('Erro ao salvar: ' + err.message);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Salvar';
+    }
+  }
+
+  // ============================================================
+  // ========== FIM MÓDULO OBJETIVOS ============================
   // ============================================================
 
   // ============================================================
