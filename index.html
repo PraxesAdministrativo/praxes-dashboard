@@ -14846,7 +14846,7 @@ Esta ação não pode ser desfeita.`)) return;
 
         // Se chamado a partir da aba Objetivos, linka ao objetivo
         if (_objTarefaParaObjetivoId) {
-          props['Objetivo'] = { relation: [{ id: _objTarefaParaObjetivoId }] };
+          props['Objetivo Relacionado'] = { relation: [{ id: _objTarefaParaObjetivoId }] };
           // Também linka o cliente
           const clientName = document.getElementById('sidebar-name')?.textContent?.trim() || '';
           const clientNId  = await buscarClienteNotionId(clientName, TAR_PROXY_BASE, tarNotionHeaders(), TAR_NOTION_CLIENTS_DB);
@@ -15791,7 +15791,7 @@ Esta ação não pode ser desfeita.`)) return;
         method: 'POST', headers: objHeaders(),
         body: JSON.stringify({
           page_size: 50,
-          filter: { property: 'Objetivo', relation: { contains: objId } }
+          filter: { property: 'Objetivo Relacionado', relation: { contains: objId } }
         })
       });
 
