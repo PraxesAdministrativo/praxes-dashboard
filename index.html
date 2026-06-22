@@ -3081,7 +3081,13 @@
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Responsável</label>
-            <input type="text" class="form-input" id="tar-form-responsavel" placeholder="Nome do responsável">
+            <select class="form-select" id="tar-form-responsavel">
+              <option value="">—</option>
+              <option value="1a7d872b-594c-8187-93b9-0002690009a5">Administrativo Praxes</option>
+              <option value="1e7d872b-594c-813b-8865-0002b484a81e">Caio H. Alberconi</option>
+              <option value="1f2d872b-594c-8115-9dd0-000256f46389">Alexandre Amorim</option>
+              <option value="1f2d872b-594c-817b-bb7d-00026db7ced4">Luiz Beck</option>
+            </select>
           </div>
           <div class="form-group">
             <label class="form-label">Status</label>
@@ -3091,10 +3097,6 @@
               <option value="Concluído">Concluído</option>
             </select>
           </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Observações</label>
-          <textarea class="form-input" id="tar-form-obs" rows="3" placeholder="Detalhes adicionais…" style="resize:vertical;"></textarea>
         </div>
         <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px;">
           <button class="btn-cancel" onclick="closeModal('modal-tarefa')">Cancelar</button>
@@ -14610,16 +14612,16 @@ Esta ação não pode ser desfeita.`)) return;
     const prioridade = priProp?.select?.name || '';
 
     // Prazo (type: date)
-    const prazoProp = tarGetProp(p, 'Prazo', 'Data', 'Due Date', 'Vencimento', 'Date');
+    const prazoProp = tarGetProp(p, 'Data de Vencimento', 'Prazo', 'Due Date', 'Vencimento', 'Date');
     const prazo = prazoProp?.date?.start || null;
 
-    // Responsável (type: people ou rich_text)
-    const respProp = tarGetProp(p, 'Responsável', 'Responsavel', 'Assignee', 'Assigned To', 'Pessoa');
+    // Responsável (type: people)
+    const respProp = tarGetProp(p, 'Responsável', 'Responsavel', 'Assignee');
     let responsavel = '';
+    let responsavel_id = '';
     if (respProp?.people?.length > 0) {
-      responsavel = respProp.people.map(p => p.name || p.person?.email || '').filter(Boolean).join(', ');
-    } else if (respProp?.rich_text?.length > 0) {
-      responsavel = respProp.rich_text.map(t => t.plain_text).join('');
+      responsavel    = respProp.people.map(p => p.name || '').filter(Boolean).join(', ');
+      responsavel_id = respProp.people[0]?.id || '';
     }
 
     // Descrição (type: rich_text)
@@ -14634,15 +14636,15 @@ Esta ação não pode ser desfeita.`)) return;
     }
 
     return {
-      id:         page.id,
+      id:             page.id,
       titulo,
       status,
       prioridade,
       prazo,
       responsavel,
-      descricao,
+      responsavel_id,
       cliente,
-      criado_em:  page.created_time
+      criado_em:      page.created_time
     };
   }
 
@@ -14797,8 +14799,8 @@ Esta ação não pode ser desfeita.`)) return;
     document.getElementById('modal-tarefa-title').textContent = t ? 'Editar Tarefa' : 'Nova Tarefa';
     document.getElementById('tar-form-titulo').value      = t?.titulo      || '';
     document.getElementById('tar-form-prioridade').value  = t?.prioridade  || '';
-    document.getElementById('tar-form-responsavel').value = t?.responsavel || '';
-    document.getElementById('tar-form-status').value      = t?.status      || 'Não iniciada';
+    document.getElementById('tar-form-responsavel').value = t?.responsavel_id || '';
+    document.getElementById('tar-form-status').value      = t?.status         || 'Não iniciada';
     document.getElementById('tar-form-obs').value         = t?.descricao   || '';
     document.getElementById('tar-form-prazo').value       = t?.prazo ? t.prazo.split('T')[0] : '';
     openModal('modal-tarefa');
@@ -14807,16 +14809,13 @@ Esta ação não pode ser desfeita.`)) return;
   // Monta o body de propriedades para create/update
   function tarBuildProps(titulo, prioridade, responsavel, status, prazo, descricao) {
     const props = {
-      'Nome':           { title:     [{ text: { content: titulo } }] },
-      'Status da Tarefa': { status:  { name: status || 'Não iniciada' } },
-      'Prioridade':  { select:    prioridade ? { name: prioridade } : null },
-      'Prazo':       { date:      prazo ? { start: prazo } : null },
-      'Responsável': { rich_text: responsavel ? [{ text: { content: responsavel } }] : [] },
-      'Descrição':   { rich_text: descricao   ? [{ text: { content: descricao   } }] : [] }
+      'Nome':             { title:  [{ text: { content: titulo } }] },
+      'Status da Tarefa': { status: { name: status || 'Não iniciada' } },
+      ...(prioridade  ? { 'Prioridade':         { select: { name: prioridade } } } : {}),
+      ...(prazo       ? { 'Data de Vencimento': { date:   { start: prazo    } } } : {}),
+      ...(responsavel ? { 'Responsável':        { people: [{ object: 'user', id: responsavel }] } } : {})
     };
-    // Remove nulls que o Notion rejeita
-    if (!prioridade) delete props['Prioridade'];
-    if (!prazo)      delete props['Prazo'];
+    return props;
     return props;
   }
 
@@ -14825,10 +14824,10 @@ Esta ação não pode ser desfeita.`)) return;
     if (!titulo) { alert('Informe o título da tarefa.'); return; }
 
     const prioridade  = document.getElementById('tar-form-prioridade').value;
-    const responsavel = document.getElementById('tar-form-responsavel').value.trim();
+    const responsavel = document.getElementById('tar-form-responsavel').value; // UUID
     const status      = document.getElementById('tar-form-status').value;
     const prazo       = document.getElementById('tar-form-prazo').value || null;
-    const descricao   = document.getElementById('tar-form-obs').value.trim();
+    const descricao   = '';
 
     const btn = document.getElementById('tar-btn-salvar');
     btn.disabled = true; btn.textContent = 'Salvando…';
