@@ -14801,7 +14801,6 @@ Esta ação não pode ser desfeita.`)) return;
     document.getElementById('tar-form-prioridade').value  = t?.prioridade  || '';
     document.getElementById('tar-form-responsavel').value = t?.responsavel_id || '';
     document.getElementById('tar-form-status').value      = t?.status         || 'Não iniciada';
-    document.getElementById('tar-form-obs').value         = t?.descricao   || '';
     document.getElementById('tar-form-prazo').value       = t?.prazo ? t.prazo.split('T')[0] : '';
     openModal('modal-tarefa');
   }
@@ -15891,7 +15890,6 @@ Esta ação não pode ser desfeita.`)) return;
     document.getElementById('tar-form-prioridade').value  = '';
     document.getElementById('tar-form-responsavel').value = '';
     document.getElementById('tar-form-status').value      = 'Não iniciada';
-    document.getElementById('tar-form-obs').value         = '';
     document.getElementById('tar-form-prazo').value       = '';
     openModal('modal-tarefa');
   }
