@@ -15713,6 +15713,15 @@ Esta ação não pode ser desfeita.`)) return;
     });
 
     listEl.innerHTML = html;
+
+    // Pré-carrega tarefas em background para clique instantâneo
+    setTimeout(() => {
+      _objObjetivos.forEach(o => {
+        if (!_objTarefasMap[o.id] && o.tarefasRel.length > 0) {
+          objCarregarTarefas(o.id);
+        }
+      });
+    }, 300);
   }
 
   function objStatusClass(status) {
@@ -15771,8 +15780,13 @@ Esta ação não pode ser desfeita.`)) return;
     wrap.classList.toggle('open');
     chev?.classList.toggle('open');
 
-    if (!isOpen && !_objTarefasMap[id]) {
-      await objCarregarTarefas(id);
+    if (!isOpen) {
+      if (_objTarefasMap[id]) {
+        // Cache hit — renderiza imediatamente
+        objRenderTarefasInner(id, _objTarefasMap[id]);
+      } else {
+        await objCarregarTarefas(id);
+      }
     }
   }
 
@@ -15836,42 +15850,43 @@ Esta ação não pode ser desfeita.`)) return;
         if (bar) bar.style.width = pct + '%';
         if (pctEl) pctEl.textContent = pct + '%';
         if (!bar && total > 0) {
-          // Adiciona barra se não existia
-          const progressWrap = card.querySelector('.obj-progress-wrap');
-          if (!progressWrap) {
-            const metaEl = card.querySelector('.obj-meta');
-            if (metaEl) metaEl.insertAdjacentHTML('beforeend',
-              '<div class="obj-progress-wrap"><div class="obj-progress-bar-bg"><div class="obj-progress-bar-fill" style="width:' + pct + '%"></div></div><span class="obj-progress-pct">' + pct + '%</span></div>');
-          }
+          const metaEl = card.querySelector('.obj-meta');
+          if (metaEl) metaEl.insertAdjacentHTML('beforeend',
+            '<div class="obj-progress-wrap"><div class="obj-progress-bar-bg"><div class="obj-progress-bar-fill" style="width:' + pct + '%"></div></div><span class="obj-progress-pct">' + pct + '%</span></div>');
         }
       }
 
-      if (!innerEl) return;
-      if (tarefas.length === 0) {
-        innerEl.innerHTML = '<div style="font-size:12px;color:var(--fg-mute);padding:4px 0;">Nenhuma tarefa vinculada ainda.</div>';
-        return;
-      }
-
-      const isDone = s => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'') === 'concluido';
-      const norm   = s => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-
-      innerEl.innerHTML = tarefas.map(t => {
-        const done = isDone(t.status);
-        const priCl = t.prioridade ? 'tar-pill tar-pill-' + norm(t.prioridade) : '';
-        const priH  = t.prioridade ? '<span class="' + priCl + '">' + esc(t.prioridade) + '</span>' : '';
-        const prazoPill = t.prazo ? '<span class="obj-pill">📅 ' + new Date(t.prazo).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}) + '</span>' : '';
-        return '<div class="obj-tarefa-row">' +
-          '<div class="tar-check ' + (done?'checked':'') + '" onclick="objToggleTarefa(\'' + t.id + '\',\'' + objId + '\')"></div>' +
-          '<span style="flex:1;' + (done?'text-decoration:line-through;color:var(--fg-mute);':'') + '">' + esc(t.titulo) + '</span>' +
-          priH + prazoPill +
-          '<span class="obj-pill" style="background:' + (done?'var(--success-bg)':'var(--praxes-shell)') + ';color:' + (done?'var(--success)':'var(--fg-mute)') + ';">' + esc(t.status||'—') + '</span>' +
-          '</div>';
-      }).join('');
+      objRenderTarefasInner(objId, tarefas);
 
     } catch(err) {
       if (innerEl) innerEl.innerHTML = '<div style="font-size:12px;color:var(--danger);">Erro ao carregar tarefas.</div>';
     }
   }
+
+  function objRenderTarefasInner(objId, tarefas) {
+    const innerEl = document.getElementById('obj-tarefas-inner-' + objId.replace(/-/g,''));
+    if (!innerEl) return;
+
+    if (tarefas.length === 0) {
+      innerEl.innerHTML = '<div style="font-size:12px;color:var(--fg-mute);padding:4px 0;">Nenhuma tarefa vinculada ainda.</div>';
+      return;
+    }
+
+    const isDone = s => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'') === 'concluido';
+    const norm   = s => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+
+    innerEl.innerHTML = tarefas.map(t => {
+      const done = isDone(t.status);
+      const priCl = t.prioridade ? 'tar-pill tar-pill-' + norm(t.prioridade) : '';
+      const priH  = t.prioridade ? '<span class="' + priCl + '">' + esc(t.prioridade) + '</span>' : '';
+      const prazoPill = t.prazo ? '<span class="obj-pill">📅 ' + new Date(t.prazo).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}) + '</span>' : '';
+      return '<div class="obj-tarefa-row">' +
+        '<div class="tar-check ' + (done?'checked':'') + '" onclick="objToggleTarefa(\'' + t.id + '\',\'' + objId + '\')"></div>' +
+        '<span style="flex:1;' + (done?'text-decoration:line-through;color:var(--fg-mute);':'') + '">' + esc(t.titulo) + '</span>' +
+        priH + prazoPill +
+        '<span class="obj-pill" style="background:' + (done?'var(--success-bg)':'var(--praxes-shell)') + ';color:' + (done?'var(--success)':'var(--fg-mute)') + ';">' + esc(t.status||'—') + '</span>' +
+        '</div>';
+    }).join('');
 
   async function objToggleTarefa(tarefaId, objId) {
     const tarefas = _objTarefasMap[objId] || [];
@@ -15880,7 +15895,7 @@ Esta ação não pode ser desfeita.`)) return;
     const isDone = (t.status||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'') === 'concluido';
     const novoStatus = isDone ? 'Não iniciada' : 'Concluído';
     t.status = novoStatus;
-    objCarregarTarefas(objId); // re-render
+    objRenderTarefasInner(objId, _objTarefasMap[objId]);
 
     try {
       await fetch(objUrl('/v1/pages/' + tarefaId.replace(/-/g,'')), {
