@@ -15779,32 +15779,45 @@ Esta ação não pode ser desfeita.`)) return;
   async function objCarregarTarefas(objId) {
     const innerEl = document.getElementById('obj-tarefas-inner-' + objId.replace(/-/g,''));
     const obj = _objObjetivos.find(o => o.id === objId);
-    if (!obj || obj.tarefasRel.length === 0) {
-      if (innerEl) innerEl.innerHTML = '<div style="font-size:12px;color:var(--fg-mute);padding:4px 0;">Nenhuma tarefa vinculada ainda.</div>';
-      _objTarefasMap[objId] = [];
-      return;
-    }
+    if (!obj) return;
 
     try {
-      // Busca tarefas via filter relation
-      const resp = await fetch(objUrl('/v1/databases/' + TAR_NOTION_DB + '/query'), {
-        method: 'POST', headers: objHeaders(),
-        body: JSON.stringify({
-          page_size: 50,
-          filter: { property: 'Objetivo Relacionado', relation: { contains: objId } }
-        })
-      });
-
       let tarefas = [];
-      if (resp.ok) {
-        const data = await resp.json();
-        tarefas = (data.results || []).map(p => ({
+
+      if (obj.tarefasRel.length > 0) {
+        // Busca cada tarefa diretamente pelo ID (mais confiável que filter)
+        const fetches = obj.tarefasRel.slice(0,20).map(tid =>
+          fetch(objUrl('/v1/pages/' + tid.replace(/-/g,'')), { headers: objHeaders() })
+            .then(r => r.ok ? r.json() : null).catch(() => null)
+        );
+        const pages = await Promise.all(fetches);
+        tarefas = pages.filter(Boolean).map(p => ({
           id:         p.id,
           titulo:     p.properties?.['Nome']?.title?.map(t=>t.plain_text).join('') || '—',
           status:     p.properties?.['Status da Tarefa']?.status?.name || '',
           prioridade: p.properties?.['Prioridade']?.select?.name || '',
           prazo:      p.properties?.['Data de Vencimento']?.date?.start || null
         }));
+      } else {
+        // Fallback: query por filter
+        const resp = await fetch(objUrl('/v1/databases/' + TAR_NOTION_DB + '/query'), {
+          method: 'POST', headers: objHeaders(),
+          body: JSON.stringify({ page_size: 50, filter: { property: 'Objetivo Relacionado', relation: { contains: objId } } })
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          tarefas = (data.results || []).map(p => ({
+            id:         p.id,
+            titulo:     p.properties?.['Nome']?.title?.map(t=>t.plain_text).join('') || '—',
+            status:     p.properties?.['Status da Tarefa']?.status?.name || '',
+            prioridade: p.properties?.['Prioridade']?.select?.name || '',
+            prazo:      p.properties?.['Data de Vencimento']?.date?.start || null
+          }));
+        }
+      }
+
+      if (innerEl && tarefas.length === 0) {
+        innerEl.innerHTML = '<div style="font-size:12px;color:var(--fg-mute);padding:4px 0;">Nenhuma tarefa vinculada ainda.</div>';
       }
 
       _objTarefasMap[objId] = tarefas;
