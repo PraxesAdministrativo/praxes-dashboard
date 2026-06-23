@@ -1386,7 +1386,48 @@
     .admin-view { display: none; }
     .admin-view.active { display: block; }
 
-    /* ── CONTROLE FINANCEIRO ────────────────────────────────────── */
+    /* ── SEMANA ─────────────────────────────────────────────── */
+    .admin-sem-resp-block {
+      margin-bottom: 28px;
+      background: rgba(4,25,36,0.55);
+      border: 1px solid rgba(242,221,198,0.08);
+      border-radius: var(--r-lg);
+      overflow: hidden;
+      backdrop-filter: blur(8px);
+    }
+    .admin-sem-resp-header {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 18px;
+      border-bottom: 1px solid rgba(242,221,198,0.06);
+      background: rgba(242,221,198,0.04);
+    }
+    .admin-sem-resp-avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; color: var(--praxes-abyss);
+      flex-shrink: 0;
+    }
+    .admin-sem-resp-name { font-size: 13px; font-weight: 600; color: rgba(242,221,198,0.9); }
+    .admin-sem-resp-count { font-size: 11px; color: rgba(242,221,198,0.35); margin-left: auto; }
+
+    .admin-sem-section { padding: 12px 18px; border-bottom: 1px solid rgba(242,221,198,0.05); }
+    .admin-sem-section:last-child { border-bottom: none; }
+    .admin-sem-section-label {
+      font-size: 9px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+      color: rgba(242,221,198,0.3); margin-bottom: 10px;
+    }
+    .admin-sem-item {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 8px 0; border-bottom: 1px solid rgba(242,221,198,0.04);
+      font-size: 12px;
+    }
+    .admin-sem-item:last-child { border-bottom: none; }
+    .admin-sem-item-title { flex: 1; color: rgba(242,221,198,0.8); line-height: 1.4; }
+    .admin-sem-item-title.done { text-decoration: line-through; color: rgba(242,221,198,0.3); }
+    .admin-sem-dot {
+      width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; margin-top: 4px;
+    }
+    .admin-sem-empty { font-size: 11px; color: rgba(242,221,198,0.2); padding: 4px 0; }
     .fin-tabs-header {
       display: flex;
       gap: 0;
@@ -4026,6 +4067,10 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
         Tarefas
       </div>
+      <div class="admin-nav-item" id="admin-nav-semana" onclick="adminSetView('semana')">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Semana
+      </div>
       <div class="admin-sidebar-bottom">
         Praxes Gestão Patrimonial
       </div>
@@ -4084,11 +4129,31 @@
           </div>
         </div>
 
+        <!-- VIEW: Semana -->
+        <div class="admin-view" id="admin-view-semana">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;flex-wrap:wrap;">
+            <div style="font-size:11px;color:rgba(242,221,198,0.4);" id="admin-sem-periodo"></div>
+            <div style="margin-left:auto;display:flex;gap:8px;">
+              <button onclick="adminSemanaLoad()" style="padding:7px 14px;font-size:12px;font-family:inherit;background:rgba(242,221,198,0.08);border:1px solid rgba(242,221,198,0.15);border-radius:var(--r-pill);color:rgba(242,221,198,0.6);cursor:pointer;display:flex;align-items:center;gap:6px;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+                Atualizar
+              </button>
+              <button onclick="adminSemanaGerarPDF()" style="padding:7px 14px;font-size:12px;font-family:inherit;background:rgba(242,90,102,0.15);border:1px solid rgba(242,90,102,0.25);border-radius:var(--r-pill);color:rgba(242,221,198,0.7);cursor:pointer;display:flex;align-items:center;gap:6px;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Exportar PDF
+              </button>
+            </div>
+          </div>
+          <div id="admin-sem-content">
+            <div style="text-align:center;padding:40px;color:rgba(242,221,198,0.3);font-size:13px;">
+              Clique em "Semana" para carregar o relatório.
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   </div>
-
-  <!-- BOTÃO VOLTAR ADMIN -->
   <button id="admin-back-btn" class="admin-back-btn" style="display:none;" onclick="adminVoltar()">
     ← Voltar ao Admin
   </button>
@@ -13516,12 +13581,240 @@ Esta ação não pode ser desfeita.`)) return;
       document.querySelectorAll('.admin-view').forEach(el => el.classList.remove('active'));
       document.getElementById('admin-nav-' + view).classList.add('active');
       document.getElementById('admin-view-' + view).classList.add('active');
-      document.getElementById('admin-topbar-title').textContent = view === 'clientes' ? 'Clientes' : 'Tarefas';
-
-      // Esconde search quando não está em clientes
+      const titles = { clientes:'Clientes', tarefas:'Tarefas', semana:'Relatório da Semana' };
+      document.getElementById('admin-topbar-title').textContent = titles[view] || view;
       document.getElementById('admin-search').style.display = view === 'clientes' ? '' : 'none';
-
       if (view === 'tarefas' && !_adminKanbanLoaded) adminKanbanLoad();
+      if (view === 'semana'  && !_adminSemanaLoaded) adminSemanaLoad();
+    }
+
+    // ── RELATÓRIO DA SEMANA ──────────────────────────────────────
+    let _adminSemanaLoaded   = false;
+    let _adminSemanaTarefas  = [];
+    let _adminSemanaReunioes = [];
+
+    const RESP_MAP = {
+      '1a7d872b-594c-8187-93b9-0002690009a5': { nome: 'Administrativo Praxes', cor: '#8b5cf6' },
+      '1e7d872b-594c-813b-8865-0002b484a81e': { nome: 'Caio H. Alberconi',     cor: '#10b981' },
+      '1f2d872b-594c-8115-9dd0-000256f46389': { nome: 'Alexandre Amorim',      cor: '#f59e0b' },
+      '1f2d872b-594c-817b-bb7d-00026db7ced4': { nome: 'Luiz Beck',             cor: '#629ec1' },
+    };
+
+    function adminSemanaGetRange() {
+      const hoje = new Date(); hoje.setHours(0,0,0,0);
+      const dow  = hoje.getDay();
+      const ini  = new Date(hoje); ini.setDate(hoje.getDate() - (dow === 0 ? 6 : dow - 1));
+      const fim  = new Date(ini);  fim.setDate(ini.getDate() + 6);
+      return { ini, fim };
+    }
+
+    async function adminSemanaLoad() {
+      const el = document.getElementById('admin-sem-content');
+      el.innerHTML = '<div style="text-align:center;padding:40px;color:rgba(242,221,198,0.3);font-size:13px;"><div class="spinner" style="border-color:rgba(255,255,255,0.1);border-top-color:rgba(255,255,255,0.5);margin:0 auto;"></div><p style="margin-top:12px;">Carregando...</p></div>';
+      const { ini, fim } = adminSemanaGetRange();
+      const fmtDate = d => d.toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric'});
+      document.getElementById('admin-sem-periodo').textContent = fmtDate(ini) + ' — ' + fmtDate(fim);
+      const iniISO = ini.toISOString().split('T')[0];
+      const fimISO = fim.toISOString().split('T')[0];
+      try {
+        const [tarResp, reuResp] = await Promise.all([
+          fetch('https://urckolcywijllkdyjcgc.supabase.co/functions/v1/notion-proxy/v1/databases/1ec701b863e680f381d8d07cc4dacab4/query', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({page_size:100,sorts:[{property:'Data de Vencimento',direction:'ascending'}],filter:{and:[
+              {property:'Data de Vencimento',date:{on_or_after:iniISO}},
+              {property:'Data de Vencimento',date:{on_or_before:fimISO}}
+            ]}})
+          }),
+          fetch('https://urckolcywijllkdyjcgc.supabase.co/functions/v1/notion-proxy/v1/databases/1ec701b863e680dca7e0f3b31c65d035/query', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({page_size:100,sorts:[{property:'Data da Reuniao',direction:'ascending'}],filter:{and:[
+              {property:'Data da Reuniao',date:{on_or_after:iniISO}},
+              {property:'Data da Reuniao',date:{on_or_before:fimISO}}
+            ]}})
+          })
+        ]);
+        const tarData = tarResp.ok ? await tarResp.json() : {results:[]};
+        const reuData = reuResp.ok ? await reuResp.json() : {results:[]};
+
+        _adminSemanaTarefas = (tarData.results||[]).map(p => {
+          const pr = p.properties||{};
+          const titulo     = pr['Nome']?.title?.map(t=>t.plain_text).join('')||'—';
+          const status     = pr['Status da Tarefa']?.status?.name||'';
+          const prioridade = pr['Prioridade']?.select?.name||'';
+          const prazo      = pr['Data de Vencimento']?.date?.start||null;
+          const respPeople = pr['Responsavel']?.people||[];
+          const respId     = respPeople[0]?.id||'sem-resp';
+          const clienteRel = pr['Cliente']?.relation?.[0]?.id||null;
+          const clienteNome = clienteRel?(_adminClienteNomes[clienteRel]||''):'';
+          const isDone = status.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'') === 'concluido';
+          return {id:p.id, titulo, status, prioridade, prazo, respId, clienteNome, isDone};
+        });
+
+        _adminSemanaReunioes = (reuData.results||[]).map(p => {
+          const pr = p.properties||{};
+          const titulo = pr['Nome']?.title?.map(t=>t.plain_text).join('')||'—';
+          const data   = pr['Data da Reuniao']?.date?.start||null;
+          const partic = pr['Participantes']?.multi_select?.map(s=>s.name).join(', ')||'';
+          const respIds = (pr['Participantes']?.multi_select||[]).map(s => {
+            const found = Object.entries(RESP_MAP).find(([,v]) => s.name.includes(v.nome.split(' ')[0]));
+            return found ? found[0] : null;
+          }).filter(Boolean);
+          return {id:p.id, titulo, data, participantes:partic, respIds};
+        });
+
+        _adminSemanaLoaded = true;
+        adminSemanaRender();
+      } catch(err) {
+        el.innerHTML = '<div style="text-align:center;padding:40px;color:rgba(242,221,198,0.3);">Erro: '+esc(err.message)+'</div>';
+      }
+    }
+
+    function adminSemanaRender() {
+      const el = document.getElementById('admin-sem-content');
+      const grupos = {};
+      Object.keys(RESP_MAP).forEach(id => { grupos[id] = {tarefas:[],reunioes:[]}; });
+      grupos['sem-resp'] = {tarefas:[],reunioes:[]};
+      _adminSemanaTarefas.forEach(t => { const k = grupos[t.respId]?t.respId:'sem-resp'; grupos[k].tarefas.push(t); });
+      _adminSemanaReunioes.forEach(r => {
+        if (!r.respIds.length) grupos['sem-resp'].reunioes.push(r);
+        else r.respIds.forEach(rid => { if(grupos[rid]) grupos[rid].reunioes.push(r); });
+      });
+      const normPri = s => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+      const priCores = {alta:'#ff8080',media:'#ffc040',baixa:'#60dd80'};
+      let html = '';
+      [...Object.keys(RESP_MAP),'sem-resp'].forEach(rid => {
+        const g = grupos[rid];
+        if (!g||(g.tarefas.length===0&&g.reunioes.length===0)) return;
+        const info = RESP_MAP[rid]||{nome:'Sem responsavel',cor:'#666'};
+        const initials = info.nome.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+        const done = g.tarefas.filter(t=>t.isDone).length;
+        html += '<div class="admin-sem-resp-block">';
+        html += '<div class="admin-sem-resp-header">';
+        html += '<div class="admin-sem-resp-avatar" style="background:'+info.cor+';">'+initials+'</div>';
+        html += '<div class="admin-sem-resp-name">'+esc(info.nome)+'</div>';
+        html += '<div class="admin-sem-resp-count">'+done+'/'+g.tarefas.length+' tarefas · '+g.reunioes.length+' reunioes</div>';
+        html += '</div>';
+        if (g.tarefas.length > 0) {
+          html += '<div class="admin-sem-section"><div class="admin-sem-section-label">TAREFAS</div>';
+          g.tarefas.forEach(t => {
+            const cor = priCores[normPri(t.prioridade)]||'rgba(242,221,198,0.3)';
+            const prazoFmt = t.prazo ? new Date(t.prazo).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}) : '';
+            html += '<div class="admin-sem-item">';
+            html += '<div class="admin-sem-dot" style="background:'+cor+';"></div>';
+            html += '<div class="admin-sem-item-title '+(t.isDone?'done':'')+'">'+esc(t.titulo);
+            if (t.clienteNome) html += '<span style="font-size:10px;color:rgba(242,221,198,0.35);margin-left:6px;">'+esc(t.clienteNome)+'</span>';
+            html += '</div>';
+            if (prazoFmt) html += '<span style="font-size:10px;color:rgba(242,221,198,0.3);white-space:nowrap;">'+prazoFmt+'</span>';
+            if (t.isDone) html += '<span style="font-size:10px;color:#60dd80;">✓</span>';
+            html += '</div>';
+          });
+          html += '</div>';
+        }
+        if (g.reunioes.length > 0) {
+          html += '<div class="admin-sem-section"><div class="admin-sem-section-label">REUNIOES</div>';
+          g.reunioes.forEach(r => {
+            const dataFmt = r.data ? new Date(r.data).toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'short'}) : '—';
+            html += '<div class="admin-sem-item">';
+            html += '<div class="admin-sem-dot" style="background:rgba(42,90,102,0.8);"></div>';
+            html += '<div class="admin-sem-item-title">'+esc(r.titulo)+'</div>';
+            html += '<span style="font-size:10px;color:rgba(242,221,198,0.3);white-space:nowrap;">'+dataFmt+'</span>';
+            html += '</div>';
+          });
+          html += '</div>';
+        }
+        html += '</div>';
+      });
+      if (!html) html = '<div style="text-align:center;padding:40px;color:rgba(242,221,198,0.3);font-size:13px;">Nenhuma tarefa ou reuniao esta semana.</div>';
+      el.innerHTML = html;
+    }
+
+    async function adminSemanaGerarPDF() {
+      if (!_adminSemanaLoaded) { alert('Carregue os dados primeiro.'); return; }
+      const {jsPDF} = window.jspdf;
+      const doc = new jsPDF({unit:'mm',format:'a4'});
+      const PW=doc.internal.pageSize.getWidth(), PH=doc.internal.pageSize.getHeight();
+      const M=16, CW=PW-2*M;
+      const C={abyss:[4,25,36],teal:[42,90,102],sand:[242,221,198],white:[255,255,255],muted:[120,140,160],border:[220,228,236],dark:[30,40,50]};
+      const {ini,fim} = adminSemanaGetRange();
+      const fmtDate = d => d.toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});
+      const agora=new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'});
+      const agoraH=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+      let logoB64=null;
+      try{const r=await fetch('./logo.png');const b=await r.blob();logoB64=await new Promise(res=>{const rd=new FileReader();rd.onload=()=>res(rd.result);rd.readAsDataURL(b);});}catch(e){}
+      function addFooter(pg,total){
+        doc.setFillColor(...C.border);doc.rect(M,PH-10,CW,0.3,'F');
+        doc.setFontSize(6.5);doc.setFont('helvetica','normal');doc.setTextColor(...C.muted);
+        doc.text('Praxes Gestao Patrimonial — Confidencial',M,PH-5.5);
+        doc.text('Gerado em '+agora+' as '+agoraH,PW-M,PH-5.5,{align:'right'});
+        if(total>1) doc.text(pg+' / '+total,PW/2,PH-5.5,{align:'center'});
+      }
+      function addHeader(){
+        doc.setFillColor(...C.border);doc.rect(M,10,CW,0.3,'F');
+        doc.setFontSize(7);doc.setFont('helvetica','bold');doc.setTextColor(...C.dark);doc.text('Relatorio da Semana',M,8);
+        doc.setFont('helvetica','normal');doc.setTextColor(...C.muted);doc.text(fmtDate(ini)+' — '+fmtDate(fim),PW-M,8,{align:'right'});
+      }
+      doc.setFillColor(...C.abyss);doc.rect(0,0,PW,PH,'F');
+      if(logoB64){try{const p=doc.getImageProperties(logoB64);const r=Math.min(40/p.width,22/p.height);doc.addImage(logoB64,'PNG',M,18,p.width*r,p.height*r);}catch(e){}}
+      doc.setTextColor(...C.sand);doc.setFontSize(8);doc.setFont('helvetica','normal');doc.text('GESTAO PATRIMONIAL',M,46);
+      doc.setFontSize(32);doc.setFont('helvetica','bold');doc.text('Prioridades',M,140);doc.text('da Semana',M,157);
+      doc.setFontSize(12);doc.setFont('helvetica','normal');doc.setTextColor(160,200,230);doc.text(fmtDate(ini)+' — '+fmtDate(fim),M,172);
+      const totTar=_adminSemanaTarefas.length,doneTar=_adminSemanaTarefas.filter(t=>t.isDone).length,totReu=_adminSemanaReunioes.length;
+      doc.setFillColor(10,40,55);doc.rect(M,PH-42,CW,0.3,'F');
+      [{label:'TAREFAS',value:String(totTar)},{label:'CONCLUIDAS',value:String(doneTar)},{label:'REUNIOES',value:String(totReu)}].forEach((col,i)=>{
+        const x=M+i*(CW/3);
+        doc.setTextColor(120,160,190);doc.setFontSize(5.5);doc.setFont('helvetica','bold');doc.text(col.label,x,PH-34);
+        doc.setTextColor(...C.sand);doc.setFontSize(14);doc.setFont('helvetica','bold');doc.text(col.value,x,PH-26);
+      });
+      addFooter(1,2);
+      doc.addPage();addHeader();
+      let y=20;
+      const normPri=s=>(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+      const priRGB={alta:[220,50,50],media:[200,130,0],baixa:[40,150,60]};
+      const grupos={};
+      Object.keys(RESP_MAP).forEach(id=>{grupos[id]={tarefas:[],reunioes:[]};});
+      grupos['sem-resp']={tarefas:[],reunioes:[]};
+      _adminSemanaTarefas.forEach(t=>{(grupos[grupos[t.respId]?t.respId:'sem-resp']).tarefas.push(t);});
+      _adminSemanaReunioes.forEach(r=>{if(!r.respIds.length)grupos['sem-resp'].reunioes.push(r);else r.respIds.forEach(rid=>{if(grupos[rid])grupos[rid].reunioes.push(r);});});
+      [...Object.keys(RESP_MAP),'sem-resp'].forEach(rid=>{
+        const g=grupos[rid];
+        if(!g||(g.tarefas.length===0&&g.reunioes.length===0)) return;
+        if(y>PH-40){doc.addPage();addHeader();y=20;}
+        const info=RESP_MAP[rid]||{nome:'Sem responsavel'};
+        doc.setFillColor(240,245,248);doc.rect(M,y-3,CW,9,'F');
+        doc.setFontSize(9);doc.setFont('helvetica','bold');doc.setTextColor(...C.dark);doc.text(info.nome,M+2,y+3);
+        doc.setFontSize(7);doc.setFont('helvetica','normal');doc.setTextColor(...C.muted);doc.text(g.tarefas.length+' tarefas · '+g.reunioes.length+' reunioes',PW-M,y+3,{align:'right'});
+        y+=11;
+        if(g.tarefas.length>0){
+          doc.setFontSize(6);doc.setFont('helvetica','bold');doc.setTextColor(...C.teal);doc.text('TAREFAS',M+2,y);y+=5;
+          g.tarefas.forEach(t=>{
+            if(y>PH-18){doc.addPage();addHeader();y=20;}
+            const rgb=priRGB[normPri(t.prioridade)]||[160,160,160];
+            doc.setFillColor(...rgb);doc.circle(M+3,y-0.5,1.2,'F');
+            doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(t.isDone?160:50,t.isDone?160:60,t.isDone?160:70);
+            const lines=doc.splitTextToSize((t.isDone?'✓ ':'')+t.titulo+(t.clienteNome?' — '+t.clienteNome:''),CW-20);
+            doc.text(lines,M+7,y);
+            if(t.prazo){doc.setFontSize(7);doc.setTextColor(...C.muted);doc.text(new Date(t.prazo).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}),PW-M,y,{align:'right'});}
+            y+=lines.length*5+1;
+          });
+          y+=3;
+        }
+        if(g.reunioes.length>0){
+          doc.setFontSize(6);doc.setFont('helvetica','bold');doc.setTextColor(...C.teal);doc.text('REUNIOES',M+2,y);y+=5;
+          g.reunioes.forEach(r=>{
+            if(y>PH-18){doc.addPage();addHeader();y=20;}
+            doc.setFillColor(...C.teal);doc.circle(M+3,y-0.5,1.2,'F');
+            doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(50,60,70);doc.text(r.titulo,M+7,y);
+            if(r.data){doc.setFontSize(7);doc.setTextColor(...C.muted);doc.text(new Date(r.data).toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'short'}),PW-M,y,{align:'right'});}
+            y+=6;
+          });
+          y+=3;
+        }
+        y+=4;
+      });
+      const totalPages=doc.getNumberOfPages();
+      for(let p=1;p<=totalPages;p++){doc.setPage(p);addFooter(p,totalPages);}
+      const semStr=ini.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}).replace(/\//g,'-');
+      doc.save('Prioridades-Semana-'+semStr+'.pdf');
     }
 
     // ── KANBAN ───────────────────────────────────────────────
