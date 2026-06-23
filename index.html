@@ -13758,9 +13758,9 @@ Esta ação não pode ser desfeita.`)) return;
       }
       doc.setFillColor(...C.abyss);doc.rect(0,0,PW,PH,'F');
       if(logoB64){try{const p=doc.getImageProperties(logoB64);const r=Math.min(40/p.width,22/p.height);doc.addImage(logoB64,'PNG',M,18,p.width*r,p.height*r);}catch(e){}}
-      // subtítulo removido da capa
-      doc.setFontSize(32);doc.setFont('Urbanist','bold');doc.text('Prioridades',M,140);doc.text('da Semana',M,157);
-      doc.setFontSize(12);doc.setFont('Urbanist','normal');doc.setTextColor(160,200,230);doc.text(fmtDate(ini)+' — '+fmtDate(fim),M,172);
+      doc.setFontSize(32);doc.setFont('Urbanist','bold');doc.setTextColor(242,221,198);doc.text('Prioridades',M,140);
+      doc.setFontSize(32);doc.setFont('Urbanist','bold');doc.setTextColor(242,221,198);doc.text('da Semana',M,157);
+      doc.setFontSize(12);doc.setFont('Urbanist','normal');doc.setTextColor(242,221,198);doc.text(fmtDate(ini)+' — '+fmtDate(fim),M,172);
       const totTar=_adminSemanaTarefas.length,doneTar=_adminSemanaTarefas.filter(t=>t.isDone).length,totReu=_adminSemanaReunioes.length;
       doc.setFillColor(10,40,55);doc.rect(M,PH-42,CW,0.3,'F');
       [{label:'TAREFAS',value:String(totTar)},{label:'CONCLUIDAS',value:String(doneTar)},{label:'REUNIOES',value:String(totReu)}].forEach((col,i)=>{
