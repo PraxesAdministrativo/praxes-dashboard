@@ -3110,6 +3110,17 @@
     </div>
   </div>
 
+  <!-- MODAL TAREFA ADMIN KANBAN -->
+  <div class="modal" id="modal-admin-tarefa" style="z-index:6100;">
+    <div class="modal-content" style="max-width:480px;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-admin-tar-titulo">Tarefa</h3>
+        <button class="modal-close" onclick="closeModal('modal-admin-tarefa')">&times;</button>
+      </div>
+      <div class="modal-body" id="modal-admin-tar-body"></div>
+    </div>
+  </div>
+
   <!-- MODAL REUNIÃO -->
   <div class="modal" id="modal-reuniao">
     <div class="modal-content" style="max-width:500px;">
@@ -13633,7 +13644,7 @@ Esta ação não pode ser desfeita.`)) return;
             ${col.tarefas.length === 0
               ? '<div class="admin-kanban-empty">Sem tarefas</div>'
               : col.tarefas.map(t => `
-                <div class="admin-kanban-card">
+                <div class="admin-kanban-card" onclick="adminAbrirTarefa('${t.id}')">
                   <div class="admin-kanban-card-title">${esc(t.titulo)}</div>
                   <div class="admin-kanban-card-meta">
                     ${t.prioridade ? `<span class="admin-kanban-pill akp-${normPri(t.prioridade)}">${esc(t.prioridade)}</span>` : ''}
@@ -13647,6 +13658,70 @@ Esta ação não pode ser desfeita.`)) return;
         </div>`).join('');
     }
 
+    function adminAbrirTarefa(id) {
+      const t = _adminKanbanTarefas.find(x => x.id === id);
+      if (!t) return;
+
+      document.getElementById('modal-admin-tar-titulo').textContent = t.titulo;
+
+      const isDone = (t.status||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'') === 'concluido';
+      const prazoFmt = t.prazo ? new Date(t.prazo).toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'}) : '—';
+      const normPri = s => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+
+      document.getElementById('modal-admin-tar-body').innerHTML = `
+        <div style="display:flex;flex-direction:column;gap:14px;">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            ${t.prioridade ? `<span class="tar-pill tar-pill-${normPri(t.prioridade)}">${esc(t.prioridade)}</span>` : ''}
+            <span class="tar-pill tar-pill-date">📅 ${prazoFmt}</span>
+            ${t.clienteNome ? `<span class="tar-pill tar-pill-resp">${esc(t.clienteNome)}</span>` : ''}
+            ${t.responsavel ? `<span class="tar-pill" style="background:var(--praxes-shell);color:var(--fg-3);">👤 ${esc(t.responsavel)}</span>` : ''}
+          </div>
+          <div style="padding:12px;background:var(--praxes-shell);border-radius:var(--r-md);font-size:12px;color:var(--fg-mute);">
+            <span style="font-weight:600;color:var(--fg-2);">Status:</span> ${esc(t.status||'—')}
+          </div>
+          <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:4px;">
+            <button class="btn-cancel" onclick="closeModal('modal-admin-tarefa')">Fechar</button>
+            <button class="${isDone ? 'btn-secondary' : 'btn-save'}" 
+              onclick="adminToggleTarefaKanban('${t.id}')"
+              id="admin-tar-toggle-btn">
+              ${isDone ? '↩ Reabrir tarefa' : '✓ Marcar como concluída'}
+            </button>
+          </div>
+        </div>`;
+
+      openModal('modal-admin-tarefa');
+    }
+
+    async function adminToggleTarefaKanban(id) {
+      const t = _adminKanbanTarefas.find(x => x.id === id);
+      if (!t) return;
+      const isDone = (t.status||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'') === 'concluido';
+      const novoStatus = isDone ? 'Não iniciada' : 'Concluído';
+
+      const btn = document.getElementById('admin-tar-toggle-btn');
+      if (btn) { btn.disabled = true; btn.textContent = 'Salvando…'; }
+
+      try {
+        const resp = await fetch('https://urckolcywijllkdyjcgc.supabase.co/functions/v1/notion-proxy/v1/pages/' + id.replace(/-/g,''), {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ properties: { 'Status da Tarefa': { status: { name: novoStatus } } } })
+        });
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+
+        t.status = novoStatus;
+        closeModal('modal-admin-tarefa');
+
+        // Remove do kanban se concluída
+        if (novoStatus === 'Concluído') {
+          _adminKanbanTarefas = _adminKanbanTarefas.filter(x => x.id !== id);
+        }
+        adminKanbanRender();
+      } catch(err) {
+        alert('Erro: ' + err.message);
+        if (btn) { btn.disabled = false; btn.textContent = isDone ? '↩ Reabrir tarefa' : '✓ Marcar como concluída'; }
+      }
+    }
     async function adminEntrarComoCliente(clientKey) {
       // SEGURANÇA: decodifica o email e busca no array — não usa índice numérico sequencial
       const email = atob(clientKey);
