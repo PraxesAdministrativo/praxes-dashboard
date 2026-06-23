@@ -1225,67 +1225,101 @@
     .inv-period-btn:hover:not(.active) { background: var(--praxes-shell); color: var(--fg-1); }
 
     /* ── ADMIN PANEL ────────────────────────────────────────────── */
+    /* ── NOVO ADMIN PANEL ─────────────────────────────────────── */
     .admin-panel {
       position: fixed; inset: 0; z-index: 5000;
-      display: flex; flex-direction: column; overflow-y: auto;
+      display: flex; flex-direction: row; overflow: hidden;
       background-color: var(--praxes-abyss);
       background-image: url('./fundo_barco_site.jpg');
       background-size: cover; background-position: center 35%;
     }
+    .admin-panel::before {
+      content: ''; position: absolute; inset: 0;
+      background: rgba(2,15,22,0.82);
+      z-index: 0;
+    }
+    .admin-panel > * { position: relative; z-index: 1; }
+
+    /* Sidebar */
+    .admin-sidebar {
+      width: 220px; flex-shrink: 0;
+      display: flex; flex-direction: column;
+      background: rgba(4,25,36,0.90);
+      border-right: 1px solid rgba(242,221,198,0.08);
+      backdrop-filter: blur(20px);
+      padding: 28px 0 24px;
+    }
+    .admin-sidebar-logo {
+      padding: 0 24px 28px;
+      border-bottom: 1px solid rgba(242,221,198,0.08);
+      margin-bottom: 16px;
+    }
+    .admin-sidebar-logo img { height: 36px; width: auto; filter: brightness(0) invert(1); }
+
+    .admin-nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 24px; cursor: pointer;
+      font-size: 13px; font-weight: 500; font-family: var(--font-body);
+      color: rgba(242,221,198,0.5);
+      border-left: 2px solid transparent;
+      transition: all .15s;
+    }
+    .admin-nav-item:hover { color: rgba(242,221,198,0.85); background: rgba(242,221,198,0.04); }
+    .admin-nav-item.active { color: var(--praxes-sand); border-left-color: var(--praxes-sand); background: rgba(242,221,198,0.06); }
+    .admin-nav-item svg { opacity: .7; flex-shrink: 0; }
+    .admin-nav-item.active svg { opacity: 1; }
+
+    .admin-sidebar-bottom {
+      margin-top: auto; padding: 16px 24px 0;
+      border-top: 1px solid rgba(242,221,198,0.08);
+      font-size: 11px; color: rgba(242,221,198,0.3);
+    }
+
+    /* Main area */
+    .admin-main {
+      flex: 1; display: flex; flex-direction: column; overflow: hidden;
+    }
     .admin-topbar {
-      position: relative; z-index: 2;
       display: flex; align-items: center; justify-content: space-between;
-      padding: 0 52px; height: 72px; flex-shrink: 0;
-      background: rgba(4,25,36,0.80);
+      padding: 0 36px; height: 64px; flex-shrink: 0;
+      background: rgba(4,25,36,0.70);
       border-bottom: 1px solid rgba(242,221,198,0.08);
       backdrop-filter: blur(16px);
     }
-    .admin-topbar-left { display: flex; flex-direction: column; gap: 2px; }
-    .admin-topbar-eyebrow {
-      font-size: 10px; font-weight: 500; letter-spacing: 0.18em;
-      text-transform: uppercase; color: rgba(242,221,198,0.35);
-      font-family: var(--font-body);
-    }
     .admin-topbar-title {
       font-family: var(--font-display);
-      font-size: 18px; font-weight: 600; color: var(--praxes-sand); letter-spacing: -0.01em;
+      font-size: 16px; font-weight: 600; color: var(--praxes-sand); letter-spacing: -0.01em;
     }
     .admin-body {
-      position: relative; z-index: 2;
-      flex: 1; padding: 52px;
-      background: rgba(4,25,36,0.70);
+      flex: 1; overflow-y: auto; padding: 36px;
     }
     .admin-section-label {
       font-size: 10px; font-weight: 500; letter-spacing: 0.18em;
       text-transform: uppercase; color: rgba(242,221,198,0.35);
-      margin-bottom: 24px; font-family: var(--font-body);
+      margin-bottom: 20px; font-family: var(--font-body);
     }
+
+    /* Grid clientes */
     .admin-clients-grid {
-      display: grid; grid-template-columns: repeat(auto-fill, minmax(300px,1fr)); gap: 14px;
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(280px,1fr)); gap: 12px;
     }
     .admin-client-card {
       background: rgba(242,221,198,0.06);
-      border: 1px solid rgba(242,221,198,0.12);
-      border-radius: var(--r-lg); padding: 20px 24px; cursor: pointer;
-      transition: all var(--dur-2) var(--ease-out);
-      display: flex; align-items: center; gap: 16px;
+      border: 1px solid rgba(242,221,198,0.10);
+      border-radius: var(--r-lg); padding: 18px 20px; cursor: pointer;
+      transition: all .15s;
+      display: flex; align-items: center; gap: 14px;
       backdrop-filter: blur(8px);
     }
-    .admin-client-card:hover {
-      background: rgba(242,221,198,0.11);
-      border-color: rgba(242,221,198,0.22);
-    }
+    .admin-client-card:hover { background: rgba(242,221,198,0.11); border-color: rgba(242,221,198,0.22); }
     .admin-client-avatar {
-      width: 44px; height: 44px; border-radius: 50%;
+      width: 42px; height: 42px; border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
-      font-family: var(--font-display);
-      font-weight: 600; font-size: 15px; color: var(--praxes-sand); flex-shrink: 0;
+      font-family: var(--font-display); font-weight: 600; font-size: 14px;
+      color: var(--praxes-sand); flex-shrink: 0;
     }
-    .admin-client-name {
-      font-family: var(--font-display);
-      font-size: 15px; font-weight: 500; color: var(--praxes-sand); margin-bottom: 3px;
-    }
-    .admin-client-email { font-size: 12px; color: rgba(242,221,198,0.4); }
+    .admin-client-name { font-family: var(--font-display); font-size: 14px; font-weight: 500; color: var(--praxes-sand); margin-bottom: 2px; }
+    .admin-client-email { font-size: 11px; color: rgba(242,221,198,0.4); }
     .admin-back-btn {
       position: fixed; bottom: 28px; right: 28px; z-index: 6000;
       background: var(--praxes-sand); color: var(--praxes-abyss);
@@ -1295,6 +1329,62 @@
       transition: all var(--dur-1); font-family: var(--font-body);
     }
     .admin-back-btn:hover { background: var(--praxes-bone); }
+
+    /* Kanban */
+    .admin-kanban-filters {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 24px; flex-wrap: wrap;
+    }
+    .admin-kanban-filters select {
+      padding: 7px 12px; font-size: 12px; font-family: inherit;
+      background: rgba(242,221,198,0.08); border: 1px solid rgba(242,221,198,0.15);
+      border-radius: var(--r-pill); color: rgba(242,221,198,0.8); outline: none; cursor: pointer;
+    }
+    .admin-kanban-filters select option { background: #041924; }
+
+    .admin-kanban {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; align-items: start;
+    }
+    .admin-kanban-col {
+      background: rgba(4,25,36,0.60); border: 1px solid rgba(242,221,198,0.08);
+      border-radius: var(--r-lg); overflow: hidden; backdrop-filter: blur(8px);
+    }
+    .admin-kanban-col-header {
+      padding: 14px 16px; border-bottom: 1px solid rgba(242,221,198,0.08);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .admin-kanban-col-title {
+      font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+      color: rgba(242,221,198,0.6);
+    }
+    .admin-kanban-col-count {
+      font-size: 10px; font-weight: 700; padding: 2px 7px;
+      border-radius: var(--r-pill); background: rgba(242,221,198,0.1);
+      color: rgba(242,221,198,0.5);
+    }
+    .admin-kanban-col-body { padding: 10px; display: flex; flex-direction: column; gap: 8px; min-height: 60px; }
+
+    .admin-kanban-card {
+      background: rgba(242,221,198,0.07); border: 1px solid rgba(242,221,198,0.10);
+      border-radius: var(--r-md); padding: 12px 14px; cursor: pointer;
+      transition: all .15s;
+    }
+    .admin-kanban-card:hover { background: rgba(242,221,198,0.12); border-color: rgba(242,221,198,0.2); }
+    .admin-kanban-card-title { font-size: 12px; font-weight: 600; color: rgba(242,221,198,0.9); line-height: 1.4; margin-bottom: 8px; }
+    .admin-kanban-card-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .admin-kanban-pill {
+      font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: var(--r-pill);
+      white-space: nowrap;
+    }
+    .akp-alta   { background: rgba(220,50,50,0.25);  color: #ff8080; }
+    .akp-media  { background: rgba(240,160,0,0.25);  color: #ffc040; }
+    .akp-baixa  { background: rgba(50,180,80,0.25);  color: #60dd80; }
+    .akp-cliente { background: rgba(42,90,102,0.4);  color: rgba(242,221,198,0.7); }
+    .akp-resp   { background: rgba(242,221,198,0.1); color: rgba(242,221,198,0.5); }
+    .admin-kanban-empty { font-size: 11px; color: rgba(242,221,198,0.2); padding: 8px 4px; text-align: center; }
+
+    /* Views */
+    .admin-view { display: none; }
+    .admin-view.active { display: block; }
 
     /* ── CONTROLE FINANCEIRO ────────────────────────────────────── */
     .fin-tabs-header {
@@ -3909,45 +3999,80 @@
 
   <!-- ADMIN PANEL -->
 
-  <div id="admin-panel" style="display:none;" class="admin-panel">
-    <div class="admin-header">
-      <div>
-        <img src="./logo.png" alt="Praxes" style="height:40px;width:auto;display:block;">
-        <div class="admin-subtitle">Painel Administrativo</div>
-      </div>
-      <div style="font-size:13px;color:rgba(255,255,255,0.5);" id="admin-count"></div>
-    </div>
-    <div class="admin-clients-grid" id="admin-clients-grid">
-      <div style="color:rgba(255,255,255,0.5);padding:40px;grid-column:1/-1;text-align:center;">
-        <div class="spinner" style="border-color:rgba(255,255,255,0.2);border-top-color:#fff;"></div>
-        <p style="margin-top:16px;">Carregando clientes...</p>
-      </div>
-    </div>
-  </div>
-
-  <!-- BOTÃO VOLTAR ADMIN (aparece quando admin está vendo cliente) -->
-  <button id="admin-back-btn" class="admin-back-btn" style="display:none;" onclick="adminVoltar()">
-    ← Voltar ao Painel Admin
-  </button>
-
   <!-- ADMIN PANEL -->
   <div id="admin-panel" style="display:none;" class="admin-panel">
-    <!-- Topbar -->
-    <div class="admin-topbar">
-      <div class="admin-topbar-left">
-        <div class="admin-topbar-eyebrow">Portal Praxes</div>
-        <div class="admin-topbar-title">Gestão de Clientes</div>
+
+    <!-- Sidebar -->
+    <div class="admin-sidebar">
+      <div class="admin-sidebar-logo">
+        <img src="./logo.png" alt="Praxes">
       </div>
-      <img src="./logo.png" alt="Praxes" style="height:34px;width:auto;filter:brightness(0) invert(1);opacity:0.85;">
+      <div class="admin-nav-item active" id="admin-nav-clientes" onclick="adminSetView('clientes')">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+        Clientes
+      </div>
+      <div class="admin-nav-item" id="admin-nav-tarefas" onclick="adminSetView('tarefas')">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+        Tarefas
+      </div>
+      <div class="admin-sidebar-bottom">
+        Praxes Gestão Patrimonial
+      </div>
     </div>
-    <!-- Body -->
-    <div class="admin-body">
-      <div class="admin-section-label" id="admin-count">Carregando...</div>
-      <div class="admin-clients-grid" id="admin-clients-grid">
-        <div style="color:rgba(255,255,255,0.4);padding:40px;grid-column:1/-1;text-align:center;">
-          <div class="spinner" style="border-color:rgba(255,255,255,0.15);border-top-color:rgba(255,255,255,0.7);margin:0 auto;"></div>
-          <p style="margin-top:16px;font-size:13px;">Carregando clientes...</p>
+
+    <!-- Main -->
+    <div class="admin-main">
+      <!-- Topbar -->
+      <div class="admin-topbar">
+        <div class="admin-topbar-title" id="admin-topbar-title">Clientes</div>
+        <div style="display:flex;align-items:center;gap:16px;">
+          <input id="admin-search" type="text" placeholder="Buscar cliente…" oninput="adminFiltrarClientes()" style="padding:7px 14px;font-size:12px;font-family:inherit;background:rgba(242,221,198,0.08);border:1px solid rgba(242,221,198,0.15);border-radius:var(--r-pill);color:rgba(242,221,198,0.8);outline:none;width:200px;">
+          <div class="admin-section-label" id="admin-count" style="margin:0;"></div>
         </div>
+      </div>
+
+      <!-- Body -->
+      <div class="admin-body">
+
+        <!-- VIEW: Clientes -->
+        <div class="admin-view active" id="admin-view-clientes">
+          <div class="admin-clients-grid" id="admin-clients-grid">
+            <div style="color:rgba(255,255,255,0.4);padding:40px;grid-column:1/-1;text-align:center;">
+              <div class="spinner" style="border-color:rgba(255,255,255,0.15);border-top-color:rgba(255,255,255,0.7);margin:0 auto;"></div>
+              <p style="margin-top:16px;font-size:13px;">Carregando clientes...</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- VIEW: Tarefas Kanban -->
+        <div class="admin-view" id="admin-view-tarefas">
+          <div class="admin-kanban-filters">
+            <select id="admin-kan-resp" onchange="adminKanbanRender()">
+              <option value="">Todos responsáveis</option>
+              <option value="1a7d872b-594c-8187-93b9-0002690009a5">Administrativo Praxes</option>
+              <option value="1e7d872b-594c-813b-8865-0002b484a81e">Caio H. Alberconi</option>
+              <option value="1f2d872b-594c-8115-9dd0-000256f46389">Alexandre Amorim</option>
+              <option value="1f2d872b-594c-817b-bb7d-00026db7ced4">Luiz Beck</option>
+            </select>
+            <select id="admin-kan-pri" onchange="adminKanbanRender()">
+              <option value="">Todas prioridades</option>
+              <option value="Alta">Alta</option>
+              <option value="Media">Média</option>
+              <option value="Baixa">Baixa</option>
+            </select>
+            <button onclick="adminKanbanLoad()" style="padding:7px 14px;font-size:12px;font-family:inherit;background:rgba(242,221,198,0.08);border:1px solid rgba(242,221,198,0.15);border-radius:var(--r-pill);color:rgba(242,221,198,0.6);cursor:pointer;display:flex;align-items:center;gap:6px;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+              Atualizar
+            </button>
+            <span id="admin-kan-status" style="font-size:11px;color:rgba(242,221,198,0.3);margin-left:4px;"></span>
+          </div>
+          <div class="admin-kanban" id="admin-kanban-board">
+            <div style="grid-column:1/-1;text-align:center;padding:40px;color:rgba(242,221,198,0.3);font-size:13px;">
+              Clique em "Tarefas" para carregar o kanban.
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   </div>
@@ -3956,8 +4081,6 @@
   <button id="admin-back-btn" class="admin-back-btn" style="display:none;" onclick="adminVoltar()">
     ← Voltar ao Admin
   </button>
-
-  <!-- MODAL LANÇAMENTO (add/edit) -->
   <div class="modal" id="modal-lanc">
     <div class="modal-content" style="max-width:560px;">
       <div class="modal-header">
@@ -13344,30 +13467,184 @@ Esta ação não pode ser desfeita.`)) return;
       const { data: clients } = await db.from('clients').select('*').order('name');
       _adminClients = clients || [];
 
-      document.getElementById('admin-count').textContent = _adminClients.length + ' cliente(s) cadastrado(s)';
+      document.getElementById('admin-count').textContent = _adminClients.length + ' clientes';
+      adminRenderGrid(_adminClients);
+    }
 
+    function adminRenderGrid(lista) {
       const grid = document.getElementById('admin-clients-grid');
-      if (!_adminClients.length) {
-        grid.innerHTML = '<p style="color:rgba(255,255,255,0.5);grid-column:1/-1;text-align:center;padding:40px;">Nenhum cliente cadastrado.</p>';
+      if (!lista.length) {
+        grid.innerHTML = '<p style="color:rgba(255,255,255,0.5);grid-column:1/-1;text-align:center;padding:40px;">Nenhum cliente encontrado.</p>';
         return;
       }
-
-      grid.innerHTML = _adminClients.map((c, i) => {
+      const colors = ['#629ec1','#10b981','#8b5cf6','#f59e0b','#ef4444','#06b6d4'];
+      grid.innerHTML = lista.map((c, i) => {
         const initials = c.name.split(' ').map(p=>p[0]).slice(0,2).join('').toUpperCase();
-        const colors = ['#629ec1','#10b981','#8b5cf6','#f59e0b','#ef4444','#06b6d4'];
         const bg = colors[i % colors.length];
-        // SEGURANÇA: usa email em base64 em vez do índice numérico
-        // Email não é sequencial nem adivinhável como 0,1,2...
         const clientKey = btoa(c.email);
         return `<div class="admin-client-card" onclick="adminEntrarComoCliente('${esc(clientKey)}')">
           <div class="admin-client-avatar" style="background:${bg};">${esc(initials)}</div>
-          <div>
+          <div style="flex:1;min-width:0;">
             <div class="admin-client-name">${esc(c.name)}</div>
             <div class="admin-client-email">${esc(c.email)}</div>
           </div>
-          <svg style="margin-left:auto;opacity:0.3;flex-shrink:0;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          <svg style="opacity:0.3;flex-shrink:0;" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
         </div>`;
       }).join('');
+    }
+
+    function adminFiltrarClientes() {
+      const q = (document.getElementById('admin-search')?.value || '').toLowerCase();
+      const lista = q ? _adminClients.filter(c => c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q)) : _adminClients;
+      adminRenderGrid(lista);
+      document.getElementById('admin-count').textContent = lista.length + ' clientes';
+    }
+
+    function adminSetView(view) {
+      document.querySelectorAll('.admin-nav-item').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.admin-view').forEach(el => el.classList.remove('active'));
+      document.getElementById('admin-nav-' + view).classList.add('active');
+      document.getElementById('admin-view-' + view).classList.add('active');
+      document.getElementById('admin-topbar-title').textContent = view === 'clientes' ? 'Clientes' : 'Tarefas';
+
+      // Esconde search quando não está em clientes
+      document.getElementById('admin-search').style.display = view === 'clientes' ? '' : 'none';
+
+      if (view === 'tarefas' && !_adminKanbanLoaded) adminKanbanLoad();
+    }
+
+    // ── KANBAN ───────────────────────────────────────────────
+    let _adminKanbanTarefas = [];
+    let _adminKanbanLoaded  = false;
+    // Mapa clienteNotionId → nome (cache)
+    let _adminClienteNomes  = {};
+
+    async function adminKanbanLoad() {
+      const board = document.getElementById('admin-kanban-board');
+      const status = document.getElementById('admin-kan-status');
+      board.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:rgba(242,221,198,0.3);font-size:13px;"><div class="spinner" style="border-color:rgba(255,255,255,0.1);border-top-color:rgba(255,255,255,0.5);margin:0 auto;"></div><p style="margin-top:12px;">Carregando tarefas...</p></div>';
+      status.textContent = '';
+
+      try {
+        // Busca todas as tarefas em aberto do Notion
+        let all = [];
+        let cursor;
+        do {
+          const body = {
+            page_size: 100,
+            sorts: [{ property: 'Data de Vencimento', direction: 'ascending' }],
+            filter: {
+              and: [
+                { property: 'Status da Tarefa', status: { does_not_equal: 'Concluído' } }
+              ]
+            }
+          };
+          if (cursor) body.start_cursor = cursor;
+          const resp = await fetch('https://urckolcywijllkdyjcgc.supabase.co/functions/v1/notion-proxy/v1/databases/1ec701b863e680f381d8d07cc4dacab4/query', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+          });
+          if (!resp.ok) throw new Error('HTTP ' + resp.status);
+          const data = await resp.json();
+          all = all.concat(data.results || []);
+          cursor = data.has_more ? data.next_cursor : undefined;
+        } while (cursor);
+
+        // Parse das tarefas
+        _adminKanbanTarefas = await Promise.all(all.map(async page => {
+          const p = page.properties || {};
+          const titulo    = p['Nome']?.title?.map(t=>t.plain_text).join('') || '—';
+          const status    = p['Status da Tarefa']?.status?.name || '';
+          const prioridade = p['Prioridade']?.select?.name || '';
+          const prazo     = p['Data de Vencimento']?.date?.start || null;
+          const respPeople = p['Responsável']?.people || [];
+          const responsavel = respPeople.map(u => u.name || '').filter(Boolean).join(', ');
+          const respId    = respPeople[0]?.id || '';
+          const clienteRel = p['Cliente']?.relation?.[0]?.id || null;
+
+          // Nome do cliente (do cache ou busca)
+          let clienteNome = '';
+          if (clienteRel) {
+            if (_adminClienteNomes[clienteRel]) {
+              clienteNome = _adminClienteNomes[clienteRel];
+            } else {
+              try {
+                const cr = await fetch('https://urckolcywijllkdyjcgc.supabase.co/functions/v1/notion-proxy/v1/pages/' + clienteRel.replace(/-/g,''), { headers: { 'Content-Type': 'application/json' } });
+                if (cr.ok) {
+                  const cd = await cr.json();
+                  clienteNome = cd.properties?.['Nome']?.title?.map(t=>t.plain_text).join('') || '';
+                  _adminClienteNomes[clienteRel] = clienteNome;
+                }
+              } catch(e) {}
+            }
+          }
+          return { id: page.id, titulo, status, prioridade, prazo, responsavel, respId, clienteNome };
+        }));
+
+        _adminKanbanLoaded = true;
+        status.textContent = _adminKanbanTarefas.length + ' tarefas carregadas';
+        adminKanbanRender();
+      } catch(err) {
+        board.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:40px;color:rgba(242,221,198,0.3);font-size:13px;">Erro ao carregar tarefas.<br><small>${esc(err.message)}</small></div>`;
+      }
+    }
+
+    function adminKanbanRender() {
+      const board   = document.getElementById('admin-kanban-board');
+      const respFil = document.getElementById('admin-kan-resp')?.value || '';
+      const priFil  = document.getElementById('admin-kan-pri')?.value  || '';
+
+      let tarefas = _adminKanbanTarefas.filter(t => {
+        if (respFil && t.respId !== respFil) return false;
+        if (priFil  && t.prioridade !== priFil) return false;
+        return true;
+      });
+
+      // Calcula semanas
+      const hoje = new Date(); hoje.setHours(0,0,0,0);
+      const fimSem1 = new Date(hoje); fimSem1.setDate(hoje.getDate() + (6 - hoje.getDay() + 1)); // próxima segunda
+      const fimSem2 = new Date(fimSem1); fimSem2.setDate(fimSem1.getDate() + 7);
+      const fimSem3 = new Date(fimSem2); fimSem3.setDate(fimSem2.getDate() + 7);
+
+      const cols = [
+        { id: 'sem1', label: 'Esta semana',       tarefas: [] },
+        { id: 'sem2', label: 'Próxima semana',     tarefas: [] },
+        { id: 'sem3', label: 'Em 3 semanas',       tarefas: [] },
+        { id: 'sem4', label: '+4 semanas / Sem data', tarefas: [] },
+      ];
+
+      tarefas.forEach(t => {
+        if (!t.prazo) { cols[3].tarefas.push(t); return; }
+        const d = new Date(t.prazo);
+        if (d < fimSem1)      cols[0].tarefas.push(t);
+        else if (d < fimSem2) cols[1].tarefas.push(t);
+        else if (d < fimSem3) cols[2].tarefas.push(t);
+        else                  cols[3].tarefas.push(t);
+      });
+
+      const normPri = s => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+
+      board.innerHTML = cols.map(col => `
+        <div class="admin-kanban-col">
+          <div class="admin-kanban-col-header">
+            <span class="admin-kanban-col-title">${col.label}</span>
+            <span class="admin-kanban-col-count">${col.tarefas.length}</span>
+          </div>
+          <div class="admin-kanban-col-body">
+            ${col.tarefas.length === 0
+              ? '<div class="admin-kanban-empty">Sem tarefas</div>'
+              : col.tarefas.map(t => `
+                <div class="admin-kanban-card">
+                  <div class="admin-kanban-card-title">${esc(t.titulo)}</div>
+                  <div class="admin-kanban-card-meta">
+                    ${t.prioridade ? `<span class="admin-kanban-pill akp-${normPri(t.prioridade)}">${esc(t.prioridade)}</span>` : ''}
+                    ${t.clienteNome ? `<span class="admin-kanban-pill akp-cliente">${esc(t.clienteNome)}</span>` : ''}
+                    ${t.responsavel ? `<span class="admin-kanban-pill akp-resp">${esc(t.responsavel)}</span>` : ''}
+                    ${t.prazo ? `<span class="admin-kanban-pill akp-resp">📅 ${new Date(t.prazo).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})}</span>` : ''}
+                  </div>
+                </div>`).join('')
+            }
+          </div>
+        </div>`).join('');
     }
 
     async function adminEntrarComoCliente(clientKey) {
