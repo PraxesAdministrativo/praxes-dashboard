@@ -4716,6 +4716,11 @@
 
         if (client.is_admin) {
           await adminShowPanel();
+          // Restaura o cliente que estava sendo visualizado antes da troca de aba / F5
+          const clienteKey = sessionStorage.getItem('praxes-admin-cliente');
+          if (clienteKey) {
+            await adminEntrarComoCliente(clienteKey);
+          }
         } else {
           adminCarregarCliente(client);
         }
@@ -14023,6 +14028,8 @@ Esta ação não pode ser desfeita.`)) return;
       const email = atob(clientKey);
       const client = _adminClients.find(c => c.email === email);
       if (!client) { alert('Cliente não encontrado.'); return; }
+      // Persiste o cliente ativo para restaurar após troca de aba / F5
+      sessionStorage.setItem('praxes-admin-cliente', clientKey);
       document.getElementById('admin-panel').style.display = 'none';
       document.getElementById('admin-back-btn').style.display = 'block';
       adminCarregarCliente(client);
@@ -14111,6 +14118,9 @@ Esta ação não pode ser desfeita.`)) return;
     async function adminVoltar() {
       document.getElementById('admin-back-btn').style.display = 'none';
       document.getElementById('app-container').style.display = 'none';
+
+      // Limpa cliente persistido — voltou ao menu intencionalmente
+      sessionStorage.removeItem('praxes-admin-cliente');
 
       // Reseta dados
       imoveisData=[]; finLancamentos=[]; finGerRows=[]; finColMap={}; docsData=[]; veiculosData=[];
