@@ -4557,6 +4557,8 @@
     function navigateTo(pageName) {
       document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
       document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      // Persiste página ativa para restaurar após troca de aba
+      sessionStorage.setItem('praxes-pagina-ativa', pageName);
       
       document.getElementById('page-' + pageName).classList.add('active');
       const navItem = document.querySelector(`.nav-item[data-page="${pageName}"]`);
@@ -14111,7 +14113,13 @@ Esta ação não pode ser desfeita.`)) return;
         if (navObjetivos) navObjetivos.style.display = 'none';
       }
 
-      navigateTo('dashboard');
+      const paginaRestaurada = sessionStorage.getItem('praxes-pagina-ativa');
+      // Páginas que não fazem sentido restaurar (sub-páginas que dependem de seleção prévia)
+      const paginasSeguras = ['dashboard','investimentos','imoveis','financeiro','veiculos','documentos','tarefas','reunioes','objetivos','perfil'];
+      const paginaInicial = (paginaRestaurada && paginasSeguras.includes(paginaRestaurada))
+        ? paginaRestaurada
+        : 'dashboard';
+      navigateTo(paginaInicial);
       loadDashboard();
     }
 
@@ -14119,8 +14127,9 @@ Esta ação não pode ser desfeita.`)) return;
       document.getElementById('admin-back-btn').style.display = 'none';
       document.getElementById('app-container').style.display = 'none';
 
-      // Limpa cliente persistido — voltou ao menu intencionalmente
+      // Limpa cliente e página persistidos — voltou ao menu intencionalmente
       sessionStorage.removeItem('praxes-admin-cliente');
+      sessionStorage.removeItem('praxes-pagina-ativa');
 
       // Reseta dados
       imoveisData=[]; finLancamentos=[]; finGerRows=[]; finColMap={}; docsData=[]; veiculosData=[];
