@@ -11125,7 +11125,7 @@ Esta ação não pode ser desfeita.`)) return;
       try {
         const resp = await gapi.client.sheets.spreadsheets.values.batchGet({
           spreadsheetId: window.veiSheetId,
-          ranges: ['Lista!A2:P200'],
+          ranges: ['lista!A2:P200'],
           valueRenderOption: 'UNFORMATTED_VALUE'
         });
         veiculosData = (resp.result.valueRanges[0].values || []).filter(r => r[0]);
@@ -11270,7 +11270,7 @@ Esta ação não pode ser desfeita.`)) return;
       try {
         const nome = veiculosData[veiAtualIndex][0];
         const resp = await gapi.client.sheets.spreadsheets.values.get({
-          spreadsheetId: window.veiSheetId, range: 'Manutencao!A2:G200', valueRenderOption:'UNFORMATTED_VALUE'
+          spreadsheetId: window.veiSheetId, range: 'manutencao!A2:G200', valueRenderOption:'UNFORMATTED_VALUE'
         });
         const rows = (resp.result.values||[]).filter(r=>r[0]===nome);
         const tbody = document.getElementById('vei-manutencao-tbody');
@@ -11304,7 +11304,7 @@ Esta ação não pode ser desfeita.`)) return;
         form.elements['km'].value||'', form.elements['valor'].value||'', form.elements['oficina'].value||'', form.elements['obs'].value||''];
       try {
         await gapi.client.sheets.spreadsheets.values.append({
-          spreadsheetId: window.veiSheetId, range:'Manutencao!A:G',
+          spreadsheetId: window.veiSheetId, range:'manutencao!A:G',
           valueInputOption:'USER_ENTERED', resource:{values:[row]}
         });
         closeModal('modal-manutencao'); veiLoadManutencao(); alert('✅ Manutenção registrada!');
@@ -11332,12 +11332,12 @@ Esta ação não pode ser desfeita.`)) return;
       try {
         if (idx !== null && idx !== undefined) {
           await gapi.client.sheets.spreadsheets.values.update({
-            spreadsheetId:window.veiSheetId, range:`Lista!A${parseInt(idx)+2}:O${parseInt(idx)+2}`,
+            spreadsheetId:window.veiSheetId, range:`lista!A${parseInt(idx)+2}:O${parseInt(idx)+2}`,
             valueInputOption:'USER_ENTERED', resource:{values:[row]}
           });
         } else {
           await gapi.client.sheets.spreadsheets.values.append({
-            spreadsheetId:window.veiSheetId, range:'Lista!A:O',
+            spreadsheetId:window.veiSheetId, range:'lista!A:O',
             valueInputOption:'USER_ENTERED', resource:{values:[row]}
           });
         }
@@ -11349,7 +11349,7 @@ Esta ação não pode ser desfeita.`)) return;
       if (!confirm(`Excluir "${veiculosData[i][0]}"?`)) return;
       try {
         const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId:window.veiSheetId});
-        const sh = meta.result.sheets.find(s=>s.properties.title==='Lista') || meta.result.sheets[0];
+        const sh = meta.result.sheets.find(s=>s.properties.title==='lista') || meta.result.sheets[0];
         if (!sh) { alert('Aba não encontrada na planilha'); return; }
         await gapi.client.sheets.spreadsheets.batchUpdate({spreadsheetId:window.veiSheetId, resource:{requests:[{deleteDimension:{range:{sheetId:sh.properties.sheetId,dimension:'ROWS',startIndex:i+1,endIndex:i+2}}}]}});
         await veiculosLoad(); alert('✅ Veículo excluído!');
@@ -11367,7 +11367,7 @@ Esta ação não pode ser desfeita.`)) return;
         folderId = r.result.id;
         row[15] = folderId;
         await gapi.client.sheets.spreadsheets.values.update({
-          spreadsheetId:window.veiSheetId, range:`Lista!P${veiAtualIndex+2}`,
+          spreadsheetId:window.veiSheetId, range:`lista!P${veiAtualIndex+2}`,
           valueInputOption:'USER_ENTERED', resource:{values:[[folderId]]}
         });
       }
@@ -11380,7 +11380,7 @@ Esta ação não pode ser desfeita.`)) return;
       if (!confirm('Excluir esta manutenção?')) return;
       try {
         const meta = await gapi.client.sheets.spreadsheets.get({spreadsheetId:window.veiSheetId});
-        const sh = meta.result.sheets.find(s=>s.properties.title==='Manutencao') || meta.result.sheets.find(s=>s.properties.title==='Manutenção');
+        const sh = meta.result.sheets.find(s=>s.properties.title==='manutencao') || meta.result.sheets.find(s=>s.properties.title==='manutencao');
         if (!sh) { alert('Aba Manutencao não encontrada'); return; }
         await gapi.client.sheets.spreadsheets.batchUpdate({spreadsheetId:window.veiSheetId,resource:{requests:[{deleteDimension:{range:{sheetId:sh.properties.sheetId,dimension:'ROWS',startIndex:rowNum-1,endIndex:rowNum}}}]}});
         veiLoadManutencao();
