@@ -101,6 +101,87 @@
       --border-strong:    var(--line-strong);
     }
 
+    /* ── MODO ESCURO ────────────────────────────────────────────
+       Onda 1: chrome do app (sidebar, top bar, modais, botões,
+       inputs, balanço patrimonial). O conteúdo das demais páginas
+       ainda usa cor fixa em vários pontos — por isso .content-wrapper
+       fica pinado em superfície clara até cada página ser migrada
+       (ver .praxes-ilha-clara abaixo). Migrar uma página = tirar
+       o id dela da lista de exceções em JS (patApplyTheme). */
+    html[data-theme="dark"] {
+      --bg:              var(--praxes-abyss);
+      --bg-elev:         var(--praxes-abyss-90);
+      --surface:         var(--praxes-deep);
+      --surface-sunken:  var(--praxes-abyss-90);
+
+      --fg:              var(--praxes-sand);
+      --fg-1:            var(--praxes-sand);
+      --fg-2:            var(--praxes-teal-20);
+      --fg-3:            var(--praxes-teal-20);
+      --fg-mute:         var(--praxes-teal-40);
+
+      --line:            rgba(242,221,198,0.14);
+      --line-strong:     rgba(242,221,198,0.26);
+
+      --accent:          var(--praxes-sand);
+      --accent-sand:     var(--praxes-sand);
+      --danger:          #ff6b6b;
+      --success:         #4ade80;
+      --success-bg:      rgba(74,222,128,0.12);
+      --danger-bg:       rgba(255,107,107,0.12);
+
+      --azul-principal:  var(--praxes-sand);
+      --azul-secundario: var(--praxes-teal-20);
+      --azul-terciario:  var(--praxes-teal-40);
+      --branco:          var(--praxes-deep);
+      --cinza-claro:     var(--praxes-abyss-90);
+      --text-primary:    var(--praxes-sand);
+      --text-dark:       var(--praxes-sand);
+      --text-light:      var(--praxes-teal-20);
+      --borda:           var(--line);
+      --verde:           var(--success);
+      --verde-bg:        var(--success-bg);
+      --vermelho:        var(--danger);
+      --vermelho-bg:     var(--danger-bg);
+      --navy:            var(--praxes-sand);
+      --navy-deep:       var(--praxes-sand);
+      --navy-mid:        var(--praxes-teal-20);
+      --navy-light:      var(--praxes-teal-40);
+      --navy-pale:       var(--praxes-abyss-90);
+      --gold:            var(--praxes-sand);
+      --gold-light:      var(--praxes-sand);
+      --gold-pale:       var(--praxes-abyss-90);
+      --surface-2:       var(--praxes-deep);
+      --border:          var(--line);
+      --border-strong:   var(--line-strong);
+    }
+
+    /* Ilha clara: até cada página migrar, o conteúdo interno mantém
+       fundo/tokens de light mode mesmo com o app em dark — evita
+       texto escuro sobre fundo escuro nas ~569 cores ainda fixas
+       espalhadas pelas páginas legadas. */
+    html[data-theme="dark"] .praxes-ilha-clara {
+      --bg:             var(--praxes-paper);
+      --bg-elev:        var(--praxes-bone);
+      --surface:        #ffffff;
+      --surface-sunken: var(--praxes-shell);
+      --fg:             var(--praxes-abyss);
+      --fg-1:           var(--praxes-abyss);
+      --fg-2:           var(--praxes-deep);
+      --fg-3:           var(--praxes-teal);
+      --fg-mute:        var(--praxes-teal-40);
+      --line:           rgba(4,25,36,0.10);
+      --line-strong:    rgba(4,25,36,0.20);
+      --azul-principal: var(--praxes-teal);
+      --text-primary:   var(--praxes-abyss);
+      --text-dark:      var(--praxes-abyss);
+      --text-light:     var(--praxes-teal-40);
+      --cinza-claro:    var(--praxes-shell);
+      --surface-2:      #ffffff;
+      background: var(--praxes-paper);
+      color: var(--praxes-abyss);
+    }
+
     * { margin:0; padding:0; box-sizing:border-box; }
 
     body {
@@ -136,7 +217,7 @@
     /* ── SIDEBAR — light paper mode ─────────────────────────────── */
     .sidebar {
       width: 236px;
-      background: var(--praxes-bone);
+      background: var(--bg-elev);
       color: var(--fg-1);
       position: fixed;
       left:0; top:0; bottom:0;
@@ -243,9 +324,32 @@
     }
     .btn-signout:hover { background: var(--praxes-shell); color: var(--fg-1); }
 
+    .theme-toggle {
+      margin-top: 10px; width: 100%; padding: 8px 10px;
+      background: transparent; border: none;
+      display: flex; align-items: center; gap: 10px;
+      cursor: pointer; font-family: var(--font-body);
+      font-size: 11px; color: var(--fg-mute); letter-spacing: 0.04em;
+      border-radius: var(--r-pill); transition: background var(--dur-1);
+    }
+    .theme-toggle:hover { background: var(--praxes-shell); }
+    .theme-toggle-track {
+      width: 30px; height: 17px; border-radius: var(--r-pill);
+      background: var(--praxes-shell); box-shadow: inset 0 0 0 1px var(--line-strong);
+      position: relative; flex-shrink: 0; transition: background var(--dur-2);
+    }
+    .theme-toggle-thumb {
+      position: absolute; top: 2px; left: 2px; width: 13px; height: 13px;
+      border-radius: 50%; background: #ffffff; box-shadow: 0 1px 2px rgba(4,25,36,0.25);
+      transition: transform var(--dur-2) var(--ease-out);
+    }
+    html[data-theme="dark"] .theme-toggle-track { background: var(--praxes-teal); }
+    html[data-theme="dark"] .theme-toggle-thumb { transform: translateX(13px); background: var(--praxes-abyss); }
+
     /* ── TOP BAR ────────────────────────────────────────────────── */
     .top-bar {
-      background: rgba(255,253,249,0.90);
+      background: var(--bg-elev);
+      opacity: 0.97;
       backdrop-filter: blur(20px) saturate(1.2);
       -webkit-backdrop-filter: blur(20px) saturate(1.2);
       padding: 0 40px;
@@ -2009,6 +2113,15 @@
   </style>
 </head>
 <body>
+  <script>
+    // Aplica o tema salvo ANTES do primeiro paint, evitando flash de claro→escuro.
+    (function () {
+      try {
+        var t = localStorage.getItem('praxes-theme');
+        if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+      } catch (e) {}
+    })();
+  </script>
 
   <!-- AUTH SECTION -->
   <div id="auth-section">
@@ -2137,6 +2250,10 @@
         <div class="sidebar-advisor-label">Assessoria</div>
         <div class="sidebar-advisor-name" id="sidebar-advisor-name">Praxes</div>
         <div class="sidebar-advisor-contact" id="sidebar-advisor-contact">gestaopatrimonial.com</div>
+        <button class="theme-toggle" id="theme-toggle-btn" onclick="praxesToggleTheme()" title="Alternar modo claro/escuro">
+          <span class="theme-toggle-track"><span class="theme-toggle-thumb" id="theme-toggle-thumb"></span></span>
+          <span id="theme-toggle-label">Modo claro</span>
+        </button>
         <button class="btn-signout" id="signout-button">Sair da conta</button>
         <!-- Legacy hidden elements for JS compat -->
         <div class="user-info" style="display:none;">
@@ -2193,7 +2310,7 @@
         </div>
 
         <!-- IMOVEIS PAGE -->
-        <div class="page" id="page-imoveis">
+        <div class="page praxes-ilha-clara" id="page-imoveis">
           <div class="page-header">
             <h2 style="font-size: 24px; color: var(--text-dark); font-weight: 700; letter-spacing: -0.3px;">Portfólio Imobiliário</h2>
             <div style="display: flex; gap: 10px;">
@@ -2241,7 +2358,7 @@
         </div>
 
         <!-- DETALHES IMOVEL PAGE -->
-        <div class="page" id="page-imovel-detalhes">
+        <div class="page praxes-ilha-clara" id="page-imovel-detalhes">
           <div class="detalhes-header">
             <div class="detalhes-back" onclick="navigateTo('imoveis')">
               ← Voltar para Imóveis
@@ -2530,7 +2647,7 @@
         </div>
 
         <!-- OUTRAS PÁGINAS (placeholders) -->
-        <div class="page" id="page-investimentos">
+        <div class="page praxes-ilha-clara" id="page-investimentos">
 
           <!-- Sem planilha configurada -->
           <div id="inv-no-sheet" style="display:none;text-align:center;padding:60px 20px;">
@@ -2755,7 +2872,7 @@
         </div>
 
         <!-- CONTROLE FINANCEIRO PAGE -->
-        <div class="page" id="page-financeiro">
+        <div class="page praxes-ilha-clara" id="page-financeiro">
           <!-- Seletor de mês -->
           <div class="fin-mes-selector">
             <label style="white-space:nowrap;flex-shrink:0;">Período</label>
@@ -2908,7 +3025,7 @@
         </div>
 
         <!-- VEÍCULOS PAGE -->
-        <div class="page" id="page-veiculos">
+        <div class="page praxes-ilha-clara" id="page-veiculos">
           <div class="page-header">
             <h2 style="font-size:24px;color:var(--text-dark);font-weight:700;letter-spacing:-0.3px;">Veículos & Embarcações</h2>
             <button class="btn-primary" id="btn-add-veiculo">+ Novo Veículo</button>
@@ -2919,7 +3036,7 @@
         </div>
 
         <!-- DETALHES VEÍCULO PAGE -->
-        <div class="page" id="page-veiculo-detalhes">
+        <div class="page praxes-ilha-clara" id="page-veiculo-detalhes">
           <div class="detalhes-header">
             <div class="detalhes-back" onclick="navigateTo('veiculos')">← Voltar para Veículos</div>
             <div class="detalhes-title-row">
@@ -2978,7 +3095,7 @@
         </div>
 
         <!-- DOCUMENTOS PAGE -->
-        <div class="page" id="page-documentos">
+        <div class="page praxes-ilha-clara" id="page-documentos">
           <div class="page-header">
             <h2 style="font-size:24px;color:var(--text-dark);font-weight:700;letter-spacing:-0.3px;">Documentos Pessoais</h2>
             <button class="btn-primary" onclick="docsAbrirModal()">+ Adicionar</button>
@@ -2988,7 +3105,7 @@
         </div>
 
         <!-- TAREFAS PAGE -->
-        <div class="page" id="page-tarefas">
+        <div class="page praxes-ilha-clara" id="page-tarefas">
           <div class="page-header" style="margin-bottom:0;">
             <div style="display:flex;align-items:center;gap:12px;">
               <h2 style="font-size:24px;color:var(--fg-1);font-weight:700;letter-spacing:-0.3px;margin:0;">Tarefas</h2>
@@ -3030,13 +3147,13 @@
         </div>
 
         <!-- REUNIÃO DETALHE PAGE -->
-        <div class="page" id="page-reuniao-detalhe">
+        <div class="page praxes-ilha-clara" id="page-reuniao-detalhe">
           <div class="detalhes-back" onclick="navigateTo('reunioes')">← Voltar para Reuniões</div>
           <div id="reu-det-content"></div>
         </div>
 
         <!-- OBJETIVOS PAGE -->
-        <div class="page" id="page-objetivos">
+        <div class="page praxes-ilha-clara" id="page-objetivos">
           <div class="page-header" style="margin-bottom:0;">
             <div style="display:flex;align-items:center;gap:12px;">
               <h2 style="font-size:24px;color:var(--fg-1);font-weight:700;letter-spacing:-0.3px;margin:0;">Objetivos</h2>
@@ -3068,7 +3185,7 @@
         </div>
 
         <!-- REUNIÕES PAGE -->
-        <div class="page" id="page-reunioes">
+        <div class="page praxes-ilha-clara" id="page-reunioes">
           <div class="page-header" style="margin-bottom:0;">
             <div style="display:flex;align-items:center;gap:12px;">
               <h2 style="font-size:24px;color:var(--fg-1);font-weight:700;letter-spacing:-0.3px;margin:0;">Reuniões</h2>
@@ -3096,7 +3213,7 @@
         </div>
 
         <!-- PERFIL PAGE -->
-        <div class="page" id="page-perfil">
+        <div class="page praxes-ilha-clara" id="page-perfil">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;" id="perfil-grid">
             <div class="loading"><div class="spinner"></div><p>Carregando...</p></div>
           </div>
@@ -4923,6 +5040,37 @@
 
     let patState = { fechamentos: [], atual: null, linhas: [], carregado: false, erro: null };
     let _patStyleInjected = false;
+
+    // ============================================================
+    // ===== MODO ESCURO — Onda 1 (chrome do app) =================
+    // ============================================================
+    // Aplica em: sidebar, top bar, modais, botões, inputs, balanço
+    // patrimonial. Páginas legadas (financeiro, investimentos, imóveis...)
+    // ficam com classe .praxes-ilha-clara e continuam claras até serem
+    // migradas onda a onda — evitar isso agora é o que evita texto
+    // escuro sobre fundo escuro nas ~570 cores ainda fixas por lá.
+    function praxesApplyThemeLabel() {
+      var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+      var lbl = document.getElementById('theme-toggle-label');
+      if (lbl) lbl.textContent = dark ? 'Modo escuro' : 'Modo claro';
+    }
+
+    function praxesToggleTheme() {
+      var atual = document.documentElement.getAttribute('data-theme') === 'dark';
+      var novo = atual ? 'light' : 'dark';
+      if (novo === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      } else {
+        document.documentElement.removeAttribute('data-theme');
+      }
+      try { localStorage.setItem('praxes-theme', novo); } catch (e) {}
+      praxesApplyThemeLabel();
+      // Alguns gráficos Chart.js fixam cor de eixo/legenda no momento da
+      // criação; se já existir instância no dashboard, força um redraw.
+      try { if (typeof loadDashboard === 'function' && document.getElementById('page-dashboard').classList.contains('active')) loadDashboard(); } catch (e) {}
+    }
+
+    document.addEventListener('DOMContentLoaded', praxesApplyThemeLabel);
 
     function patPodeEditar() {
       return !!window.patIsAdmin && !!window.patClientId;
