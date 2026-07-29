@@ -4888,6 +4888,10 @@
     // não um cálculo contínuo. Rascunho é montado a partir das fontes
     // (Comdinheiro, imóveis, veículos, financiamentos) + itens manuais
     // herdados do último fechamento. Ao fechar, as linhas ficam imutáveis.
+    //
+    // Visual segue o Praxes Design System (colors_and_type.css):
+    // Urbanist em tudo, eyebrows uppercase tracking .16-.18em, hairlines
+    // rgba(4,25,36,x), pills para badge/botão, tabular-nums nos valores.
 
     const PAT_GRUPOS = {
       ativo: [
@@ -4906,15 +4910,19 @@
       ]
     };
 
+    // Origem → rótulo do badge. Cor é sempre a mesma pill neutra do DS
+    // (rgba abyss 6%); a variação fica só no texto, não em cores por tipo —
+    // o DS não define uma paleta categórica e inventar uma quebraria o padrão.
     const PAT_ORIGEM = {
-      comdinheiro:   { label: 'Comdinheiro', bg: '#e3edf1', fg: '#03313e' },
-      imoveis:       { label: 'Imóveis',     bg: '#e6f0e8', fg: '#2f5d3a' },
-      veiculos:      { label: 'Veículos',    bg: '#eae7f2', fg: '#4a3d70' },
-      financiamento: { label: 'Financ.',     bg: '#f5e7e7', fg: '#7a1f1f' },
-      manual:        { label: 'Manual',      bg: '#f2ddc6', fg: '#7a5518' }
+      comdinheiro:   'Comdinheiro',
+      imoveis:       'Imóveis',
+      veiculos:      'Veículos',
+      financiamento: 'Financiamento',
+      manual:        'Manual'
     };
 
     let patState = { fechamentos: [], atual: null, linhas: [], carregado: false, erro: null };
+    let _patStyleInjected = false;
 
     function patPodeEditar() {
       return !!window.patIsAdmin && !!window.patClientId;
@@ -4955,12 +4963,10 @@
         if (res.error) throw res.error;
         patState.fechamentos = res.data || [];
 
-        // Admin vê o mais recente (inclui rascunho); cliente só o último fechado.
         var alvo = patPodeEditar()
           ? patState.fechamentos[0]
           : patState.fechamentos.find(function (f) { return f.status === 'fechado'; });
 
-        // Se um fechamento estava selecionado, mantém a seleção
         if (window._patSelId) {
           var sel = patState.fechamentos.find(function (f) { return f.id === window._patSelId; });
           if (sel) alvo = sel;
@@ -4987,7 +4993,6 @@
       var linhas = [];
       var ordem = 0;
 
-      // Comdinheiro — uma linha só (decisão do Luiz: sem quebra por classe por ora)
       try {
         if (!invData.loaded && window.invSheetId) await invLoad(window.invSheetId);
       } catch (e) { console.warn('PAT comdinheiro:', e); }
@@ -5001,7 +5006,6 @@
         });
       }
 
-      // Imóveis — grupo define se é investimento ou uso pessoal
       if (!imoveisData.length) { try { await loadAllDataOptimized(); } catch (e) {} }
       var saldos = {};
       try { saldos = await _dashGetSaldosDevedores(); } catch (e) {}
@@ -5031,7 +5035,6 @@
         }
       });
 
-      // Veículos — coluna P (índice 15) = Grupo; vazio significa Uso Pessoal
       if (!veiculosData.length && window.veiSheetId) {
         try { await veiculosLoad(); } catch (e) {}
       }
@@ -5072,7 +5075,6 @@
       if (btn) { btn.disabled = true; btn.textContent = 'Montando...'; }
 
       try {
-        // Cabeçalho
         var ins = await db.from('pat_fechamentos').insert({
           client_id: window.patClientId, data_ref: dataRef,
           status: 'rascunho', criado_por: currentUser || null
@@ -5080,10 +5082,8 @@
         if (ins.error) throw ins.error;
         var fech = ins.data;
 
-        // Linhas automáticas
         var linhas = await patMontarLinhasAuto();
 
-        // Linhas manuais herdadas do fechamento anterior mais recente
         var anterior = patState.fechamentos.filter(function (f) {
           return String(f.data_ref).substring(0, 10) < dataRef;
         })[0];
@@ -5145,7 +5145,6 @@
       if (!desc) { alert('Informe a descrição do item.'); return; }
       if (isNaN(val)) val = 0;
       try {
-        // registra no catálogo (não bloqueia se falhar)
         var cat = await db.from('pat_itens').insert({
           client_id: window.patClientId, lado: lado, grupo: grupo, descricao: desc
         }).select().single();
@@ -5216,17 +5215,7 @@
       } catch (e) { alert('Erro ao excluir: ' + (e.message || e)); }
     }
 
-    // ── Render ───────────────────────────────────────────────────
-    function _patTag(origem) {
-      var o = PAT_ORIGEM[origem] || PAT_ORIGEM.manual;
-      return '<span style="font-size:8.5px;letter-spacing:.06em;text-transform:uppercase;'
-        + 'padding:2px 5px;border-radius:4px;font-weight:700;white-space:nowrap;flex-shrink:0;'
-        + 'background:' + o.bg + ';color:' + o.fg + ';">' + o.label + '</span>';
-    }
-
-    // Resolve o subgrupo de uma linha. As linhas do fechamento não guardam
-    // subgrupo — ele vem por lookup na fonte, então degrada para um rótulo
-    // estável quando a planilha ainda não foi carregada nesta sessão.
+    // ── Subgrupo (drill-down) ─────────────────────────────────────
     function _patSubgrupo(l) {
       if (l.origem === 'imoveis' || l.origem === 'financiamento') {
         var alvo = l.origem_ref || l.descricao;
@@ -5248,52 +5237,124 @@
       for (var i = 0; i < rows.length; i++) rows[i].style.display = abrir ? 'table-row' : 'none';
       if (cab) {
         cab.setAttribute('data-open', abrir ? '1' : '0');
-        var ch = cab.querySelector('.pat-chevron');
+        var ch = cab.querySelector('.pat-chev');
         if (ch) ch.style.transform = abrir ? 'rotate(90deg)' : 'rotate(0deg)';
       }
     }
 
-    function _patSubCabHTML(subId, label, qtd, subtotal, passivo) {
-      return '<tr id="' + subId + '" data-open="1" onclick="patToggleSub(\'' + subId + '\')"'
-        + ' style="cursor:pointer;user-select:none;"'
-        + ' onmouseenter="this.style.background=\'#faf6f0\'" onmouseleave="this.style.background=\'\'">'
-        + '<td style="padding:6px 8px 6px 20px;border-bottom:0.5px solid #f4f4f4;">'
-        + '<span style="display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:#5b818b;">'
-        + '<span class="pat-chevron" style="font-size:8px;color:#c4c4c4;transition:transform .15s;transform:rotate(90deg);display:inline-block;">\u25b6</span>'
-        + esc(label) + '<span style="font-weight:400;font-size:10px;color:#c4c4c4;">' + qtd + '</span></span></td>'
-        + '<td style="padding:6px 12px 6px 8px;border-bottom:0.5px solid #f4f4f4;text-align:right;white-space:nowrap;'
-        + 'font-size:11.5px;font-weight:600;font-variant-numeric:tabular-nums;color:'
-        + (passivo ? '#8c2020' : '#2a5a66') + ';">' + fmt(subtotal) + '</td></tr>';
+    // ── Estilos (injetados uma vez) ────────────────────────────────
+    function _patStyleHTML() {
+      return '<style>'
+        + '.pat-wrap{font-family:var(--font-body,Urbanist,sans-serif);}'
+        + '.pat-eyebrow{font-size:11px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--praxes-teal);}'
+        + '.pat-sub{font-size:13px;color:var(--praxes-teal-40);margin-top:3px;}'
+        + '.pat-badge{font-size:9px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:3px 9px;border-radius:999px;white-space:nowrap;}'
+        + '.pat-badge-fechado{background:rgba(42,90,102,.14);color:var(--praxes-deep);}'
+        + '.pat-badge-rascunho{background:var(--praxes-sand);color:var(--praxes-abyss);}'
+        + '.pat-tag{font-size:10px;font-weight:500;letter-spacing:.02em;padding:3px 9px 3px 8px;border-radius:999px;background:rgba(4,25,36,.055);color:var(--praxes-deep);white-space:nowrap;flex-shrink:0;display:inline-flex;align-items:center;gap:5px;}'
+        + '.pat-tag::before{content:"";width:5px;height:5px;border-radius:999px;background:var(--praxes-teal-40);flex-shrink:0;}'
+        + '.pat-btn{font-family:inherit;font-weight:500;font-size:12.5px;letter-spacing:.01em;cursor:pointer;border:none;border-radius:999px;padding:9px 18px;transition:background .15s ease,opacity .15s ease;}'
+        + '.pat-btn-primary{background:var(--praxes-abyss);color:var(--praxes-sand);}'
+        + '.pat-btn-primary:hover{background:var(--praxes-deep);}'
+        + '.pat-btn-secondary{background:transparent;color:var(--praxes-abyss);box-shadow:inset 0 0 0 1px rgba(4,25,36,.24);}'
+        + '.pat-btn-secondary:hover{background:rgba(4,25,36,.05);}'
+        + '.pat-btn-danger{background:transparent;color:var(--praxes-signal);box-shadow:inset 0 0 0 1px rgba(255,0,0,.28);}'
+        + '.pat-btn-danger:hover{background:rgba(255,0,0,.06);}'
+        + '.pat-btn-ghost{background:transparent;color:var(--praxes-teal);box-shadow:inset 0 0 0 1px rgba(4,25,36,.15);font-size:11px;padding:4px 12px;border-radius:999px;}'
+        + '.pat-btn-ghost:hover{background:rgba(4,25,36,.05);}'
+        + '.pat-select{font-family:inherit;font-size:12.5px;color:var(--praxes-abyss);background:#fff;'
+        +   'border:none;box-shadow:inset 0 0 0 1px rgba(4,25,36,.18);border-radius:999px;padding:9px 16px;cursor:pointer;}'
+        + '.pat-kpigrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px;}'
+        + '.pat-kpi{background:#fff;border-radius:14px;padding:18px 20px;box-shadow:0 6px 16px -8px rgba(4,25,36,.14),0 2px 4px rgba(4,25,36,.04);}'
+        + '.pat-kpi-lbl{font-size:10.5px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--praxes-teal);}'
+        + '.pat-kpi-val{font-family:Urbanist,serif;font-weight:600;font-size:26px;letter-spacing:-0.02em;color:var(--praxes-abyss);margin-top:8px;font-variant-numeric:tabular-nums;font-feature-settings:"tnum";}'
+        + '.pat-kpi-val.pos{color:#1a6645;} .pat-kpi-val.neg{color:var(--praxes-signal);}'
+        + '.pat-kpi-sub{font-size:12px;color:var(--praxes-teal-40);margin-top:4px;}'
+        + '.pat-cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;}'
+        + '.pat-col{background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 6px 16px -8px rgba(4,25,36,.14),0 2px 4px rgba(4,25,36,.04);}'
+        + '.pat-colhd{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;color:var(--praxes-sand);}'
+        + '.pat-colhd.a{background:var(--praxes-deep);} .pat-colhd.p{background:var(--praxes-abyss);}'
+        + '.pat-colhd-lbl{font-size:10.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;opacity:.85;}'
+        + '.pat-colhd-val{font-family:Urbanist,serif;font-size:18px;font-weight:600;font-variant-numeric:tabular-nums;}'
+        + '.pat-tbl{width:100%;border-collapse:collapse;table-layout:fixed;}'
+        + '.pat-grp-row td{padding:11px 20px 11px 20px;background:var(--praxes-shell);border-bottom:1px solid rgba(4,25,36,.08);}'
+        + '.pat-grp-lbl{font-size:12px;font-weight:600;color:var(--praxes-abyss);letter-spacing:-0.005em;}'
+        + '.pat-grp-val{font-size:13px;font-weight:600;color:var(--praxes-abyss);font-variant-numeric:tabular-nums;white-space:nowrap;}'
+        + '.pat-sub-row td{padding:8px 20px 8px 32px;border-bottom:1px solid rgba(4,25,36,.06);cursor:pointer;user-select:none;}'
+        + '.pat-sub-row:hover td{background:rgba(4,25,36,.02);}'
+        + '.pat-sub-lbl{font-size:11px;font-weight:600;letter-spacing:.02em;color:var(--praxes-teal);}'
+        + '.pat-sub-cnt{font-size:10px;color:var(--praxes-teal-40);font-weight:400;margin-left:5px;}'
+        + '.pat-sub-val{font-size:11.5px;font-weight:600;font-variant-numeric:tabular-nums;}'
+        + '.pat-item-row td{padding:9px 20px 9px 44px;border-bottom:1px solid rgba(4,25,36,.06);}'
+        + '.pat-item-row.nested td{padding-left:56px;}'
+        + '.pat-item-desc{font-size:13px;color:var(--praxes-abyss);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}'
+        + '.pat-item-val{font-size:13px;color:var(--praxes-deep);font-variant-numeric:tabular-nums;font-feature-settings:"tnum";white-space:nowrap;}'
+        + '.pat-item-date{font-size:10px;color:var(--praxes-teal-20);white-space:nowrap;}'
+        + '.pat-empty td{padding:10px 20px 10px 44px;border-bottom:1px solid rgba(4,25,36,.06);font-size:12px;color:var(--praxes-teal-20);font-style:italic;}'
+        + '.pat-inp{font-family:inherit;font-size:13px;color:var(--praxes-abyss);background:transparent;'
+        +   'border:none;border-bottom:1px solid rgba(4,25,36,.24);padding:4px 2px;width:112px;text-align:right;outline:none;}'
+        + '.pat-inp:focus{border-bottom-color:var(--praxes-abyss);}'
+        + '.pat-del{cursor:pointer;color:var(--praxes-teal-20);font-size:15px;line-height:1;padding:0 2px;}'
+        + '.pat-del:hover{color:var(--praxes-signal);}'
+        + '.pat-addbtn{border:none;background:transparent;color:var(--praxes-teal);font-family:inherit;font-size:10px;'
+        +   'font-weight:500;letter-spacing:.04em;padding:2px 0;cursor:pointer;box-shadow:none;text-decoration:underline;text-underline-offset:2px;}'
+        + '.pat-addrow td{padding:12px 20px 14px 44px;background:var(--praxes-paper);border-bottom:1px solid rgba(4,25,36,.06);}'
+        + '.pat-addfield{font-family:inherit;font-size:13px;padding:8px 0;border:none;border-bottom:1px solid rgba(4,25,36,.24);background:transparent;outline:none;}'
+        + '.pat-addfield:focus{border-bottom-color:var(--praxes-abyss);}'
+        + '.pat-tot{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;'
+        +   'border-top:1px solid rgba(4,25,36,.14);font-size:13px;font-weight:600;color:var(--praxes-abyss);}'
+        + '.pat-tot-val{font-variant-numeric:tabular-nums;}'
+        + '.pat-pl{display:flex;justify-content:space-between;align-items:baseline;padding:18px 20px;background:var(--praxes-abyss);color:var(--praxes-sand);}'
+        + '.pat-pl-lbl{font-size:10.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;opacity:.85;}'
+        + '.pat-pl-val{font-family:Urbanist,serif;font-size:22px;font-weight:600;font-variant-numeric:tabular-nums;}'
+        + '.pat-check{display:flex;justify-content:space-between;padding:11px 20px;background:var(--praxes-shell);font-size:11.5px;font-weight:500;color:var(--praxes-teal);}'
+        + '.pat-legend{display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin-top:16px;font-size:11px;color:var(--praxes-teal-40);}'
+        + '.pat-empty-state{background:#fff;border-radius:14px;padding:56px 24px;text-align:center;box-shadow:0 6px 16px -8px rgba(4,25,36,.14);}'
+        + '.pat-hist{background:#fff;border-radius:14px;padding:22px 24px;margin-top:16px;box-shadow:0 6px 16px -8px rgba(4,25,36,.14),0 2px 4px rgba(4,25,36,.04);}'
+        + '.pat-hist-th{text-align:left;font-size:10px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--praxes-teal);padding:0 0 10px;border-bottom:1px solid rgba(4,25,36,.12);}'
+        + '.pat-hist-td{padding:11px 0;border-bottom:1px solid rgba(4,25,36,.06);font-size:13px;color:var(--praxes-abyss);}'
+        + '.pat-errbox{background:rgba(255,0,0,.06);border-radius:10px;padding:16px 18px;margin-bottom:16px;font-size:12.5px;color:var(--praxes-signal);}'
+        + '.pat-novo{display:none;gap:12px;align-items:center;margin-bottom:16px;padding:16px 18px;background:var(--praxes-paper);border-radius:12px;box-shadow:inset 0 0 0 1px rgba(4,25,36,.12);flex-wrap:wrap;}'
+        + '.pat-novo input[type=date]{font-family:inherit;font-size:13px;padding:8px 12px;border:none;box-shadow:inset 0 0 0 1px rgba(4,25,36,.18);border-radius:8px;background:#fff;}'
+        + '</style>';
     }
 
+    // ── Render: linha de item ─────────────────────────────────────
     function _patLinhaHTML(l, editavel, subId) {
       var vl = editavel
-        ? '<input type="text" value="' + (parseFloat(l.valor) || 0).toFixed(2)
-          + '" onchange="patSalvarValor(\'' + l.id + '\',this.value)"'
-          + ' style="width:104px;text-align:right;font-family:inherit;font-size:12px;padding:3px 6px;'
-          + 'border:1px solid #dcdcdc;border-radius:5px;background:#fff;">'
-        : '<span style="font-size:12.5px;color:#2a5a66;font-variant-numeric:tabular-nums;">' + fmt(l.valor) + '</span>';
+        ? '<input type="text" class="pat-inp" value="' + (parseFloat(l.valor) || 0).toFixed(2)
+          + '" onchange="patSalvarValor(\'' + l.id + '\',this.value)">'
+        : '<span class="pat-item-val">' + fmt(l.valor) + '</span>';
 
       var lixo = (editavel && l.origem === 'manual')
-        ? '<span onclick="patRemoverLinha(\'' + l.id + '\',\'' + esc(l.descricao).replace(/'/g, '') + '\')"'
-          + ' title="Remover" style="cursor:pointer;color:#c9c9c9;font-size:13px;line-height:1;padding:0 2px;">&times;</span>'
+        ? '<span class="pat-del" onclick="patRemoverLinha(\'' + l.id + '\',\'' + esc(l.descricao).replace(/'/g, '') + '\')" title="Remover">&times;</span>'
         : '';
 
       var dt = l.data_origem
-        ? '<span style="font-size:9.5px;color:#bbb;white-space:nowrap;">' + patFmtData(l.data_origem) + '</span>'
+        ? '<span class="pat-item-date">' + patFmtData(l.data_origem) + '</span>'
         : '';
 
+      var cls = subId ? 'pat-item-row nested' : 'pat-item-row';
       var attrs = subId ? ' data-sub="' + subId + '"' : '';
-      var pad   = subId ? '6px 8px 6px 38px' : '6px 8px 6px 26px';
-      return '<tr' + attrs + '><td style="padding:' + pad + ';border-bottom:0.5px solid #f4f4f4;">'
-        + '<span style="display:flex;align-items:center;gap:7px;min-width:0;">'
-        + _patTag(l.origem)
-        + '<span style="font-size:12.5px;color:#03313e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'
-        + esc(l.descricao) + '</span>' + dt + '</span></td>'
-        + '<td style="padding:6px 12px 6px 8px;border-bottom:0.5px solid #f4f4f4;text-align:right;white-space:nowrap;">'
-        + vl + ' ' + lixo + '</td></tr>';
+
+      return '<tr class="' + cls + '"' + attrs + '><td colspan="1">'
+        + '<span style="display:flex;align-items:center;gap:8px;min-width:0;">'
+        + '<span class="pat-tag">' + esc(PAT_ORIGEM[l.origem] || 'Manual') + '</span>'
+        + '<span class="pat-item-desc">' + esc(l.descricao) + '</span>' + dt + '</span></td>'
+        + '<td style="text-align:right;white-space:nowrap;">'
+        + '<span style="display:inline-flex;align-items:center;gap:6px;">' + vl + lixo + '</span></td></tr>';
     }
 
+    function _patSubCabHTML(subId, label, qtd, subtotal, passivo) {
+      return '<tr id="' + subId + '" class="pat-sub-row" data-open="1" onclick="patToggleSub(\'' + subId + '\')">'
+        + '<td><span style="display:inline-flex;align-items:center;gap:6px;">'
+        + '<span class="pat-chev" style="display:inline-block;font-size:8px;color:var(--praxes-teal-20);transition:transform .15s;transform:rotate(90deg);">\u25b6</span>'
+        + '<span class="pat-sub-lbl">' + esc(label) + '</span><span class="pat-sub-cnt">' + qtd + '</span></span></td>'
+        + '<td style="text-align:right;"><span class="pat-sub-val" style="color:' + (passivo ? 'var(--praxes-signal)' : 'var(--praxes-deep)') + ';">'
+        + fmt(subtotal) + '</span></td></tr>';
+    }
+
+    // ── Render: coluna ativo / passivo ──────────────────────────────
     function _patColunaHTML(lado, editavel) {
       var grupos = PAT_GRUPOS[lado];
       var total  = 0;
@@ -5303,23 +5364,18 @@
         total += sub;
 
         var addBtn = editavel
-          ? '<button onclick="patToggleAdd(\'' + g.key + '\')" style="border:1px dashed #a5bcc2;'
-            + 'background:transparent;color:#5b818b;font-family:inherit;font-size:10px;padding:1px 6px;'
-            + 'border-radius:5px;cursor:pointer;line-height:1.6;">+ item</button>'
+          ? '<button class="pat-addbtn" onclick="patToggleAdd(\'' + g.key + '\')">+ item</button>'
           : '';
 
         var addRow = editavel
-          ? '<tr id="pat-add-' + g.key + '" style="display:none;"><td colspan="2" style="padding:8px 12px 8px 26px;background:#fdfaf5;border-bottom:0.5px solid #f0f0f0;">'
-            + '<span style="display:flex;gap:6px;align-items:center;">'
-            + '<input id="pat-add-desc-' + g.key + '" placeholder="Descrição do item" style="flex:1;font-family:inherit;font-size:12px;padding:5px 8px;border:1px solid #dcdcdc;border-radius:5px;">'
-            + '<input id="pat-add-val-' + g.key + '" placeholder="0,00" style="width:96px;text-align:right;font-family:inherit;font-size:12px;padding:5px 8px;border:1px solid #dcdcdc;border-radius:5px;">'
-            + '<button onclick="patAddItem(\'' + lado + '\',\'' + g.key + '\')" style="border:none;background:#041924;color:#f2ddc6;font-family:inherit;font-size:11px;font-weight:600;padding:6px 12px;border-radius:5px;cursor:pointer;">Salvar</button>'
+          ? '<tr id="pat-add-' + g.key + '" class="pat-addrow" style="display:none;"><td colspan="2">'
+            + '<span style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;">'
+            + '<input id="pat-add-desc-' + g.key + '" class="pat-addfield" placeholder="Descrição do item" style="flex:1;min-width:160px;">'
+            + '<input id="pat-add-val-' + g.key + '" class="pat-addfield" placeholder="0,00" style="width:110px;text-align:right;">'
+            + '<button class="pat-btn pat-btn-primary" style="padding:7px 16px;font-size:11.5px;" onclick="patAddItem(\'' + lado + '\',\'' + g.key + '\')">Salvar</button>'
             + '</span></td></tr>'
           : '';
 
-        // ── Camada de subgrupo ──────────────────────────────────────
-        // Só entra quando há 2+ itens com subgrupo resolvido; abaixo disso
-        // o nível extra é ruído e as linhas ficam planas.
         var comSub = [], semSub = [];
         itens.forEach(function (l) {
           var sg = _patSubgrupo(l);
@@ -5329,13 +5385,10 @@
         var linhas;
         var _distintos = {}, _nDist = 0;
         comSub.forEach(function (x) { if (!_distintos[x.sg]) { _distintos[x.sg] = 1; _nDist++; } });
-        // A camada só entra se ela realmente agrupa: 3+ itens, 2+ subgrupos
-        // distintos e pelo menos um subgrupo com mais de um item. Um subgrupo
-        // por item, ou um só cobrindo tudo, é ruído — nesses casos fica plano.
         var _vale = comSub.length >= 3 && _nDist >= 2 && _nDist < comSub.length;
 
         if (!itens.length) {
-          linhas = '<tr><td colspan="2" style="padding:6px 12px 6px 26px;border-bottom:0.5px solid #f4f4f4;font-size:11.5px;color:#c4c4c4;font-style:italic;">Nenhum lançamento</td></tr>';
+          linhas = '<tr class="pat-empty"><td colspan="2">Nenhum lançamento</td></tr>';
         } else if (!_vale) {
           linhas = itens.map(function (l) { return _patLinhaHTML(l, editavel); }).join('');
         } else {
@@ -5345,53 +5398,44 @@
             subMap[x.sg].push(x.l);
           });
           subOrdem.sort();
-          // itens sem subgrupo (Comdinheiro, manuais) ficam soltos no topo
           linhas = semSub.map(function (l) { return _patLinhaHTML(l, editavel); }).join('');
           linhas += subOrdem.map(function (sg, si) {
-            var lista   = subMap[sg];
-            var subId   = 'pat-sub-' + lado + '-' + g.key + '-' + si;
-            var subTot  = lista.reduce(function (a, l) { return a + (parseFloat(l.valor) || 0); }, 0);
+            var lista  = subMap[sg];
+            var subId  = 'pat-sub-' + lado + '-' + g.key + '-' + si;
+            var subTot = lista.reduce(function (a, l) { return a + (parseFloat(l.valor) || 0); }, 0);
             return _patSubCabHTML(subId, sg, lista.length, subTot, lado === 'passivo')
               + lista.map(function (l) { return _patLinhaHTML(l, editavel, subId); }).join('');
           }).join('');
         }
 
-        return '<tr><td style="padding:9px 8px 9px 14px;background:#ebe3d6;border-bottom:0.5px solid #e0d6c6;">'
-          + '<span style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#041924;">'
-          + esc(g.label) + addBtn + '</span></td>'
-          + '<td style="padding:9px 12px 9px 8px;background:#ebe3d6;border-bottom:0.5px solid #e0d6c6;text-align:right;'
-          + 'font-size:12.5px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;">'
-          + fmt(sub) + '</td></tr>'
+        return '<tr class="pat-grp-row"><td>'
+          + '<span style="display:flex;align-items:center;gap:10px;">'
+          + '<span class="pat-grp-lbl">' + esc(g.label) + '</span>' + addBtn + '</span></td>'
+          + '<td style="text-align:right;"><span class="pat-grp-val">' + fmt(sub) + '</span></td></tr>'
           + linhas + addRow;
       }).join('');
 
-      var hdBg   = lado === 'ativo' ? '#2f5d3a' : '#7a1f1f';
+      var hdCls  = lado === 'ativo' ? 'a' : 'p';
       var hdTxt  = lado === 'ativo' ? 'Total de bens / direitos' : 'Total de dívidas / obrigações';
       var totLbl = lado === 'ativo' ? 'Total do ativo' : 'Total do passivo';
 
-      return '<div style="background:#fff;border:1px solid rgba(4,25,36,.10);border-radius:12px;overflow:hidden;">'
-        + '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:'
-        + hdBg + ';color:#f2ddc6;">'
-        + '<span style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;">' + hdTxt + '</span>'
-        + '<span style="font-size:14.5px;font-weight:700;font-variant-numeric:tabular-nums;">' + fmt(total) + '</span></div>'
-        + '<table style="width:100%;border-collapse:collapse;table-layout:fixed;">'
-        + '<colgroup><col><col style="width:150px;"></colgroup>' + corpo + '</table>'
-        + '<div style="display:flex;justify-content:space-between;padding:10px 14px;border-top:1px solid rgba(4,25,36,.18);'
-        + 'font-size:13px;font-weight:700;"><span>' + totLbl + '</span><span style="font-variant-numeric:tabular-nums;">'
-        + fmt(total) + '</span></div>'
+      return '<div class="pat-col">'
+        + '<div class="pat-colhd ' + hdCls + '"><span class="pat-colhd-lbl">' + hdTxt + '</span>'
+        + '<span class="pat-colhd-val">' + fmt(total) + '</span></div>'
+        + '<table class="pat-tbl"><colgroup><col><col style="width:160px;"></colgroup>' + corpo + '</table>'
+        + '<div class="pat-tot"><span>' + totLbl + '</span><span class="pat-tot-val">' + fmt(total) + '</span></div>'
         + (lado === 'passivo' ? _patRodapePLHTML() : '')
         + '</div>';
     }
 
     function _patRodapePLHTML() {
       var t = patTotais(patState.linhas);
-      return '<div style="display:flex;justify-content:space-between;align-items:baseline;padding:13px 14px;background:#041924;color:#f2ddc6;">'
-        + '<span style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;">Patrimônio líquido</span>'
-        + '<span style="font-size:18px;font-weight:700;font-variant-numeric:tabular-nums;">' + fmt(t.pl) + '</span></div>'
-        + '<div style="display:flex;justify-content:space-between;padding:9px 14px;background:#ebe3d6;font-size:12px;font-weight:700;color:#03313e;">'
-        + '<span>Passivo + patrimônio líquido</span><span style="font-variant-numeric:tabular-nums;">' + fmt(t.ativo) + '</span></div>';
+      return '<div class="pat-pl"><span class="pat-pl-lbl">Patrimônio líquido</span>'
+        + '<span class="pat-pl-val">' + fmt(t.pl) + '</span></div>'
+        + '<div class="pat-check"><span>Passivo + patrimônio líquido</span><span style="font-variant-numeric:tabular-nums;">' + fmt(t.ativo) + '</span></div>';
     }
 
+    // ── Render: histórico ────────────────────────────────────────
     function _patHistoricoHTML() {
       if (patState.fechamentos.length < 2) return '';
       var rows = patState.fechamentos.map(function (f, i) {
@@ -5399,43 +5443,39 @@
         var plAnt = prox ? (parseFloat(prox.patrimonio_liquido) || 0) : 0;
         var plAtu = parseFloat(f.patrimonio_liquido) || 0;
         var varia = (prox && plAnt > 0)
-          ? '<span style="color:' + (plAtu >= plAnt ? '#1a6645' : '#8c2020') + ';">'
+          ? '<span style="color:' + (plAtu >= plAnt ? '#1a6645' : 'var(--praxes-signal)') + ';font-weight:600;">'
             + (plAtu >= plAnt ? '+' : '') + (((plAtu - plAnt) / plAnt) * 100).toFixed(1) + '%</span>'
-          : '<span style="color:#c4c4c4;">—</span>';
+          : '<span style="color:var(--praxes-teal-20);">—</span>';
         var badge = f.status === 'fechado'
-          ? '<span style="font-size:9px;padding:2px 6px;border-radius:4px;background:#1a6645;color:#fff;font-weight:700;letter-spacing:.06em;">FECHADO</span>'
-          : '<span style="font-size:9px;padding:2px 6px;border-radius:4px;background:#f2ddc6;color:#7a5518;font-weight:700;letter-spacing:.06em;">RASCUNHO</span>';
+          ? '<span class="pat-badge pat-badge-fechado">Fechado</span>'
+          : '<span class="pat-badge pat-badge-rascunho">Rascunho</span>';
         var atu = (patState.atual && patState.atual.id === f.id);
         return '<tr onclick="patSelecionar(\'' + f.id + '\')" style="cursor:pointer;background:'
-          + (atu ? '#faf6f0' : 'transparent') + ';">'
-          + '<td style="padding:8px 0;border-bottom:0.5px solid #f0f0f0;font-size:12.5px;font-weight:'
-          + (atu ? '700' : '400') + ';">' + patFmtData(f.data_ref) + '</td>'
-          + '<td style="padding:8px 0;border-bottom:0.5px solid #f0f0f0;">' + badge + '</td>'
-          + '<td style="padding:8px 0;border-bottom:0.5px solid #f0f0f0;text-align:right;font-size:12.5px;font-variant-numeric:tabular-nums;">' + fmt(f.total_ativo) + '</td>'
-          + '<td style="padding:8px 0;border-bottom:0.5px solid #f0f0f0;text-align:right;font-size:12.5px;font-variant-numeric:tabular-nums;">' + fmt(f.total_passivo) + '</td>'
-          + '<td style="padding:8px 0;border-bottom:0.5px solid #f0f0f0;text-align:right;font-size:12.5px;font-weight:600;font-variant-numeric:tabular-nums;">' + fmt(f.patrimonio_liquido) + '</td>'
-          + '<td style="padding:8px 0;border-bottom:0.5px solid #f0f0f0;text-align:right;font-size:11.5px;font-weight:600;">' + varia + '</td></tr>';
+          + (atu ? 'var(--praxes-paper)' : 'transparent') + ';">'
+          + '<td class="pat-hist-td" style="font-weight:' + (atu ? '600' : '400') + ';">' + patFmtData(f.data_ref) + '</td>'
+          + '<td class="pat-hist-td">' + badge + '</td>'
+          + '<td class="pat-hist-td" style="text-align:right;font-variant-numeric:tabular-nums;">' + fmt(f.total_ativo) + '</td>'
+          + '<td class="pat-hist-td" style="text-align:right;font-variant-numeric:tabular-nums;">' + fmt(f.total_passivo) + '</td>'
+          + '<td class="pat-hist-td" style="text-align:right;font-weight:600;font-variant-numeric:tabular-nums;">' + fmt(f.patrimonio_liquido) + '</td>'
+          + '<td class="pat-hist-td" style="text-align:right;">' + varia + '</td></tr>';
       }).join('');
 
-      return '<div class="db-panel" style="margin-top:14px;">'
-        + '<div class="db-panel-title">Histórico de fechamentos</div>'
+      return '<div class="pat-hist">'
+        + '<div class="pat-eyebrow" style="margin-bottom:14px;">Histórico de fechamentos</div>'
         + '<table style="width:100%;border-collapse:collapse;">'
-        + '<tr><th style="text-align:left;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#5b818b;font-weight:500;padding:0 0 6px;border-bottom:1px solid #f0f0f0;">Data</th>'
-        + '<th style="text-align:left;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#5b818b;font-weight:500;padding:0 0 6px;border-bottom:1px solid #f0f0f0;">Status</th>'
-        + '<th style="text-align:right;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#5b818b;font-weight:500;padding:0 0 6px;border-bottom:1px solid #f0f0f0;">Ativo</th>'
-        + '<th style="text-align:right;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#5b818b;font-weight:500;padding:0 0 6px;border-bottom:1px solid #f0f0f0;">Passivo</th>'
-        + '<th style="text-align:right;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#5b818b;font-weight:500;padding:0 0 6px;border-bottom:1px solid #f0f0f0;">Patrimônio líquido</th>'
-        + '<th style="text-align:right;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#5b818b;font-weight:500;padding:0 0 6px;border-bottom:1px solid #f0f0f0;">Variação</th></tr>'
+        + '<tr><th class="pat-hist-th">Data</th><th class="pat-hist-th">Status</th>'
+        + '<th class="pat-hist-th" style="text-align:right;">Ativo</th><th class="pat-hist-th" style="text-align:right;">Passivo</th>'
+        + '<th class="pat-hist-th" style="text-align:right;">Patrimônio líquido</th><th class="pat-hist-th" style="text-align:right;">Variação</th></tr>'
         + rows + '</table></div>';
     }
 
+    // ── Render: cabeçalho ────────────────────────────────────────
     function _patCabecalhoHTML() {
       var admin = patPodeEditar();
       var f = patState.atual;
 
       var seletor = patState.fechamentos.length
-        ? '<select onchange="patSelecionar(this.value)" style="font-family:inherit;font-size:12.5px;padding:7px 10px;'
-          + 'border:1px solid rgba(4,25,36,.18);border-radius:8px;background:#fff;color:#041924;cursor:pointer;">'
+        ? '<select class="pat-select" onchange="patSelecionar(this.value)">'
           + patState.fechamentos.map(function (x) {
               return '<option value="' + x.id + '"' + (f && f.id === x.id ? ' selected' : '') + '>'
                 + patFmtData(x.data_ref) + ' — ' + (x.status === 'fechado' ? 'fechado' : 'rascunho') + '</option>';
@@ -5445,66 +5485,58 @@
       var botoes = '';
       if (admin) {
         if (f && f.status === 'rascunho') {
-          botoes += '<button onclick="patFechar()" style="border:none;background:#1a6645;color:#fff;font-family:inherit;'
-            + 'font-size:12.5px;font-weight:600;padding:8px 14px;border-radius:8px;cursor:pointer;">Fechar balanço</button>';
-          botoes += '<button onclick="patExcluirFechamento()" title="Excluir rascunho" style="border:1px solid rgba(4,25,36,.18);'
-            + 'background:#fff;color:#8c2020;font-family:inherit;font-size:12.5px;padding:8px 12px;border-radius:8px;cursor:pointer;">Excluir</button>';
+          botoes += '<button class="pat-btn pat-btn-primary" onclick="patFechar()">Fechar balanço</button>';
+          botoes += '<button class="pat-btn pat-btn-danger" onclick="patExcluirFechamento()" title="Excluir rascunho">Excluir</button>';
         } else if (f && f.status === 'fechado') {
-          botoes += '<button onclick="patReabrir()" style="border:1px solid rgba(4,25,36,.18);background:#fff;'
-            + 'color:#041924;font-family:inherit;font-size:12.5px;padding:8px 12px;border-radius:8px;cursor:pointer;">Reabrir</button>';
+          botoes += '<button class="pat-btn pat-btn-secondary" onclick="patReabrir()">Reabrir</button>';
         }
-        botoes += '<button onclick="patToggleNovo()" style="border:none;background:#041924;color:#f2ddc6;font-family:inherit;'
-          + 'font-size:12.5px;font-weight:600;padding:8px 14px;border-radius:8px;cursor:pointer;">+ Novo fechamento</button>';
+        botoes += '<button class="pat-btn pat-btn-primary" onclick="patToggleNovo()">+ Novo fechamento</button>';
       }
 
       var badge = f
         ? (f.status === 'fechado'
-            ? '<span style="font-size:9px;padding:2px 7px;border-radius:4px;background:#1a6645;color:#fff;font-weight:700;letter-spacing:.08em;margin-left:8px;">FECHADO</span>'
-            : '<span style="font-size:9px;padding:2px 7px;border-radius:4px;background:#f2ddc6;color:#7a5518;font-weight:700;letter-spacing:.08em;margin-left:8px;">RASCUNHO</span>')
+            ? '<span class="pat-badge pat-badge-fechado" style="margin-left:10px;">Fechado</span>'
+            : '<span class="pat-badge pat-badge-rascunho" style="margin-left:10px;">Rascunho</span>')
         : '';
 
-      var sub = f
-        ? 'Fechamento de ' + patFmtData(f.data_ref) + badge
-        : 'Nenhum fechamento registrado';
+      var sub = f ? 'Fechamento de ' + patFmtData(f.data_ref) : 'Nenhum fechamento registrado';
 
       var novoBox = admin
-        ? '<div id="pat-novo-box" style="display:none;gap:8px;align-items:center;margin-bottom:14px;padding:12px 14px;'
-          + 'background:#fdfaf5;border:1px dashed #a5bcc2;border-radius:10px;">'
-          + '<span style="font-size:12px;color:#5b818b;">Data do fechamento</span>'
-          + '<input type="date" id="pat-nova-data" value="' + patUltimoDiaMesAnterior() + '"'
-          + ' style="font-family:inherit;font-size:12.5px;padding:6px 10px;border:1px solid #dcdcdc;border-radius:6px;">'
-          + '<button id="pat-btn-criar" onclick="patCriarFechamento()" style="border:none;background:#041924;color:#f2ddc6;'
-          + 'font-family:inherit;font-size:12px;font-weight:600;padding:7px 14px;border-radius:6px;cursor:pointer;">Montar rascunho</button>'
-          + '<span style="font-size:11px;color:#a5bcc2;">Puxa Comdinheiro, imóveis, veículos e financiamentos, e herda os itens manuais do último fechamento.</span>'
+        ? '<div id="pat-novo-box" class="pat-novo">'
+          + '<span class="pat-eyebrow" style="letter-spacing:.06em;">Data do fechamento</span>'
+          + '<input type="date" id="pat-nova-data" value="' + patUltimoDiaMesAnterior() + '">'
+          + '<button id="pat-btn-criar" class="pat-btn pat-btn-primary" onclick="patCriarFechamento()">Montar rascunho</button>'
+          + '<span class="pat-sub" style="flex-basis:100%;font-size:12px;">Puxa Comdinheiro, imóveis, veículos e financiamentos, e herda os itens manuais do último fechamento.</span>'
           + '</div>'
         : '';
 
-      return '<div style="display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap;margin-bottom:14px;">'
-        + '<div><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#2a5a66;">Balanço patrimonial</div>'
-        + '<div style="font-size:12.5px;color:#5b818b;margin-top:3px;">' + sub + '</div></div>'
-        + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' + seletor + botoes + '</div></div>'
+      return '<div style="display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap;margin-bottom:18px;">'
+        + '<div><div class="pat-eyebrow">Balanço patrimonial</div>'
+        + '<div class="pat-sub">' + sub + badge + '</div></div>'
+        + '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">' + seletor + botoes + '</div></div>'
         + novoBox;
     }
 
+    // ── Render: composição final ─────────────────────────────────
     function patRenderBalancoHTML() {
+      var style = _patStyleHTML();
+
       if (patState.erro) {
-        return '<div style="background:#fceaea;border:1px solid #c0392b;border-radius:10px;padding:16px;margin-bottom:16px;'
-          + 'font-size:12.5px;color:#8c2020;">Não foi possível carregar o balanço patrimonial: '
-          + esc(patState.erro) + '</div>';
+        return style + '<div class="pat-wrap"><div class="pat-errbox">Não foi possível carregar o balanço patrimonial: '
+          + esc(patState.erro) + '</div></div>';
       }
 
       var admin = patPodeEditar();
 
       if (!patState.atual) {
-        return _patCabecalhoHTML()
-          + '<div style="background:#fff;border:1px dashed rgba(4,25,36,.18);border-radius:12px;padding:44px 20px;'
-          + 'text-align:center;margin-bottom:16px;">'
-          + '<div style="font-size:14px;font-weight:600;color:#041924;margin-bottom:6px;">Nenhum balanço fechado</div>'
-          + '<div style="font-size:12.5px;color:#5b818b;max-width:440px;margin:0 auto;">'
+        return style + '<div class="pat-wrap">' + _patCabecalhoHTML()
+          + '<div class="pat-empty-state">'
+          + '<div style="font-family:Urbanist,serif;font-size:17px;font-weight:600;color:var(--praxes-abyss);margin-bottom:8px;">Nenhum balanço fechado</div>'
+          + '<div class="pat-sub" style="max-width:440px;margin:0 auto;">'
           + (admin
               ? 'Crie o primeiro fechamento para consolidar a posição deste cliente. As linhas de imóveis, veículos, financiamentos e investimentos são montadas automaticamente.'
               : 'A posição patrimonial é consolidada pela Praxes a cada reunião. Assim que o primeiro fechamento for registrado, ele aparece aqui.')
-          + '</div></div>';
+          + '</div></div></div>';
       }
 
       var editavel = admin && patState.atual.status === 'rascunho';
@@ -5512,33 +5544,32 @@
       var solidez = t.ativo > 0 ? ((t.pl / t.ativo) * 100).toFixed(1) + '%' : '—';
       var nManuais = patState.linhas.filter(function (l) { return l.origem === 'manual'; }).length;
 
-      var kpis = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;">'
-        + '<div class="db-kpi"><div class="db-kpi-label">Patrimônio líquido</div>'
-        + '<div class="db-kpi-val ' + (t.pl >= 0 ? 'pos' : 'neg') + '">' + fmt(t.pl) + '</div>'
-        + '<div class="db-kpi-sub">Ativo − Passivo</div></div>'
-        + '<div class="db-kpi"><div class="db-kpi-label">Total de ativos</div>'
-        + '<div class="db-kpi-val">' + fmt(t.ativo) + '</div>'
-        + '<div class="db-kpi-sub">' + patState.linhas.filter(function (l) { return l.lado === 'ativo'; }).length
+      var kpis = '<div class="pat-kpigrid">'
+        + '<div class="pat-kpi"><div class="pat-kpi-lbl">Patrimônio líquido</div>'
+        + '<div class="pat-kpi-val ' + (t.pl >= 0 ? 'pos' : 'neg') + '">' + fmt(t.pl) + '</div>'
+        + '<div class="pat-kpi-sub">Ativo − Passivo</div></div>'
+        + '<div class="pat-kpi"><div class="pat-kpi-lbl">Total de ativos</div>'
+        + '<div class="pat-kpi-val">' + fmt(t.ativo) + '</div>'
+        + '<div class="pat-kpi-sub">' + patState.linhas.filter(function (l) { return l.lado === 'ativo'; }).length
         + ' itens · ' + nManuais + ' manuais</div></div>'
-        + '<div class="db-kpi"><div class="db-kpi-label">Total de passivos</div>'
-        + '<div class="db-kpi-val neg">' + fmt(t.passivo) + '</div>'
-        + '<div class="db-kpi-sub">' + patState.linhas.filter(function (l) { return l.lado === 'passivo'; }).length
+        + '<div class="pat-kpi"><div class="pat-kpi-lbl">Total de passivos</div>'
+        + '<div class="pat-kpi-val neg">' + fmt(t.passivo) + '</div>'
+        + '<div class="pat-kpi-sub">' + patState.linhas.filter(function (l) { return l.lado === 'passivo'; }).length
         + ' obrigações</div></div>'
-        + '<div class="db-kpi"><div class="db-kpi-label">Índice de solidez</div>'
-        + '<div class="db-kpi-val">' + solidez + '</div>'
-        + '<div class="db-kpi-sub">PL / Ativo</div></div></div>';
+        + '<div class="pat-kpi"><div class="pat-kpi-lbl">Índice de solidez</div>'
+        + '<div class="pat-kpi-val">' + solidez + '</div>'
+        + '<div class="pat-kpi-sub">PL / Ativo</div></div></div>';
 
-      var legenda = '<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:10px;font-size:11px;color:#5b818b;">'
+      var legenda = '<div class="pat-legend">'
         + ['comdinheiro', 'imoveis', 'veiculos', 'financiamento', 'manual'].map(function (k) {
-            return '<span style="display:flex;align-items:center;gap:5px;">' + _patTag(k) + '</span>';
+            return '<span class="pat-tag">' + PAT_ORIGEM[k] + '</span>';
           }).join('')
-        + (editavel ? '<span style="color:#a5bcc2;">Rascunho: valores editáveis, ajuste antes de fechar.</span>' : '')
+        + (editavel ? '<span style="color:var(--praxes-teal-20);">Rascunho — valores editáveis, ajuste antes de fechar.</span>' : '')
         + '</div>';
 
-      return _patCabecalhoHTML() + kpis
-        + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start;">'
-        + _patColunaHTML('ativo', editavel) + _patColunaHTML('passivo', editavel)
-        + '</div>' + legenda + _patHistoricoHTML();
+      return style + '<div class="pat-wrap">' + _patCabecalhoHTML() + kpis
+        + '<div class="pat-cols">' + _patColunaHTML('ativo', editavel) + _patColunaHTML('passivo', editavel) + '</div>'
+        + legenda + _patHistoricoHTML() + '</div>';
     }
 
     function _dashRender(d) {
