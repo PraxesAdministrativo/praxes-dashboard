@@ -4268,6 +4268,13 @@
               <label class="form-label">Data de Aquisição</label>
               <input type="date" class="form-input" name="data_aquisicao">
             </div>
+            <div class="form-group">
+              <label class="form-label">Classificação patrimonial</label>
+              <select class="form-select" name="grupo">
+                <option value="Uso Pessoal">Uso Pessoal</option>
+                <option value="Investimento">Investimento</option>
+              </select>
+            </div>
           </div>
           <div class="form-row">
             <div class="form-group">
@@ -4654,7 +4661,7 @@
                 
         const { data: client, error } = await db
           .from('clients')
-          .select('spreadsheet_id, name, imoveis_sheet_id, imoveis_folder_id, financeiro_sheet_id, is_admin, investimentos_sheet_id, investimentos_webapp_url, veiculos_sheet_id, veiculos_folder_id')
+          .select('id, email, spreadsheet_id, name, imoveis_sheet_id, imoveis_folder_id, financeiro_sheet_id, is_admin, investimentos_sheet_id, investimentos_webapp_url, veiculos_sheet_id, veiculos_folder_id')
           .ilike('email', email)
           .single();
         
@@ -4667,6 +4674,9 @@
         
   
         resumoSheetId = client.spreadsheet_id;
+        // Quem edita o balanço é definido pela identidade LOGADA, não pelo cliente visualizado
+        window.patIsAdmin = !!client.is_admin;
+        window.patClientId = client.id || null;
         imoveisSheetId = client.imoveis_sheet_id || null;
         imoveisFolderId = client.imoveis_folder_id || null;
         // Controle Financeiro usa a planilha de orçamento do cliente
@@ -4824,6 +4834,8 @@
         });
         alertas.sort((a,b) => a.diff - b.diff);
 
+        await patCarregar();
+
         _dashRender({ itensAtivo, itensPassivo, totalAtivo, totalPassivo, pl, endividamento, rendaMes, despMes, resultadoMes, alertas, hoje, mesAtual, anoAtual });
 
       } catch(e) {
@@ -4869,20 +4881,688 @@
       return saldos;
     }
 
+    // ============================================================
+    // ===== BALANÇO PATRIMONIAL — FECHAMENTOS ====================
+    // ============================================================
+    // Modelo: o balanço é um documento congelado numa data (fechamento),
+    // não um cálculo contínuo. Rascunho é montado a partir das fontes
+    // (Comdinheiro, imóveis, veículos, financiamentos) + itens manuais
+    // herdados do último fechamento. Ao fechar, as linhas ficam imutáveis.
+
+    const PAT_GRUPOS = {
+      ativo: [
+        { key: 'aplicacoes_financeiras', label: 'Aplicações financeiras' },
+        { key: 'direitos_receber',       label: 'Direitos a receber' },
+        { key: 'bens_investimento',      label: 'Bens como investimento' },
+        { key: 'empresas',               label: 'Empresas' },
+        { key: 'bens_uso_pessoal',       label: 'Bens de uso pessoal' }
+      ],
+      passivo: [
+        { key: 'obrigacoes_curto_prazo',  label: 'Obrigações de curto prazo' },
+        { key: 'obrigacoes_diversas',     label: 'Obrigações e indenizações diversas' },
+        { key: 'pagar_bens_investimento', label: 'A pagar — bens como investimento' },
+        { key: 'divida_empresas',         label: 'Dívida e aporte a fazer em empresas' },
+        { key: 'pagar_uso_pessoal',       label: 'A pagar — bens de uso pessoal' }
+      ]
+    };
+
+    const PAT_ORIGEM = {
+      comdinheiro:   { label: 'Comdinheiro', bg: '#e3edf1', fg: '#03313e' },
+      imoveis:       { label: 'Imóveis',     bg: '#e6f0e8', fg: '#2f5d3a' },
+      veiculos:      { label: 'Veículos',    bg: '#eae7f2', fg: '#4a3d70' },
+      financiamento: { label: 'Financ.',     bg: '#f5e7e7', fg: '#7a1f1f' },
+      manual:        { label: 'Manual',      bg: '#f2ddc6', fg: '#7a5518' }
+    };
+
+    let patState = { fechamentos: [], atual: null, linhas: [], carregado: false, erro: null };
+
+    function patPodeEditar() {
+      return !!window.patIsAdmin && !!window.patClientId;
+    }
+
+    function patFmtData(iso) {
+      if (!iso) return '—';
+      var p = String(iso).substring(0, 10).split('-');
+      if (p.length !== 3) return String(iso);
+      return p[2] + '/' + p[1] + '/' + p[0];
+    }
+
+    function patUltimoDiaMesAnterior() {
+      var h = new Date();
+      var d = new Date(h.getFullYear(), h.getMonth(), 0);
+      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0')
+             + '-' + String(d.getDate()).padStart(2, '0');
+    }
+
+    function patTotais(linhas) {
+      var a = 0, p = 0;
+      (linhas || []).forEach(function (l) {
+        var v = parseFloat(l.valor) || 0;
+        if (l.lado === 'ativo') a += v; else p += v;
+      });
+      return { ativo: a, passivo: p, pl: a - p };
+    }
+
+    // ── Carga ────────────────────────────────────────────────────
+    async function patCarregar() {
+      patState = { fechamentos: [], atual: null, linhas: [], carregado: false, erro: null };
+      if (!window.patClientId) { patState.carregado = true; return patState; }
+      try {
+        var q = db.from('pat_fechamentos').select('*')
+                  .eq('client_id', window.patClientId)
+                  .order('data_ref', { ascending: false });
+        var res = await q;
+        if (res.error) throw res.error;
+        patState.fechamentos = res.data || [];
+
+        // Admin vê o mais recente (inclui rascunho); cliente só o último fechado.
+        var alvo = patPodeEditar()
+          ? patState.fechamentos[0]
+          : patState.fechamentos.find(function (f) { return f.status === 'fechado'; });
+
+        // Se um fechamento estava selecionado, mantém a seleção
+        if (window._patSelId) {
+          var sel = patState.fechamentos.find(function (f) { return f.id === window._patSelId; });
+          if (sel) alvo = sel;
+        }
+        patState.atual = alvo || null;
+
+        if (patState.atual) {
+          var rl = await db.from('pat_fechamento_linhas').select('*')
+                     .eq('fechamento_id', patState.atual.id)
+                     .order('ordem', { ascending: true });
+          if (rl.error) throw rl.error;
+          patState.linhas = rl.data || [];
+        }
+      } catch (e) {
+        console.error('PAT carregar:', e);
+        patState.erro = e.message || String(e);
+      }
+      patState.carregado = true;
+      return patState;
+    }
+
+    // ── Montagem automática das linhas a partir das fontes ───────
+    async function patMontarLinhasAuto() {
+      var linhas = [];
+      var ordem = 0;
+
+      // Comdinheiro — uma linha só (decisão do Luiz: sem quebra por classe por ora)
+      try {
+        if (!invData.loaded && window.invSheetId) await invLoad(window.invSheetId);
+      } catch (e) { console.warn('PAT comdinheiro:', e); }
+      if (invData && invData.loaded && (invData.patrimonio || 0) > 0) {
+        linhas.push({
+          lado: 'ativo', grupo: 'aplicacoes_financeiras',
+          descricao: 'Carteira consolidada',
+          valor: invData.patrimonio, origem: 'comdinheiro',
+          origem_ref: window.invSheetId || null,
+          data_origem: invData.dataRef || null, ordem: ordem++
+        });
+      }
+
+      // Imóveis — grupo define se é investimento ou uso pessoal
+      if (!imoveisData.length) { try { await loadAllDataOptimized(); } catch (e) {} }
+      var saldos = {};
+      try { saldos = await _dashGetSaldosDevedores(); } catch (e) {}
+
+      imoveisData.forEach(function (row) {
+        if (!row[0]) return;
+        var nome  = row[0];
+        var grupo = (row[2] || 'Investimento');
+        var ehInv = String(grupo).toLowerCase().indexOf('invest') >= 0;
+        var valor = getValorAtualImovel(nome, row[7]);
+        if (valor > 0) {
+          linhas.push({
+            lado: 'ativo',
+            grupo: ehInv ? 'bens_investimento' : 'bens_uso_pessoal',
+            descricao: nome, valor: valor, origem: 'imoveis',
+            origem_ref: nome, data_origem: null, ordem: ordem++
+          });
+        }
+        var sd = saldos[nome] || 0;
+        if (sd > 0) {
+          linhas.push({
+            lado: 'passivo',
+            grupo: ehInv ? 'pagar_bens_investimento' : 'pagar_uso_pessoal',
+            descricao: nome, valor: sd, origem: 'financiamento',
+            origem_ref: nome, data_origem: null, ordem: ordem++
+          });
+        }
+      });
+
+      // Veículos — coluna P (índice 15) = Grupo; vazio significa Uso Pessoal
+      if (!veiculosData.length && window.veiSheetId) {
+        try { await veiculosLoad(); } catch (e) {}
+      }
+      (veiculosData || []).forEach(function (r) {
+        if (!r[0]) return;
+        var v = parseFloat(String(r[8] || '0').replace(/[^\d.-]/g, '')) || 0;
+        if (v <= 0) return;
+        var ehInv = String(r[15] || '').toLowerCase().indexOf('invest') >= 0;
+        linhas.push({
+          lado: 'ativo',
+          grupo: ehInv ? 'bens_investimento' : 'bens_uso_pessoal',
+          descricao: r[0], valor: v, origem: 'veiculos',
+          origem_ref: r[0], data_origem: null, ordem: ordem++
+        });
+      });
+
+      return linhas;
+    }
+
+    // ── Novo fechamento ──────────────────────────────────────────
+    function patToggleNovo() {
+      var el = document.getElementById('pat-novo-box');
+      if (el) el.style.display = (el.style.display === 'none' ? 'flex' : 'none');
+    }
+
+    async function patCriarFechamento() {
+      if (!patPodeEditar()) return;
+      var inp = document.getElementById('pat-nova-data');
+      var dataRef = inp ? inp.value : '';
+      if (!dataRef) { alert('Informe a data de fechamento.'); return; }
+
+      var jaExiste = patState.fechamentos.some(function (f) {
+        return String(f.data_ref).substring(0, 10) === dataRef;
+      });
+      if (jaExiste) { alert('Já existe um fechamento nesta data. Abra-o pelo seletor.'); return; }
+
+      var btn = document.getElementById('pat-btn-criar');
+      if (btn) { btn.disabled = true; btn.textContent = 'Montando...'; }
+
+      try {
+        // Cabeçalho
+        var ins = await db.from('pat_fechamentos').insert({
+          client_id: window.patClientId, data_ref: dataRef,
+          status: 'rascunho', criado_por: currentUser || null
+        }).select().single();
+        if (ins.error) throw ins.error;
+        var fech = ins.data;
+
+        // Linhas automáticas
+        var linhas = await patMontarLinhasAuto();
+
+        // Linhas manuais herdadas do fechamento anterior mais recente
+        var anterior = patState.fechamentos.filter(function (f) {
+          return String(f.data_ref).substring(0, 10) < dataRef;
+        })[0];
+        if (anterior) {
+          var ant = await db.from('pat_fechamento_linhas').select('*')
+                      .eq('fechamento_id', anterior.id).eq('origem', 'manual');
+          (ant.data || []).forEach(function (l) {
+            linhas.push({
+              lado: l.lado, grupo: l.grupo, descricao: l.descricao,
+              valor: l.valor, origem: 'manual', origem_ref: l.origem_ref,
+              data_origem: dataRef, ordem: 900 + (l.ordem || 0)
+            });
+          });
+        }
+
+        if (linhas.length) {
+          linhas.forEach(function (l) { l.fechamento_id = fech.id; });
+          var insL = await db.from('pat_fechamento_linhas').insert(linhas);
+          if (insL.error) throw insL.error;
+        }
+
+        window._patSelId = fech.id;
+        await loadDashboard();
+      } catch (e) {
+        console.error('PAT criar:', e);
+        alert('Erro ao criar fechamento: ' + (e.message || e));
+        if (btn) { btn.disabled = false; btn.textContent = 'Montar rascunho'; }
+      }
+    }
+
+    async function patSelecionar(id) {
+      window._patSelId = id || null;
+      await loadDashboard();
+    }
+
+    // ── Edição de linhas (só rascunho) ───────────────────────────
+    async function patSalvarValor(id, valor) {
+      if (!patPodeEditar()) return;
+      var v = parseFloat(String(valor).replace(/\./g, '').replace(',', '.'));
+      if (isNaN(v)) v = 0;
+      try {
+        var r = await db.from('pat_fechamento_linhas').update({ valor: v }).eq('id', id);
+        if (r.error) throw r.error;
+        await loadDashboard();
+      } catch (e) { alert('Erro ao salvar valor: ' + (e.message || e)); }
+    }
+
+    function patToggleAdd(grupo) {
+      var el = document.getElementById('pat-add-' + grupo);
+      if (el) el.style.display = (el.style.display === 'none' ? 'table-row' : 'none');
+    }
+
+    async function patAddItem(lado, grupo) {
+      if (!patPodeEditar() || !patState.atual) return;
+      var dEl = document.getElementById('pat-add-desc-' + grupo);
+      var vEl = document.getElementById('pat-add-val-' + grupo);
+      var desc = dEl ? dEl.value.trim() : '';
+      var val  = vEl ? parseFloat(String(vEl.value).replace(/\./g, '').replace(',', '.')) : 0;
+      if (!desc) { alert('Informe a descrição do item.'); return; }
+      if (isNaN(val)) val = 0;
+      try {
+        // registra no catálogo (não bloqueia se falhar)
+        var cat = await db.from('pat_itens').insert({
+          client_id: window.patClientId, lado: lado, grupo: grupo, descricao: desc
+        }).select().single();
+        var r = await db.from('pat_fechamento_linhas').insert({
+          fechamento_id: patState.atual.id, lado: lado, grupo: grupo,
+          descricao: desc, valor: val, origem: 'manual',
+          origem_ref: cat && cat.data ? cat.data.id : null,
+          data_origem: String(patState.atual.data_ref).substring(0, 10), ordem: 950
+        });
+        if (r.error) throw r.error;
+        await loadDashboard();
+      } catch (e) { alert('Erro ao adicionar item: ' + (e.message || e)); }
+    }
+
+    async function patRemoverLinha(id, desc) {
+      if (!patPodeEditar()) return;
+      if (!confirm('Remover "' + desc + '" deste rascunho?')) return;
+      try {
+        var r = await db.from('pat_fechamento_linhas').delete().eq('id', id);
+        if (r.error) throw r.error;
+        await loadDashboard();
+      } catch (e) { alert('Erro ao remover: ' + (e.message || e)); }
+    }
+
+    // ── Fechar / reabrir ─────────────────────────────────────────
+    async function patFechar() {
+      if (!patPodeEditar() || !patState.atual) return;
+      var t = patTotais(patState.linhas);
+      var msg = 'Fechar o balanço de ' + patFmtData(patState.atual.data_ref) + '?\n\n'
+              + 'Ativo: ' + fmt(t.ativo) + '\nPassivo: ' + fmt(t.passivo)
+              + '\nPatrimônio líquido: ' + fmt(t.pl) + '\n\n'
+              + 'As linhas ficam congeladas e o cliente passa a ver esta posição.';
+      if (!confirm(msg)) return;
+      try {
+        var r = await db.from('pat_fechamentos').update({
+          status: 'fechado', total_ativo: t.ativo, total_passivo: t.passivo,
+          patrimonio_liquido: t.pl, fechado_por: currentUser || null,
+          fechado_em: new Date().toISOString()
+        }).eq('id', patState.atual.id);
+        if (r.error) throw r.error;
+        await loadDashboard();
+      } catch (e) { alert('Erro ao fechar: ' + (e.message || e)); }
+    }
+
+    async function patReabrir() {
+      if (!patPodeEditar() || !patState.atual) return;
+      if (!confirm('Reabrir o fechamento de ' + patFmtData(patState.atual.data_ref)
+        + '?\n\nEle sai da visão do cliente até ser fechado de novo. A reabertura fica registrada.')) return;
+      try {
+        var r = await db.from('pat_fechamentos').update({
+          status: 'rascunho', reaberto_por: currentUser || null,
+          reaberto_em: new Date().toISOString()
+        }).eq('id', patState.atual.id);
+        if (r.error) throw r.error;
+        await loadDashboard();
+      } catch (e) { alert('Erro ao reabrir: ' + (e.message || e)); }
+    }
+
+    async function patExcluirFechamento() {
+      if (!patPodeEditar() || !patState.atual) return;
+      if (patState.atual.status !== 'rascunho') { alert('Só é possível excluir rascunhos.'); return; }
+      if (!confirm('Excluir o rascunho de ' + patFmtData(patState.atual.data_ref) + '? Esta ação não volta.')) return;
+      try {
+        var r = await db.from('pat_fechamentos').delete().eq('id', patState.atual.id);
+        if (r.error) throw r.error;
+        window._patSelId = null;
+        await loadDashboard();
+      } catch (e) { alert('Erro ao excluir: ' + (e.message || e)); }
+    }
+
+    // ── Render ───────────────────────────────────────────────────
+    function _patTag(origem) {
+      var o = PAT_ORIGEM[origem] || PAT_ORIGEM.manual;
+      return '<span style="font-size:8.5px;letter-spacing:.06em;text-transform:uppercase;'
+        + 'padding:2px 5px;border-radius:4px;font-weight:700;white-space:nowrap;flex-shrink:0;'
+        + 'background:' + o.bg + ';color:' + o.fg + ';">' + o.label + '</span>';
+    }
+
+    // Resolve o subgrupo de uma linha. As linhas do fechamento não guardam
+    // subgrupo — ele vem por lookup na fonte, então degrada para um rótulo
+    // estável quando a planilha ainda não foi carregada nesta sessão.
+    function _patSubgrupo(l) {
+      if (l.origem === 'imoveis' || l.origem === 'financiamento') {
+        var alvo = l.origem_ref || l.descricao;
+        var row  = (imoveisData || []).find(function (r) { return r[0] === alvo; });
+        return (row && row[3]) ? String(row[3]) : 'Outros';
+      }
+      if (l.origem === 'veiculos') {
+        var alvoV = l.origem_ref || l.descricao;
+        var rowV  = (veiculosData || []).find(function (r) { return r[0] === alvoV; });
+        return (rowV && rowV[1]) ? String(rowV[1]) : 'Veículos';
+      }
+      return null;
+    }
+
+    function patToggleSub(subId) {
+      var rows = document.querySelectorAll('tr[data-sub="' + subId + '"]');
+      var cab  = document.getElementById(subId);
+      var abrir = cab ? cab.getAttribute('data-open') !== '1' : true;
+      for (var i = 0; i < rows.length; i++) rows[i].style.display = abrir ? 'table-row' : 'none';
+      if (cab) {
+        cab.setAttribute('data-open', abrir ? '1' : '0');
+        var ch = cab.querySelector('.pat-chevron');
+        if (ch) ch.style.transform = abrir ? 'rotate(90deg)' : 'rotate(0deg)';
+      }
+    }
+
+    function _patSubCabHTML(subId, label, qtd, subtotal, passivo) {
+      return '<tr id="' + subId + '" data-open="1" onclick="patToggleSub(\'' + subId + '\')"'
+        + ' style="cursor:pointer;user-select:none;"'
+        + ' onmouseenter="this.style.background=\'#faf6f0\'" onmouseleave="this.style.background=\'\'">'
+        + '<td style="padding:6px 8px 6px 20px;border-bottom:0.5px solid #f4f4f4;">'
+        + '<span style="display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:#5b818b;">'
+        + '<span class="pat-chevron" style="font-size:8px;color:#c4c4c4;transition:transform .15s;transform:rotate(90deg);display:inline-block;">\u25b6</span>'
+        + esc(label) + '<span style="font-weight:400;font-size:10px;color:#c4c4c4;">' + qtd + '</span></span></td>'
+        + '<td style="padding:6px 12px 6px 8px;border-bottom:0.5px solid #f4f4f4;text-align:right;white-space:nowrap;'
+        + 'font-size:11.5px;font-weight:600;font-variant-numeric:tabular-nums;color:'
+        + (passivo ? '#8c2020' : '#2a5a66') + ';">' + fmt(subtotal) + '</td></tr>';
+    }
+
+    function _patLinhaHTML(l, editavel, subId) {
+      var vl = editavel
+        ? '<input type="text" value="' + (parseFloat(l.valor) || 0).toFixed(2)
+          + '" onchange="patSalvarValor(\'' + l.id + '\',this.value)"'
+          + ' style="width:104px;text-align:right;font-family:inherit;font-size:12px;padding:3px 6px;'
+          + 'border:1px solid #dcdcdc;border-radius:5px;background:#fff;">'
+        : '<span style="font-size:12.5px;color:#2a5a66;font-variant-numeric:tabular-nums;">' + fmt(l.valor) + '</span>';
+
+      var lixo = (editavel && l.origem === 'manual')
+        ? '<span onclick="patRemoverLinha(\'' + l.id + '\',\'' + esc(l.descricao).replace(/'/g, '') + '\')"'
+          + ' title="Remover" style="cursor:pointer;color:#c9c9c9;font-size:13px;line-height:1;padding:0 2px;">&times;</span>'
+        : '';
+
+      var dt = l.data_origem
+        ? '<span style="font-size:9.5px;color:#bbb;white-space:nowrap;">' + patFmtData(l.data_origem) + '</span>'
+        : '';
+
+      var attrs = subId ? ' data-sub="' + subId + '"' : '';
+      var pad   = subId ? '6px 8px 6px 38px' : '6px 8px 6px 26px';
+      return '<tr' + attrs + '><td style="padding:' + pad + ';border-bottom:0.5px solid #f4f4f4;">'
+        + '<span style="display:flex;align-items:center;gap:7px;min-width:0;">'
+        + _patTag(l.origem)
+        + '<span style="font-size:12.5px;color:#03313e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'
+        + esc(l.descricao) + '</span>' + dt + '</span></td>'
+        + '<td style="padding:6px 12px 6px 8px;border-bottom:0.5px solid #f4f4f4;text-align:right;white-space:nowrap;">'
+        + vl + ' ' + lixo + '</td></tr>';
+    }
+
+    function _patColunaHTML(lado, editavel) {
+      var grupos = PAT_GRUPOS[lado];
+      var total  = 0;
+      var corpo  = grupos.map(function (g) {
+        var itens = patState.linhas.filter(function (l) { return l.lado === lado && l.grupo === g.key; });
+        var sub   = itens.reduce(function (s, l) { return s + (parseFloat(l.valor) || 0); }, 0);
+        total += sub;
+
+        var addBtn = editavel
+          ? '<button onclick="patToggleAdd(\'' + g.key + '\')" style="border:1px dashed #a5bcc2;'
+            + 'background:transparent;color:#5b818b;font-family:inherit;font-size:10px;padding:1px 6px;'
+            + 'border-radius:5px;cursor:pointer;line-height:1.6;">+ item</button>'
+          : '';
+
+        var addRow = editavel
+          ? '<tr id="pat-add-' + g.key + '" style="display:none;"><td colspan="2" style="padding:8px 12px 8px 26px;background:#fdfaf5;border-bottom:0.5px solid #f0f0f0;">'
+            + '<span style="display:flex;gap:6px;align-items:center;">'
+            + '<input id="pat-add-desc-' + g.key + '" placeholder="Descrição do item" style="flex:1;font-family:inherit;font-size:12px;padding:5px 8px;border:1px solid #dcdcdc;border-radius:5px;">'
+            + '<input id="pat-add-val-' + g.key + '" placeholder="0,00" style="width:96px;text-align:right;font-family:inherit;font-size:12px;padding:5px 8px;border:1px solid #dcdcdc;border-radius:5px;">'
+            + '<button onclick="patAddItem(\'' + lado + '\',\'' + g.key + '\')" style="border:none;background:#041924;color:#f2ddc6;font-family:inherit;font-size:11px;font-weight:600;padding:6px 12px;border-radius:5px;cursor:pointer;">Salvar</button>'
+            + '</span></td></tr>'
+          : '';
+
+        // ── Camada de subgrupo ──────────────────────────────────────
+        // Só entra quando há 2+ itens com subgrupo resolvido; abaixo disso
+        // o nível extra é ruído e as linhas ficam planas.
+        var comSub = [], semSub = [];
+        itens.forEach(function (l) {
+          var sg = _patSubgrupo(l);
+          if (sg) { comSub.push({ l: l, sg: sg }); } else { semSub.push(l); }
+        });
+
+        var linhas;
+        var _distintos = {}, _nDist = 0;
+        comSub.forEach(function (x) { if (!_distintos[x.sg]) { _distintos[x.sg] = 1; _nDist++; } });
+        // A camada só entra se ela realmente agrupa: 3+ itens, 2+ subgrupos
+        // distintos e pelo menos um subgrupo com mais de um item. Um subgrupo
+        // por item, ou um só cobrindo tudo, é ruído — nesses casos fica plano.
+        var _vale = comSub.length >= 3 && _nDist >= 2 && _nDist < comSub.length;
+
+        if (!itens.length) {
+          linhas = '<tr><td colspan="2" style="padding:6px 12px 6px 26px;border-bottom:0.5px solid #f4f4f4;font-size:11.5px;color:#c4c4c4;font-style:italic;">Nenhum lançamento</td></tr>';
+        } else if (!_vale) {
+          linhas = itens.map(function (l) { return _patLinhaHTML(l, editavel); }).join('');
+        } else {
+          var subMap = {}, subOrdem = [];
+          comSub.forEach(function (x) {
+            if (!subMap[x.sg]) { subMap[x.sg] = []; subOrdem.push(x.sg); }
+            subMap[x.sg].push(x.l);
+          });
+          subOrdem.sort();
+          // itens sem subgrupo (Comdinheiro, manuais) ficam soltos no topo
+          linhas = semSub.map(function (l) { return _patLinhaHTML(l, editavel); }).join('');
+          linhas += subOrdem.map(function (sg, si) {
+            var lista   = subMap[sg];
+            var subId   = 'pat-sub-' + lado + '-' + g.key + '-' + si;
+            var subTot  = lista.reduce(function (a, l) { return a + (parseFloat(l.valor) || 0); }, 0);
+            return _patSubCabHTML(subId, sg, lista.length, subTot, lado === 'passivo')
+              + lista.map(function (l) { return _patLinhaHTML(l, editavel, subId); }).join('');
+          }).join('');
+        }
+
+        return '<tr><td style="padding:9px 8px 9px 14px;background:#ebe3d6;border-bottom:0.5px solid #e0d6c6;">'
+          + '<span style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#041924;">'
+          + esc(g.label) + addBtn + '</span></td>'
+          + '<td style="padding:9px 12px 9px 8px;background:#ebe3d6;border-bottom:0.5px solid #e0d6c6;text-align:right;'
+          + 'font-size:12.5px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;">'
+          + fmt(sub) + '</td></tr>'
+          + linhas + addRow;
+      }).join('');
+
+      var hdBg   = lado === 'ativo' ? '#2f5d3a' : '#7a1f1f';
+      var hdTxt  = lado === 'ativo' ? 'Total de bens / direitos' : 'Total de dívidas / obrigações';
+      var totLbl = lado === 'ativo' ? 'Total do ativo' : 'Total do passivo';
+
+      return '<div style="background:#fff;border:1px solid rgba(4,25,36,.10);border-radius:12px;overflow:hidden;">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:'
+        + hdBg + ';color:#f2ddc6;">'
+        + '<span style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;">' + hdTxt + '</span>'
+        + '<span style="font-size:14.5px;font-weight:700;font-variant-numeric:tabular-nums;">' + fmt(total) + '</span></div>'
+        + '<table style="width:100%;border-collapse:collapse;table-layout:fixed;">'
+        + '<colgroup><col><col style="width:150px;"></colgroup>' + corpo + '</table>'
+        + '<div style="display:flex;justify-content:space-between;padding:10px 14px;border-top:1px solid rgba(4,25,36,.18);'
+        + 'font-size:13px;font-weight:700;"><span>' + totLbl + '</span><span style="font-variant-numeric:tabular-nums;">'
+        + fmt(total) + '</span></div>'
+        + (lado === 'passivo' ? _patRodapePLHTML() : '')
+        + '</div>';
+    }
+
+    function _patRodapePLHTML() {
+      var t = patTotais(patState.linhas);
+      return '<div style="display:flex;justify-content:space-between;align-items:baseline;padding:13px 14px;background:#041924;color:#f2ddc6;">'
+        + '<span style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;">Patrimônio líquido</span>'
+        + '<span style="font-size:18px;font-weight:700;font-variant-numeric:tabular-nums;">' + fmt(t.pl) + '</span></div>'
+        + '<div style="display:flex;justify-content:space-between;padding:9px 14px;background:#ebe3d6;font-size:12px;font-weight:700;color:#03313e;">'
+        + '<span>Passivo + patrimônio líquido</span><span style="font-variant-numeric:tabular-nums;">' + fmt(t.ativo) + '</span></div>';
+    }
+
+    function _patHistoricoHTML() {
+      if (patState.fechamentos.length < 2) return '';
+      var rows = patState.fechamentos.map(function (f, i) {
+        var prox = patState.fechamentos[i + 1];
+        var plAnt = prox ? (parseFloat(prox.patrimonio_liquido) || 0) : 0;
+        var plAtu = parseFloat(f.patrimonio_liquido) || 0;
+        var varia = (prox && plAnt > 0)
+          ? '<span style="color:' + (plAtu >= plAnt ? '#1a6645' : '#8c2020') + ';">'
+            + (plAtu >= plAnt ? '+' : '') + (((plAtu - plAnt) / plAnt) * 100).toFixed(1) + '%</span>'
+          : '<span style="color:#c4c4c4;">—</span>';
+        var badge = f.status === 'fechado'
+          ? '<span style="font-size:9px;padding:2px 6px;border-radius:4px;background:#1a6645;color:#fff;font-weight:700;letter-spacing:.06em;">FECHADO</span>'
+          : '<span style="font-size:9px;padding:2px 6px;border-radius:4px;background:#f2ddc6;color:#7a5518;font-weight:700;letter-spacing:.06em;">RASCUNHO</span>';
+        var atu = (patState.atual && patState.atual.id === f.id);
+        return '<tr onclick="patSelecionar(\'' + f.id + '\')" style="cursor:pointer;background:'
+          + (atu ? '#faf6f0' : 'transparent') + ';">'
+          + '<td style="padding:8px 0;border-bottom:0.5px solid #f0f0f0;font-size:12.5px;font-weight:'
+          + (atu ? '700' : '400') + ';">' + patFmtData(f.data_ref) + '</td>'
+          + '<td style="padding:8px 0;border-bottom:0.5px solid #f0f0f0;">' + badge + '</td>'
+          + '<td style="padding:8px 0;border-bottom:0.5px solid #f0f0f0;text-align:right;font-size:12.5px;font-variant-numeric:tabular-nums;">' + fmt(f.total_ativo) + '</td>'
+          + '<td style="padding:8px 0;border-bottom:0.5px solid #f0f0f0;text-align:right;font-size:12.5px;font-variant-numeric:tabular-nums;">' + fmt(f.total_passivo) + '</td>'
+          + '<td style="padding:8px 0;border-bottom:0.5px solid #f0f0f0;text-align:right;font-size:12.5px;font-weight:600;font-variant-numeric:tabular-nums;">' + fmt(f.patrimonio_liquido) + '</td>'
+          + '<td style="padding:8px 0;border-bottom:0.5px solid #f0f0f0;text-align:right;font-size:11.5px;font-weight:600;">' + varia + '</td></tr>';
+      }).join('');
+
+      return '<div class="db-panel" style="margin-top:14px;">'
+        + '<div class="db-panel-title">Histórico de fechamentos</div>'
+        + '<table style="width:100%;border-collapse:collapse;">'
+        + '<tr><th style="text-align:left;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#5b818b;font-weight:500;padding:0 0 6px;border-bottom:1px solid #f0f0f0;">Data</th>'
+        + '<th style="text-align:left;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#5b818b;font-weight:500;padding:0 0 6px;border-bottom:1px solid #f0f0f0;">Status</th>'
+        + '<th style="text-align:right;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#5b818b;font-weight:500;padding:0 0 6px;border-bottom:1px solid #f0f0f0;">Ativo</th>'
+        + '<th style="text-align:right;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#5b818b;font-weight:500;padding:0 0 6px;border-bottom:1px solid #f0f0f0;">Passivo</th>'
+        + '<th style="text-align:right;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#5b818b;font-weight:500;padding:0 0 6px;border-bottom:1px solid #f0f0f0;">Patrimônio líquido</th>'
+        + '<th style="text-align:right;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#5b818b;font-weight:500;padding:0 0 6px;border-bottom:1px solid #f0f0f0;">Variação</th></tr>'
+        + rows + '</table></div>';
+    }
+
+    function _patCabecalhoHTML() {
+      var admin = patPodeEditar();
+      var f = patState.atual;
+
+      var seletor = patState.fechamentos.length
+        ? '<select onchange="patSelecionar(this.value)" style="font-family:inherit;font-size:12.5px;padding:7px 10px;'
+          + 'border:1px solid rgba(4,25,36,.18);border-radius:8px;background:#fff;color:#041924;cursor:pointer;">'
+          + patState.fechamentos.map(function (x) {
+              return '<option value="' + x.id + '"' + (f && f.id === x.id ? ' selected' : '') + '>'
+                + patFmtData(x.data_ref) + ' — ' + (x.status === 'fechado' ? 'fechado' : 'rascunho') + '</option>';
+            }).join('') + '</select>'
+        : '';
+
+      var botoes = '';
+      if (admin) {
+        if (f && f.status === 'rascunho') {
+          botoes += '<button onclick="patFechar()" style="border:none;background:#1a6645;color:#fff;font-family:inherit;'
+            + 'font-size:12.5px;font-weight:600;padding:8px 14px;border-radius:8px;cursor:pointer;">Fechar balanço</button>';
+          botoes += '<button onclick="patExcluirFechamento()" title="Excluir rascunho" style="border:1px solid rgba(4,25,36,.18);'
+            + 'background:#fff;color:#8c2020;font-family:inherit;font-size:12.5px;padding:8px 12px;border-radius:8px;cursor:pointer;">Excluir</button>';
+        } else if (f && f.status === 'fechado') {
+          botoes += '<button onclick="patReabrir()" style="border:1px solid rgba(4,25,36,.18);background:#fff;'
+            + 'color:#041924;font-family:inherit;font-size:12.5px;padding:8px 12px;border-radius:8px;cursor:pointer;">Reabrir</button>';
+        }
+        botoes += '<button onclick="patToggleNovo()" style="border:none;background:#041924;color:#f2ddc6;font-family:inherit;'
+          + 'font-size:12.5px;font-weight:600;padding:8px 14px;border-radius:8px;cursor:pointer;">+ Novo fechamento</button>';
+      }
+
+      var badge = f
+        ? (f.status === 'fechado'
+            ? '<span style="font-size:9px;padding:2px 7px;border-radius:4px;background:#1a6645;color:#fff;font-weight:700;letter-spacing:.08em;margin-left:8px;">FECHADO</span>'
+            : '<span style="font-size:9px;padding:2px 7px;border-radius:4px;background:#f2ddc6;color:#7a5518;font-weight:700;letter-spacing:.08em;margin-left:8px;">RASCUNHO</span>')
+        : '';
+
+      var sub = f
+        ? 'Fechamento de ' + patFmtData(f.data_ref) + badge
+        : 'Nenhum fechamento registrado';
+
+      var novoBox = admin
+        ? '<div id="pat-novo-box" style="display:none;gap:8px;align-items:center;margin-bottom:14px;padding:12px 14px;'
+          + 'background:#fdfaf5;border:1px dashed #a5bcc2;border-radius:10px;">'
+          + '<span style="font-size:12px;color:#5b818b;">Data do fechamento</span>'
+          + '<input type="date" id="pat-nova-data" value="' + patUltimoDiaMesAnterior() + '"'
+          + ' style="font-family:inherit;font-size:12.5px;padding:6px 10px;border:1px solid #dcdcdc;border-radius:6px;">'
+          + '<button id="pat-btn-criar" onclick="patCriarFechamento()" style="border:none;background:#041924;color:#f2ddc6;'
+          + 'font-family:inherit;font-size:12px;font-weight:600;padding:7px 14px;border-radius:6px;cursor:pointer;">Montar rascunho</button>'
+          + '<span style="font-size:11px;color:#a5bcc2;">Puxa Comdinheiro, imóveis, veículos e financiamentos, e herda os itens manuais do último fechamento.</span>'
+          + '</div>'
+        : '';
+
+      return '<div style="display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap;margin-bottom:14px;">'
+        + '<div><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#2a5a66;">Balanço patrimonial</div>'
+        + '<div style="font-size:12.5px;color:#5b818b;margin-top:3px;">' + sub + '</div></div>'
+        + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' + seletor + botoes + '</div></div>'
+        + novoBox;
+    }
+
+    function patRenderBalancoHTML() {
+      if (patState.erro) {
+        return '<div style="background:#fceaea;border:1px solid #c0392b;border-radius:10px;padding:16px;margin-bottom:16px;'
+          + 'font-size:12.5px;color:#8c2020;">Não foi possível carregar o balanço patrimonial: '
+          + esc(patState.erro) + '</div>';
+      }
+
+      var admin = patPodeEditar();
+
+      if (!patState.atual) {
+        return _patCabecalhoHTML()
+          + '<div style="background:#fff;border:1px dashed rgba(4,25,36,.18);border-radius:12px;padding:44px 20px;'
+          + 'text-align:center;margin-bottom:16px;">'
+          + '<div style="font-size:14px;font-weight:600;color:#041924;margin-bottom:6px;">Nenhum balanço fechado</div>'
+          + '<div style="font-size:12.5px;color:#5b818b;max-width:440px;margin:0 auto;">'
+          + (admin
+              ? 'Crie o primeiro fechamento para consolidar a posição deste cliente. As linhas de imóveis, veículos, financiamentos e investimentos são montadas automaticamente.'
+              : 'A posição patrimonial é consolidada pela Praxes a cada reunião. Assim que o primeiro fechamento for registrado, ele aparece aqui.')
+          + '</div></div>';
+      }
+
+      var editavel = admin && patState.atual.status === 'rascunho';
+      var t = patTotais(patState.linhas);
+      var solidez = t.ativo > 0 ? ((t.pl / t.ativo) * 100).toFixed(1) + '%' : '—';
+      var nManuais = patState.linhas.filter(function (l) { return l.origem === 'manual'; }).length;
+
+      var kpis = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;">'
+        + '<div class="db-kpi"><div class="db-kpi-label">Patrimônio líquido</div>'
+        + '<div class="db-kpi-val ' + (t.pl >= 0 ? 'pos' : 'neg') + '">' + fmt(t.pl) + '</div>'
+        + '<div class="db-kpi-sub">Ativo − Passivo</div></div>'
+        + '<div class="db-kpi"><div class="db-kpi-label">Total de ativos</div>'
+        + '<div class="db-kpi-val">' + fmt(t.ativo) + '</div>'
+        + '<div class="db-kpi-sub">' + patState.linhas.filter(function (l) { return l.lado === 'ativo'; }).length
+        + ' itens · ' + nManuais + ' manuais</div></div>'
+        + '<div class="db-kpi"><div class="db-kpi-label">Total de passivos</div>'
+        + '<div class="db-kpi-val neg">' + fmt(t.passivo) + '</div>'
+        + '<div class="db-kpi-sub">' + patState.linhas.filter(function (l) { return l.lado === 'passivo'; }).length
+        + ' obrigações</div></div>'
+        + '<div class="db-kpi"><div class="db-kpi-label">Índice de solidez</div>'
+        + '<div class="db-kpi-val">' + solidez + '</div>'
+        + '<div class="db-kpi-sub">PL / Ativo</div></div></div>';
+
+      var legenda = '<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:10px;font-size:11px;color:#5b818b;">'
+        + ['comdinheiro', 'imoveis', 'veiculos', 'financiamento', 'manual'].map(function (k) {
+            return '<span style="display:flex;align-items:center;gap:5px;">' + _patTag(k) + '</span>';
+          }).join('')
+        + (editavel ? '<span style="color:#a5bcc2;">Rascunho: valores editáveis, ajuste antes de fechar.</span>' : '')
+        + '</div>';
+
+      return _patCabecalhoHTML() + kpis
+        + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start;">'
+        + _patColunaHTML('ativo', editavel) + _patColunaHTML('passivo', editavel)
+        + '</div>' + legenda + _patHistoricoHTML();
+    }
+
     function _dashRender(d) {
-      const { itensAtivo, itensPassivo, totalAtivo, totalPassivo, pl, endividamento, rendaMes, despMes, resultadoMes, alertas, hoje, mesAtual, anoAtual } = d;
+      const { itensAtivo, itensPassivo, endividamento, rendaMes, despMes, resultadoMes, alertas, hoje, mesAtual, anoAtual } = d;
       const fmtK = v => v >= 1000000 ? 'R$ ' + (v/1000000).toFixed(2).replace('.',',') + 'M' : fmt(v);
+
+      // Totais: se existe fechamento, ele é a fonte da verdade. Senão, cai no
+      // cálculo antigo (só imóveis) para não quebrar cliente sem fechamento.
+      const _pt = (patState.atual && patState.linhas.length) ? patTotais(patState.linhas) : null;
+      const totalAtivo   = _pt ? _pt.ativo   : d.totalAtivo;
+      const totalPassivo = _pt ? _pt.passivo : d.totalPassivo;
+      const pl           = _pt ? _pt.pl      : d.pl;
 
       // ── Popular KPIs do bloco de boas-vindas ─────────────────
       const wKpis = document.getElementById('dash-welcome-kpis');
       if (wKpis) {
         const valPct = totalAtivo > 0 ? ((pl / totalAtivo) * 100).toFixed(1) : '—';
+        const _nAtivo = _pt ? patState.linhas.filter(l => l.lado === 'ativo').length : itensAtivo.length;
         const kpiItems = [
           { label: 'Patrimônio Líquido', val: fmtK(pl), sub: 'Ativos − Passivos' },
           null, // divider
-          { label: 'Total de Ativos', val: fmtK(totalAtivo), sub: itensAtivo.length + ' ativo(s)' },
+          { label: 'Total de Ativos', val: fmtK(totalAtivo), sub: _nAtivo + ' ativo(s)' },
           null,
-          { label: 'Passivos', val: fmtK(totalPassivo), sub: 'Financiamentos' },
+          { label: 'Passivos', val: fmtK(totalPassivo), sub: _pt ? 'Obrigações' : 'Financiamentos' },
           null,
           { label: 'Índice de Solidez', val: (totalAtivo > 0 ? valPct : '—') + '%', sub: 'PL / Ativos' },
         ];
@@ -5113,42 +5793,9 @@
           .db-cf-label{color:var(--text-light);}
         </style>
 
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;">
-          <div class="db-kpi">
-            <div class="db-kpi-label">Patrimônio líquido</div>
-            <div class="db-kpi-val ${pl>=0?'pos':'neg'}">${fmtK(pl)}</div>
-            <div class="db-kpi-sub">Ativos − Passivos</div>
-          </div>
-          <div class="db-kpi">
-            <div class="db-kpi-label">Total de ativos</div>
-            <div class="db-kpi-val">${fmtK(totalAtivo)}</div>
-            <div class="db-kpi-sub">${itensAtivo.length} imóvel(is)</div>
-          </div>
-          <div class="db-kpi">
-            <div class="db-kpi-label">Total de passivos</div>
-            <div class="db-kpi-val neg">${fmtK(totalPassivo)}</div>
-            <div class="db-kpi-sub">Financiamentos</div>
-          </div>
-        </div>
+        ${patRenderBalancoHTML()}
 
-        <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:14px;margin-bottom:14px;">
-
-          <div class="db-panel">
-            <div class="db-panel-title">Balanço patrimonial — imóveis</div>
-            <table class="db-bal-table">
-              <tr><th>Ativo</th><th style="text-align:right;">Valor</th></tr>
-              ${rowsAtivo}
-              <tr class="subtotal"><td>Total de ativos</td><td style="text-align:right;">${fmt(totalAtivo)}</td></tr>
-            </table>
-            <div style="height:16px;"></div>
-            <table class="db-bal-table">
-              <tr><th>Passivo</th><th style="text-align:right;">Valor</th></tr>
-              <tr class="group"><td colspan="2">Financiamentos (saldo devedor atual)</td></tr>
-              ${rowsPassivo}
-              <tr class="subtotal neg"><td>Total de passivos</td><td style="text-align:right;">${fmt(totalPassivo)}</td></tr>
-              <tr class="pl"><td>Patrimônio líquido</td><td style="text-align:right;">${fmt(pl)}</td></tr>
-            </table>
-          </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
 
           <div style="display:flex;flex-direction:column;gap:14px;">
 
@@ -11314,7 +11961,7 @@ Esta ação não pode ser desfeita.`)) return;
     function veiEditar(i) {
       const row = veiculosData[i];
       const form = document.getElementById('form-add-veiculo');
-      const fields = ['nome','tipo','marca','modelo','ano','placa','renavam','cor','valor_atual','data_aquisicao','venc_ipva','venc_seguro','venc_licenciamento','chassi','observacoes'];
+      const fields = ['nome','tipo','marca','modelo','ano','placa','renavam','cor','valor_atual','data_aquisicao','venc_ipva','venc_seguro','venc_licenciamento','chassi','observacoes','grupo'];
       fields.forEach((f,fi) => { if (form.elements[f]) form.elements[f].value = row[fi]||''; });
       document.getElementById('modal-vei-titulo').textContent = 'Editar Veículo';
       document.getElementById('btn-save-veiculo').setAttribute('data-index', i);
@@ -11328,16 +11975,19 @@ Esta ação não pode ser desfeita.`)) return;
       const btn = document.getElementById('btn-save-veiculo');
       const idx = btn.getAttribute('data-index');
       const row = ['nome','tipo','marca','modelo','ano','placa','renavam','cor','valor_atual','data_aquisicao',
-        'venc_ipva','venc_seguro','venc_licenciamento','chassi','observacoes'].map(f=>form.elements[f]?.value||'');
+        'venc_ipva','venc_seguro','venc_licenciamento','chassi','observacoes','grupo'].map(f=>form.elements[f]?.value||'');
+      // Coluna P = Grupo (Uso Pessoal | Investimento). Anexada no fim de propósito:
+      // inserir no meio quebraria todos os índices posicionais de veiEditar/renderVeiculos.
+      if (!row[15]) row[15] = 'Uso Pessoal';
       try {
         if (idx !== null && idx !== undefined) {
           await gapi.client.sheets.spreadsheets.values.update({
-            spreadsheetId:window.veiSheetId, range:`lista!A${parseInt(idx)+2}:O${parseInt(idx)+2}`,
+            spreadsheetId:window.veiSheetId, range:`lista!A${parseInt(idx)+2}:P${parseInt(idx)+2}`,
             valueInputOption:'USER_ENTERED', resource:{values:[row]}
           });
         } else {
           await gapi.client.sheets.spreadsheets.values.append({
-            spreadsheetId:window.veiSheetId, range:'lista!A:O',
+            spreadsheetId:window.veiSheetId, range:'lista!A:P',
             valueInputOption:'USER_ENTERED', resource:{values:[row]}
           });
         }
@@ -14039,6 +14689,9 @@ Esta ação não pode ser desfeita.`)) return;
 
     function adminCarregarCliente(client) {
       resumoSheetId    = client.spreadsheet_id;
+      // client_id do cliente VISUALIZADO (patIsAdmin já foi definido no login)
+      window.patClientId = client.id || null;
+      window._patSelId   = null;
       imoveisSheetId   = client.imoveis_sheet_id || '1FL7TlnRqTAkBUDM5ICMFvo5-6ezV92zPFAWevyEJT90';
       imoveisFolderId  = client.imoveis_folder_id || '1fhcguz-nrayJ0kAS-y1j9LQggs5wbD7i';
       window.finSheetOverride = client.financeiro_sheet_id || client.spreadsheet_id;
