@@ -363,7 +363,7 @@
     .top-bar-left { display:flex; align-items:baseline; gap:14px; }
     .page-title {
       font-family: var(--font-display);
-      font-size: 22px; font-weight: 500;
+      font-size: 18px; font-weight: 500;
       color: var(--fg-1); letter-spacing: -0.02em;
     }
     .top-bar-date {
@@ -458,29 +458,6 @@
       transition: background var(--dur-1);
     }
     .btn-add:hover { background: var(--praxes-abyss); }
-
-    /* ── TOP BAR ────────────────────────────────────────────────── */
-    .top-bar {
-      background: rgba(250,246,240,0.85);
-      backdrop-filter: blur(20px) saturate(1.2);
-      -webkit-backdrop-filter: blur(20px) saturate(1.2);
-      padding: 0 40px;
-      height: 64px;
-      border-bottom: 1px solid var(--line);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-    }
-    .page-title {
-      font-family: var(--font-display);
-      font-size: 18px;
-      font-weight: 500;
-      color: var(--fg-1);
-      letter-spacing: -0.01em;
-    }
 
     /* ── WELCOME BLOCK ──────────────────────────────────────────── */
     .dash-welcome {
@@ -4687,6 +4664,15 @@
       document.getElementById('page-' + pageName).classList.add('active');
       const navItem = document.querySelector(`.nav-item[data-page="${pageName}"]`);
       if (navItem) navItem.classList.add('active');
+
+      // A ilha clara pinta o fundo da própria página, mas o padding do
+      // content-wrapper (a moldura ao redor) pertence ao PAI — sem isso,
+      // sobra uma margem escura ao redor da página clara em dark mode.
+      const cw = document.querySelector('.content-wrapper');
+      if (cw) {
+        const pagEl = document.getElementById('page-' + pageName);
+        cw.classList.toggle('praxes-ilha-clara', !!(pagEl && pagEl.classList.contains('praxes-ilha-clara')));
+      }
       
       const titles = {
         dashboard:      'Visão Geral',
