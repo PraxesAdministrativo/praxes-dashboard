@@ -5334,28 +5334,28 @@
       } catch (e) { alert('Erro ao excluir: ' + (e.message || e)); }
     }
 
-    // ── Subgrupo (drill-down) ─────────────────────────────────────
-    function _patSubgrupo(l) {
-      if (l.origem === 'imoveis' || l.origem === 'financiamento') {
-        var alvo = l.origem_ref || l.descricao;
-        var row  = (imoveisData || []).find(function (r) { return r[0] === alvo; });
-        return (row && row[3]) ? String(row[3]) : 'Outros';
-      }
-      if (l.origem === 'veiculos') {
-        var alvoV = l.origem_ref || l.descricao;
-        var rowV  = (veiculosData || []).find(function (r) { return r[0] === alvoV; });
-        return (rowV && rowV[1]) ? String(rowV[1]) : 'Veículos';
-      }
-      return null;
-    }
-
-    function patToggleSub(subId) {
-      var rows = document.querySelectorAll('tr[data-sub="' + subId + '"]');
-      var cab  = document.getElementById(subId);
+    // ── Accordion: grupos e sub-agrupamentos por origem ─────────────
+    // Cada linha carrega em data-groups a lista (separada por espaço) de
+    // nós dos quais ela depende. Ela só aparece quando TODOS os nós
+    // ancestrais estão abertos — assim um subgrupo dentro de um grupo
+    // fechado continua escondido mesmo que o subgrupo em si esteja aberto.
+    function patToggleNode(id) {
+      var cab = document.getElementById(id);
       var abrir = cab ? cab.getAttribute('data-open') !== '1' : true;
-      for (var i = 0; i < rows.length; i++) rows[i].style.display = abrir ? 'table-row' : 'none';
+      if (cab) cab.setAttribute('data-open', abrir ? '1' : '0');
+
+      var rows = document.querySelectorAll('tr[data-groups]');
+      for (var i = 0; i < rows.length; i++) {
+        var ids = rows[i].getAttribute('data-groups').split(' ');
+        var visivel = true;
+        for (var j = 0; j < ids.length; j++) {
+          var h = document.getElementById(ids[j]);
+          if (h && h.getAttribute('data-open') !== '1') { visivel = false; break; }
+        }
+        rows[i].style.display = visivel ? 'table-row' : 'none';
+      }
+
       if (cab) {
-        cab.setAttribute('data-open', abrir ? '1' : '0');
         var ch = cab.querySelector('.pat-chev');
         if (ch) ch.style.transform = abrir ? 'rotate(90deg)' : 'rotate(0deg)';
       }
@@ -5396,6 +5396,8 @@
         + '.pat-colhd-lbl{font-size:10.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;opacity:.85;}'
         + '.pat-colhd-val{font-family:Urbanist,serif;font-size:18px;font-weight:600;font-variant-numeric:tabular-nums;}'
         + '.pat-tbl{width:100%;border-collapse:collapse;table-layout:fixed;}'
+        + '.pat-grp-row{cursor:pointer;user-select:none;}'
+        + '.pat-grp-row:hover td{background:#2a5a6618;}'
         + '.pat-grp-row td{padding:11px 20px 11px 20px;background:#2a5a660e;border-bottom:1px solid rgba(4,25,36,.08);}'
         + '.pat-grp-lbl{font-size:12px;font-weight:600;color:var(--praxes-abyss);letter-spacing:-0.005em;}'
         + '.pat-grp-val{font-size:13px;font-weight:600;color:var(--praxes-abyss);font-variant-numeric:tabular-nums;white-space:nowrap;}'
@@ -5439,7 +5441,7 @@
     }
 
     // ── Render: linha de item ─────────────────────────────────────
-    function _patLinhaHTML(l, editavel, subId) {
+    function _patLinhaHTML(l, editavel, groupIds) {
       var vl = editavel
         ? '<input type="text" class="pat-inp" value="' + (parseFloat(l.valor) || 0).toFixed(2)
           + '" onchange="patSalvarValor(\'' + l.id + '\',this.value)">'
@@ -5453,10 +5455,10 @@
         ? '<span class="pat-item-date">' + patFmtData(l.data_origem) + '</span>'
         : '';
 
-      var cls = subId ? 'pat-item-row nested' : 'pat-item-row';
-      var attrs = subId ? ' data-sub="' + subId + '"' : '';
+      var nested = groupIds.indexOf(' ') >= 0;
+      var cls = nested ? 'pat-item-row nested' : 'pat-item-row';
 
-      return '<tr class="' + cls + '"' + attrs + '><td colspan="1">'
+      return '<tr class="' + cls + '" data-groups="' + groupIds + '" style="display:none;"><td colspan="1">'
         + '<span style="display:flex;align-items:center;gap:8px;min-width:0;">'
         + '<span class="pat-tag">' + esc(PAT_ORIGEM[l.origem] || 'Manual') + '</span>'
         + '<span class="pat-item-desc">' + esc(l.descricao) + '</span>' + dt + '</span></td>'
@@ -5464,10 +5466,10 @@
         + '<span style="display:inline-flex;align-items:center;gap:6px;">' + vl + lixo + '</span></td></tr>';
     }
 
-    function _patSubCabHTML(subId, label, qtd, subtotal, passivo) {
-      return '<tr id="' + subId + '" class="pat-sub-row" data-open="1" onclick="patToggleSub(\'' + subId + '\')">'
+    function _patSubCabHTML(subId, label, qtd, subtotal, passivo, parentGroupId) {
+      return '<tr id="' + subId + '" class="pat-sub-row" data-open="0" data-groups="' + parentGroupId + '" style="display:none;" onclick="patToggleNode(\'' + subId + '\')">'
         + '<td><span style="display:inline-flex;align-items:center;gap:6px;">'
-        + '<span class="pat-chev" style="display:inline-block;font-size:8px;color:var(--praxes-teal-20);transition:transform .15s;transform:rotate(90deg);">\u25b6</span>'
+        + '<span class="pat-chev" style="display:inline-block;font-size:8px;color:var(--praxes-teal-20);transition:transform .15s;">\u25b6</span>'
         + '<span class="pat-sub-lbl">' + esc(label) + '</span><span class="pat-sub-cnt">' + qtd + '</span></span></td>'
         + '<td style="text-align:right;"><span class="pat-sub-val" style="color:' + (passivo ? 'var(--praxes-signal)' : 'var(--praxes-deep)') + ';">'
         + fmt(subtotal) + '</span></td></tr>';
@@ -5482,8 +5484,10 @@
         var sub   = itens.reduce(function (s, l) { return s + (parseFloat(l.valor) || 0); }, 0);
         total += sub;
 
+        var grpId = 'pat-grp-' + lado + '-' + g.key;
+
         var addBtn = editavel
-          ? '<button class="pat-addbtn" onclick="patToggleAdd(\'' + g.key + '\')">+ item</button>'
+          ? '<button class="pat-addbtn" onclick="event.stopPropagation();patToggleAdd(\'' + g.key + '\')">+ item</button>'
           : '';
 
         var addRow = editavel
@@ -5495,40 +5499,37 @@
             + '</span></td></tr>'
           : '';
 
-        var comSub = [], semSub = [];
-        itens.forEach(function (l) {
-          var sg = _patSubgrupo(l);
-          if (sg) { comSub.push({ l: l, sg: sg }); } else { semSub.push(l); }
+        // Imóveis e veículos viram um subgrupo agregado ("Imóveis", "Veículos")
+        // quando há 2+ itens dessa origem — clique no grupo, depois clique no
+        // subgrupo para ver cada item. Um item isolado fica direto no grupo,
+        // sem nível extra (não compensa esconder um item atrás de um clique a mais).
+        var porOrigem = {};
+        itens.forEach(function (l) { (porOrigem[l.origem] = porOrigem[l.origem] || []).push(l); });
+
+        var soltos = [];
+        var subgrupos = [];
+        ['imoveis', 'veiculos', 'financiamento'].forEach(function (o) {
+          var lista = porOrigem[o] || [];
+          if (lista.length >= 2) { subgrupos.push({ origem: o, itens: lista }); delete porOrigem[o]; }
         });
+        Object.keys(porOrigem).forEach(function (o) { soltos = soltos.concat(porOrigem[o]); });
 
         var linhas;
-        var _distintos = {}, _nDist = 0;
-        comSub.forEach(function (x) { if (!_distintos[x.sg]) { _distintos[x.sg] = 1; _nDist++; } });
-        var _vale = comSub.length >= 3 && _nDist >= 2 && _nDist < comSub.length;
-
         if (!itens.length) {
-          linhas = '<tr class="pat-empty"><td colspan="2">Nenhum lançamento</td></tr>';
-        } else if (!_vale) {
-          linhas = itens.map(function (l) { return _patLinhaHTML(l, editavel); }).join('');
+          linhas = '<tr class="pat-empty" data-groups="' + grpId + '" style="display:none;"><td colspan="2">Nenhum lançamento</td></tr>';
         } else {
-          var subMap = {}, subOrdem = [];
-          comSub.forEach(function (x) {
-            if (!subMap[x.sg]) { subMap[x.sg] = []; subOrdem.push(x.sg); }
-            subMap[x.sg].push(x.l);
-          });
-          subOrdem.sort();
-          linhas = semSub.map(function (l) { return _patLinhaHTML(l, editavel); }).join('');
-          linhas += subOrdem.map(function (sg, si) {
-            var lista  = subMap[sg];
-            var subId  = 'pat-sub-' + lado + '-' + g.key + '-' + si;
-            var subTot = lista.reduce(function (a, l) { return a + (parseFloat(l.valor) || 0); }, 0);
-            return _patSubCabHTML(subId, sg, lista.length, subTot, lado === 'passivo')
-              + lista.map(function (l) { return _patLinhaHTML(l, editavel, subId); }).join('');
+          linhas = soltos.map(function (l) { return _patLinhaHTML(l, editavel, grpId); }).join('');
+          linhas += subgrupos.map(function (s) {
+            var subId  = 'pat-subo-' + lado + '-' + g.key + '-' + s.origem;
+            var subTot = s.itens.reduce(function (a, l) { return a + (parseFloat(l.valor) || 0); }, 0);
+            return _patSubCabHTML(subId, PAT_ORIGEM[s.origem] || s.origem, s.itens.length, subTot, lado === 'passivo', grpId)
+              + s.itens.map(function (l) { return _patLinhaHTML(l, editavel, grpId + ' ' + subId); }).join('');
           }).join('');
         }
 
-        return '<tr class="pat-grp-row"><td>'
-          + '<span style="display:flex;align-items:center;gap:10px;">'
+        return '<tr class="pat-grp-row" id="' + grpId + '" data-open="0" onclick="patToggleNode(\'' + grpId + '\')"><td>'
+          + '<span style="display:flex;align-items:center;gap:8px;">'
+          + '<span class="pat-chev" style="display:inline-block;font-size:9px;color:var(--praxes-teal-20);transition:transform .15s;flex-shrink:0;">\u25b6</span>'
           + '<span class="pat-grp-lbl">' + esc(g.label) + '</span>' + addBtn + '</span></td>'
           + '<td style="text-align:right;"><span class="pat-grp-val">' + fmt(sub) + '</span></td></tr>'
           + linhas + addRow;
@@ -5680,12 +5681,9 @@
         + '<div class="pat-kpi-val">' + solidez + '</div>'
         + '<div class="pat-kpi-sub">PL / Ativo</div></div></div>';
 
-      var legenda = '<div class="pat-legend">'
-        + ['comdinheiro', 'imoveis', 'veiculos', 'financiamento', 'manual'].map(function (k) {
-            return '<span class="pat-tag">' + PAT_ORIGEM[k] + '</span>';
-          }).join('')
-        + (editavel ? '<span style="color:var(--praxes-teal-20);">Rascunho — valores editáveis, ajuste antes de fechar.</span>' : '')
-        + '</div>';
+      var legenda = editavel
+        ? '<div class="pat-legend"><span style="color:var(--praxes-teal-20);">Rascunho — valores editáveis, ajuste antes de fechar.</span></div>'
+        : '';
 
       return style + '<div class="pat-wrap">' + _patCabecalhoHTML() + kpis
         + '<div class="pat-cols">' + _patColunaHTML('ativo', editavel) + _patColunaHTML('passivo', editavel) + '</div>'
@@ -5949,7 +5947,7 @@
           .db-kpi-val.neg{color:#A32D2D;}
           .db-kpi-sub{font-size:11px;color:var(--text-light);margin-top:3px;}
           .db-panel{background:#fff;border-radius:14px;padding:20px 22px;box-shadow:0 2px 12px rgba(15,61,87,.06);margin-bottom:14px;}
-          .db-panel-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--azul-principal);margin-bottom:14px;}
+          .db-panel-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--praxes-teal);margin-bottom:14px;}
           .db-bal-table{width:100%;border-collapse:collapse;}
           .db-bal-table th{font-size:11px;color:var(--text-light);font-weight:500;padding:0 0 8px;text-align:left;border-bottom:1px solid #f0f0f0;}
           .db-bal-table th:last-child{text-align:right;}
@@ -5968,9 +5966,7 @@
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
 
-          <div style="display:flex;flex-direction:column;gap:14px;">
-
-            <div class="db-panel" style="flex:1;">
+            <div class="db-panel" style="flex:1;margin-bottom:0;">
               <div class="db-panel-title">Composição dos ativos</div>
               <div style="display:flex;align-items:center;gap:18px;">
                 <div style="position:relative;width:120px;height:120px;flex-shrink:0;">
@@ -5982,16 +5978,15 @@
               </div>
             </div>
 
-            <div class="db-panel">
+            <div class="db-panel" style="margin-bottom:0;">
               <div class="db-panel-title">Fluxo de caixa — ${MESES_PT[mesAtual-1]}/${anoAtual}</div>
               ${rendaMes > 0 ? `
               <div class="db-cf-row"><span class="db-cf-label">Renda total</span><span style="color:#27500A;font-weight:500;">+ ${fmt(rendaMes)}</span></div>
               <div class="db-cf-row"><span class="db-cf-label">Despesas</span><span style="color:#A32D2D;">− ${fmt(despMes)}</span></div>
-              <div class="db-cf-row last"><span style="color:var(--azul-principal);">Resultado</span><span style="color:${resultadoMes>=0?'#27500A':'#A32D2D'};">${resultadoMes>=0?'+':''}${fmt(resultadoMes)}</span></div>
+              <div class="db-cf-row last"><span style="color:var(--praxes-teal);">Resultado</span><span style="color:${resultadoMes>=0?'#27500A':'#A32D2D'};">${resultadoMes>=0?'+':''}${fmt(resultadoMes)}</span></div>
               ` : '<p style="font-size:12px;color:#aaa;text-align:center;padding:10px 0;">Controle Financeiro não realizado</p>'}
             </div>
 
-          </div>
         </div>
 
         <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:14px;">
