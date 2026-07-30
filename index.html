@@ -17888,6 +17888,7 @@ Esta ação não pode ser desfeita.`)) return;
     <div class="pfp-tabs-bar">
       <button class="pfp-tab active" onclick="pfpShowTab('visao',this)">Visão geral</button>
       <button class="pfp-tab" onclick="pfpShowTab('projecao',this)">Projeção</button>
+      <button class="pfp-tab" onclick="pfpShowTab('aportes',this)">Aportes</button>
       <button class="pfp-tab" onclick="pfpShowTab('plano',this)">Plano</button>
     </div>
 
@@ -17987,6 +17988,28 @@ Esta ação não pode ser desfeita.`)) return;
             ${pfpTabelaCenarios(p)}
           </tbody>
         </table>
+      </div>
+    </div>
+
+    <!-- ABA: APORTES -->
+    <div class="pfp-page" id="pfp-tab-aportes">
+      <div id="pfp-aportes-kpis" class="pfp-kstrip pfp-k3" style="margin-bottom:14px">
+        <div class="pfp-kcard"><div class="pfp-klabel">Carregando...</div></div>
+      </div>
+      <div class="pfp-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <div class="pfp-card-title" style="margin-bottom:0">Aportes mensais — planejado vs. realizado</div>
+          <span style="font-size:11px;color:var(--fg-mute);">via planilha de consolidação</span>
+        </div>
+        <div id="pfp-aportes-tabela">
+          <div class="loading"><div class="spinner"></div><p>Carregando aportes...</p></div>
+        </div>
+      </div>
+      <div class="pfp-card">
+        <div class="pfp-card-title">Aportes pontuais</div>
+        <div id="pfp-aportes-pontuais">
+          <div class="loading"><div class="spinner"></div><p>Carregando...</p></div>
+        </div>
       </div>
     </div>
 
@@ -18114,12 +18137,15 @@ Esta ação não pode ser desfeita.`)) return;
     }, 80);
   }
 
+  const PFP_APORTES_SHEET_ID = '1Z_OSwfgtuL5FygVyEslgqAm05kxH3PbJ0glCRpQ0uxw';
+
   function pfpShowTab(id, btn) {
     document.querySelectorAll('.pfp-page').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.pfp-tab').forEach(t => t.classList.remove('active'));
     document.getElementById('pfp-tab-' + id).classList.add('active');
     btn.classList.add('active');
     if (id === 'projecao' && _pfpPlano) pfpRenderCharts(_pfpPlano);
+    if (id === 'aportes'  && _pfpPlano) pfpAportesInit(_pfpPlano);
   }
 
   function pfpAbrirCadastro() {
@@ -18204,6 +18230,115 @@ Esta ação não pode ser desfeita.`)) return;
     } finally {
       btn.textContent = _pfpPlano ? 'Salvar nova versão' : 'Criar plano';
       btn.disabled = false;
+    }
+  }
+
+  async function pfpAportesInit(p) {
+    const elTab  = document.getElementById('pfp-aportes-tabela');
+    const elPont = document.getElementById('pfp-aportes-pontuais');
+    const elKpis = document.getElementById('pfp-aportes-kpis');
+    if (!elTab) return;
+
+    elTab.innerHTML  = '<div class="loading"><div class="spinner"></div><p>Carregando aportes...</p></div>';
+    elPont.innerHTML = '<div class="loading"><div class="spinner"></div><p>Carregando...</p></div>';
+
+    try {
+      const resp = await gapi.client.sheets.spreadsheets.values.get({
+        spreadsheetId: PFP_APORTES_SHEET_ID,
+        range: 'Aportes!A2:E2000',
+        valueRenderOption: 'UNFORMATTED_VALUE'
+      });
+
+      const rows = (resp.result.values || [])
+        .filter(r => String(r[0]) === String(window.patClientId) && r[1] && r[3]);
+
+      // Separa mensais e pontuais
+      const mensais  = rows.filter(r => (r[2] || 'mensal').toLowerCase() === 'mensal');
+      const pontuais = rows.filter(r => (r[2] || '').toLowerCase() === 'pontual');
+
+      // Agrupa mensais por mês (YYYY-MM)
+      const porMes = {};
+      mensais.forEach(r => {
+        const d = new Date(r[1]);
+        if (isNaN(d)) return;
+        const key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+        porMes[key] = (porMes[key] || 0) + parseFloat(r[3]);
+      });
+
+      // Gera meses planejados desde início do plano até hoje
+      const inicio   = new Date(p.data_inicio_plano);
+      const hoje     = new Date();
+      const plMensal = p.aporte_mensal_planejado || 0;
+      const meses    = [];
+      let cur = new Date(inicio.getFullYear(), inicio.getMonth(), 1);
+      while (cur <= hoje) {
+        const key = cur.getFullYear() + '-' + String(cur.getMonth()+1).padStart(2,'0');
+        meses.push({ key, label: cur.toLocaleDateString('pt-BR',{month:'short',year:'2-digit'}).replace('.','/') });
+        cur.setMonth(cur.getMonth()+1);
+      }
+
+      let totP = 0, totR = 0;
+      const linhas = meses.map(({ key, label }) => {
+        const real = porMes[key] || 0;
+        totP += plMensal; totR += real;
+        const adh = plMensal === 0 ? (real > 0 ? 100 : 0) : Math.round(real / plMensal * 100);
+        const cls = adh >= 100 ? 'pfp-up' : adh === 0 ? 'pfp-down' : '';
+        return `<tr>
+          <td>${label}</td>
+          <td class="num">${pfpFmtMes(plMensal)}</td>
+          <td class="num ${real===0?'pfp-down':''}">${pfpFmtMes(real)}</td>
+          <td class="num ${cls}">${adh}%</td>
+        </tr>`;
+      }).join('');
+
+      const adTotal = totP === 0 ? 0 : Math.round(totR / totP * 100);
+      const clsTotal = adTotal >= 100 ? 'pfp-up' : adTotal < 70 ? 'pfp-down' : '';
+
+      // KPIs
+      elKpis.innerHTML = `
+        <div class="pfp-kcard"><div class="pfp-klabel">Total planejado</div><div class="pfp-kval">${pfpFmtM(totP)}</div><div class="pfp-ksub">${meses.length} meses</div></div>
+        <div class="pfp-kcard"><div class="pfp-klabel">Total realizado</div><div class="pfp-kval">${pfpFmtM(totR)}</div><div class="pfp-ksub ${totR>=totP?'pfp-up':'pfp-down'}">${totR>=totP?'+':''}${pfpFmtM(totR-totP)} vs. plano</div></div>
+        <div class="pfp-kcard"><div class="pfp-klabel">Aderência geral</div><div class="pfp-kval ${clsTotal}">${adTotal}%</div><div class="pfp-ksub">do planejado aportado</div></div>`;
+
+      // Tabela mensal
+      elTab.innerHTML = `
+        <table class="pfp-table">
+          <thead><tr><th>Mês</th><th style="text-align:right">Planejado</th><th style="text-align:right">Realizado</th><th style="text-align:right">Aderência</th></tr></thead>
+          <tbody>
+            ${linhas}
+            <tr style="background:var(--surface-sunken);font-weight:600">
+              <td>Total</td>
+              <td class="num">${pfpFmtMes(totP)}</td>
+              <td class="num">${pfpFmtMes(totR)}</td>
+              <td class="num ${clsTotal}">${adTotal}%</td>
+            </tr>
+          </tbody>
+        </table>`;
+
+      // Pontuais
+      if (pontuais.length === 0) {
+        elPont.innerHTML = '<div style="font-size:13px;color:var(--fg-mute);padding:8px 0;">Nenhum aporte pontual registrado.</div>';
+      } else {
+        const linhasPont = pontuais.map(r => {
+          const d = new Date(r[1]);
+          const dataFmt = d.toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric'});
+          return `<tr>
+            <td>${dataFmt}</td>
+            <td class="num pfp-up">${pfpFmtMes(parseFloat(r[3]))}</td>
+            <td style="color:var(--fg-mute)">${r[4] || '—'}</td>
+          </tr>`;
+        }).join('');
+        elPont.innerHTML = `
+          <table class="pfp-table">
+            <thead><tr><th>Data</th><th style="text-align:right">Valor</th><th>Descrição</th></tr></thead>
+            <tbody>${linhasPont}</tbody>
+          </table>`;
+      }
+
+    } catch(e) {
+      console.error('pfpAportesInit erro:', e);
+      elTab.innerHTML = `<p style="color:var(--fg-mute);font-size:13px;">Erro ao carregar aportes: ${e?.message || e}</p>`;
+      elPont.innerHTML = '';
     }
   }
 
