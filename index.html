@@ -18275,12 +18275,17 @@ Esta ação não pode ser desfeita.`)) return;
         porMes[key] = (porMes[key] || 0) + parseFloat(String(r[3]).replace(',','.'));
       });
 
-      // Usa a data de início do plano mais antigo do histórico
-      const historico = p._historico || [p];
-      const inicioPrimeiro = historico.reduce((min, h) => {
-        const d = new Date(h.data_inicio_vigencia || p.data_inicio_plano);
-        return d < min ? d : min;
-      }, new Date(p.data_inicio_plano));
+      // Usa a data_inicio_plano mais antiga do histórico
+      const { data: todosPlanos } = await db
+        .from('pfp_planos')
+        .select('data_inicio_plano')
+        .eq('cliente_id', window.patClientId)
+        .order('versao', { ascending: true })
+        .limit(1);
+
+      const inicioPrimeiro = todosPlanos?.[0]?.data_inicio_plano
+        ? new Date(todosPlanos[0].data_inicio_plano)
+        : new Date(p.data_inicio_plano);
 
       // Gera meses planejados desde início do primeiro plano até hoje
       const hoje     = new Date();
