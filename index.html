@@ -2196,6 +2196,14 @@
           <div class="nav-item-sub">Metas, macro e micro</div>
         </div>
 
+        <div class="nav-item" data-page="pfp" id="nav-pfp">
+          <div class="nav-item-main">
+            <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg></span>
+            Planejamento
+          </div>
+          <div class="nav-item-sub">Metas, projeção, aposentadoria</div>
+        </div>
+
         <div class="sidebar-divider"></div>
         <div class="sidebar-section-label">Extrato</div>
 
@@ -3178,6 +3186,13 @@
         <div class="page praxes-ilha-clara" id="page-perfil">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;" id="perfil-grid">
             <div class="loading"><div class="spinner"></div><p>Carregando...</p></div>
+          </div>
+        </div>
+
+        <!-- PLANEJAMENTO PATRIMONIAL (PFP) -->
+        <div class="page praxes-ilha-clara" id="page-pfp">
+          <div id="pfp-root">
+            <div class="loading"><div class="spinner"></div><p>Carregando plano...</p></div>
           </div>
         </div>
 
@@ -4670,7 +4685,8 @@
         reunioes:         'Reuniões',
         'reuniao-detalhe': 'Ata de Reunião',
         objetivos:        'Objetivos',
-        perfil:           'Perfil & Família'
+        perfil:           'Perfil & Família',
+        pfp:              'Planejamento Patrimonial'
       };
       document.getElementById('top-title').textContent = titles[pageName] || 'Praxes';
       
@@ -4685,6 +4701,7 @@
       if (pageName === 'reunioes')   { _reuLoaded = false; reunioesInit(); }
       if (pageName === 'objetivos')  { _objLoaded = false; objetivosInit(); }
       if (pageName === 'perfil')     { perfilInit(); }
+      if (pageName === 'pfp')        { pfpInit(); }
     }
 
     // MODAL
@@ -17615,6 +17632,413 @@ Esta ação não pode ser desfeita.`)) return;
 
   // ============================================================
   // ========== FIM PDF ATA =====================================
+  // ============================================================
+
+  // ============================================================
+  // ========== PLANEJAMENTO PATRIMONIAL (PFP) ==================
+  // ============================================================
+
+  let _pfpLoaded = false;
+  let _pfpPlano = null;
+  let _pfpChart = null;
+
+  async function pfpInit() {
+    if (!clienteAtual) return;
+    _pfpLoaded = false;
+    const root = document.getElementById('pfp-root');
+    root.innerHTML = '<div class="loading"><div class="spinner"></div><p>Carregando plano...</p></div>';
+
+    try {
+      const { data, error } = await supabase
+        .from('pfp_planos')
+        .select('*')
+        .eq('cliente_id', clienteAtual.id)
+        .eq('ativo', true)
+        .single();
+
+      if (error || !data) {
+        root.innerHTML = pfpSemPlano();
+        return;
+      }
+
+      _pfpPlano = data;
+      root.innerHTML = pfpRenderHTML(data);
+      pfpRenderCharts(data);
+      _pfpLoaded = true;
+    } catch(e) {
+      root.innerHTML = '<div class="loading"><p>Erro ao carregar plano.</p></div>';
+    }
+  }
+
+  function pfpSemPlano() {
+    return `
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:320px;gap:16px;text-align:center;">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--fg-mute)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+        </svg>
+        <div>
+          <div style="font-size:16px;font-weight:600;color:var(--fg-1);margin-bottom:6px;">Nenhum plano cadastrado</div>
+          <div style="font-size:13px;color:var(--fg-mute);max-width:320px;">Este cliente ainda não possui um Planejamento Patrimonial ativo. Crie o primeiro plano para começar o acompanhamento.</div>
+        </div>
+        <button class="btn-save" onclick="pfpAbrirCadastro()">+ Criar plano</button>
+      </div>`;
+  }
+
+  function pfpIdade(dataNasc) {
+    if (!dataNasc) return 0;
+    const hoje = new Date();
+    const nasc = new Date(dataNasc);
+    let idade = hoje.getFullYear() - nasc.getFullYear();
+    const m = hoje.getMonth() - nasc.getMonth();
+    if (m < 0 || (m === 0 && hoje.getDate() < nasc.getDate())) idade--;
+    return idade;
+  }
+
+  function pfpNumMagico(metaRenda, rentRenda) {
+    // PL necessário = renda_anual / rentabilidade_real
+    return (metaRenda * 12) / (rentRenda / 100);
+  }
+
+  function pfpAnosRestantes(dataNasc, idadeApo) {
+    const idadeAtual = pfpIdade(dataNasc);
+    return Math.max(0, idadeApo - idadeAtual);
+  }
+
+  function pfpProjetarPL(plInicio, aporteAnual, rentAcum, anos) {
+    // PL futuro = PL * (1+r)^n + aporte * ((1+r)^n - 1) / r
+    const r = rentAcum / 100;
+    if (r === 0) return plInicio + aporteAnual * anos;
+    return plInicio * Math.pow(1 + r, anos) + aporteAnual * (Math.pow(1 + r, anos) - 1) / r;
+  }
+
+  function pfpFmtM(v) {
+    if (Math.abs(v) >= 1e6) return 'R$ ' + (v / 1e6).toFixed(1) + 'M';
+    if (Math.abs(v) >= 1e3) return 'R$ ' + (v / 1e3).toFixed(0) + 'k';
+    return 'R$ ' + v.toFixed(0);
+  }
+
+  function pfpFmtMes(v) {
+    return 'R$ ' + Math.round(v).toLocaleString('pt-BR');
+  }
+
+  function pfpRenderHTML(p) {
+    const idadeAtual    = pfpIdade(p.data_nascimento);
+    const anosRestantes = pfpAposRestantes(p);
+    const numMagico     = pfpNumMagico(p.meta_renda_mensal, p.rentabilidade_real_renda);
+    const aporteAnual   = (p.aporte_mensal_planejado || 0) * 12;
+    const plProjetado   = pfpProjetarPL(p.patrimonio_inicio_plano, aporteAnual, p.rentabilidade_real_acumulacao, anosRestantes);
+    const progresso     = Math.min(100, Math.round((p.patrimonio_inicio_plano / numMagico) * 100));
+    // Renda sustentável com PL projetado
+    const rendaPreserva = plProjetado * (p.rentabilidade_real_renda / 100) / 12;
+    const rendaUsufru   = plProjetado * ((p.rentabilidade_real_renda / 100) + 0.01) / 12; // ~1pp a mais consumindo principal
+
+    const dataApo = new Date(p.data_nascimento);
+    dataApo.setFullYear(dataApo.getFullYear() + p.idade_aposentadoria);
+    const mesAno = dataApo.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }).replace('.', '');
+
+    const versaoLabel = `v${p.versao} — ${new Date(p.data_inicio_vigencia).toLocaleDateString('pt-BR', {month:'short',year:'numeric'})}`;
+
+    return `
+    <style>
+      .pfp-tabs-bar { display:flex; gap:0; border-bottom:0.5px solid var(--line-strong); margin-bottom:20px; overflow-x:auto; }
+      .pfp-tab { padding:9px 18px; font-size:13px; color:var(--fg-mute); cursor:pointer; border:none; border-bottom:2px solid transparent; margin-bottom:-0.5px; white-space:nowrap; background:none; font-family:inherit; font-weight:500; transition:color .15s; }
+      .pfp-tab:hover { color:var(--fg-1); }
+      .pfp-tab.active { color:var(--fg-1); border-bottom-color:var(--praxes-teal); font-weight:600; }
+      .pfp-page { display:none; } .pfp-page.active { display:block; }
+      .pfp-nm { background:var(--praxes-abyss); border-radius:14px; padding:22px; margin-bottom:14px; }
+      .pfp-nm-ey { font-size:10px; font-weight:600; letter-spacing:.09em; text-transform:uppercase; color:var(--praxes-teal-20); margin-bottom:6px; }
+      .pfp-nm-val { font-size:34px; font-weight:700; color:var(--praxes-sand); letter-spacing:-.03em; }
+      .pfp-nm-sub { font-size:12px; color:var(--praxes-teal-20); margin-top:6px; line-height:1.5; }
+      .pfp-nm-prog { margin-top:16px; }
+      .pfp-nm-row { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+      .pfp-nm-label { font-size:11px; color:var(--praxes-teal-20); min-width:110px; }
+      .pfp-nm-bar { flex:1; height:6px; border-radius:3px; background:rgba(255,255,255,.12); overflow:hidden; }
+      .pfp-nm-fill { height:100%; border-radius:3px; background:var(--praxes-sand); }
+      .pfp-nm-pval { font-size:11px; font-weight:600; min-width:64px; text-align:right; }
+      .pfp-kstrip { display:grid; gap:10px; margin-bottom:14px; }
+      .pfp-k3 { grid-template-columns:repeat(3,1fr); }
+      .pfp-k4 { grid-template-columns:repeat(4,1fr); }
+      .pfp-kcard { background:var(--surface-sunken); border-radius:10px; padding:12px 14px; }
+      .pfp-klabel { font-size:11px; color:var(--fg-mute); margin-bottom:3px; }
+      .pfp-kval { font-size:18px; font-weight:600; color:var(--fg-1); letter-spacing:-.02em; line-height:1.1; }
+      .pfp-ksub { font-size:11px; color:var(--fg-mute); margin-top:3px; }
+      .pfp-card { background:var(--surface); border:0.5px solid var(--line-strong); border-radius:14px; padding:18px; margin-bottom:14px; }
+      .pfp-card-title { font-size:13px; font-weight:600; color:var(--fg-1); margin-bottom:12px; }
+      .pfp-eyebrow { font-size:10px; font-weight:600; letter-spacing:.09em; text-transform:uppercase; color:var(--fg-mute); margin-bottom:3px; }
+      .pfp-sc-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:12px; }
+      .pfp-sc { border:0.5px solid var(--line-strong); border-radius:10px; padding:12px; }
+      .pfp-sc.feat { border-color:var(--praxes-teal); border-width:1.5px; }
+      .pfp-sc-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.07em; margin-bottom:6px; }
+      .pfp-sc-val { font-size:17px; font-weight:600; letter-spacing:-.02em; margin-bottom:3px; }
+      .pfp-sc-sub { font-size:10px; color:var(--fg-mute); }
+      .pfp-nota { background:#fef9e7; border:0.5px solid #e6c86e; border-radius:10px; padding:10px 12px; font-size:11px; color:#7d5a00; margin-bottom:14px; display:flex; gap:8px; align-items:flex-start; line-height:1.5; }
+      .pfp-form-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
+      .pfp-form-field { display:flex; flex-direction:column; gap:3px; }
+      .pfp-form-label { font-size:11px; color:var(--fg-mute); }
+      .pfp-form-field input { font-size:13px; padding:7px 10px; border-radius:8px; border:0.5px solid var(--line-strong); background:var(--surface); color:var(--fg-1); width:100%; font-family:inherit; }
+      .pfp-badge { display:inline-flex; align-items:center; font-size:11px; font-weight:600; padding:2px 8px; border-radius:999px; }
+      .pfp-bg { background:#e8f5ee; color:#1a6645; }
+      .pfp-bt { background:#e1f0f5; color:var(--praxes-teal); }
+      .pfp-bk { background:var(--surface-sunken); color:var(--fg-mute); }
+      .pfp-table { width:100%; border-collapse:collapse; font-size:12px; }
+      .pfp-table th { font-size:10px; font-weight:600; letter-spacing:.07em; text-transform:uppercase; color:var(--fg-mute); padding:5px 8px; border-bottom:0.5px solid var(--line-strong); text-align:left; }
+      .pfp-table td { padding:7px 8px; border-bottom:0.5px solid var(--line); color:var(--fg-1); }
+      .pfp-table tr:last-child td { border-bottom:none; }
+      .pfp-up { color:#1a6645; } .pfp-down { color:#c0392b; }
+      @media(max-width:600px){ .pfp-k4,.pfp-k3{grid-template-columns:repeat(2,1fr);} .pfp-sc-grid,.pfp-form-grid{grid-template-columns:1fr;} }
+    </style>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+      <div>
+        <div style="font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--fg-mute);margin-bottom:2px;">Plano ativo</div>
+        <div style="font-size:15px;font-weight:600;color:var(--fg-1);">${versaoLabel} · ${p.motivo_revisao || 'Plano inicial'}</div>
+      </div>
+      <button class="btn-save" onclick="pfpAbrirCadastro()">Revisar plano</button>
+    </div>
+
+    <div class="pfp-tabs-bar">
+      <button class="pfp-tab active" onclick="pfpShowTab('visao',this)">Visão geral</button>
+      <button class="pfp-tab" onclick="pfpShowTab('projecao',this)">Projeção</button>
+      <button class="pfp-tab" onclick="pfpShowTab('plano',this)">Plano</button>
+    </div>
+
+    <!-- ABA: VISÃO GERAL -->
+    <div class="pfp-page active" id="pfp-tab-visao">
+
+      <div class="pfp-nm">
+        <div class="pfp-nm-ey">Número mágico — patrimônio necessário</div>
+        <div class="pfp-nm-val">${pfpFmtM(numMagico)}</div>
+        <div class="pfp-nm-sub">Para gerar ${pfpFmtMes(p.meta_renda_mensal)}/mês de renda real · ${p.rentabilidade_real_renda}% a.a. · Aposentadoria: ${mesAno} · ${anosRestantes} anos restantes</div>
+        <div class="pfp-nm-prog">
+          <div class="pfp-nm-row">
+            <div class="pfp-nm-label">Acumulado (início plano)</div>
+            <div class="pfp-nm-bar"><div class="pfp-nm-fill" style="width:${progresso}%"></div></div>
+            <div class="pfp-nm-pval" style="color:var(--praxes-sand)">${pfpFmtM(p.patrimonio_inicio_plano)}</div>
+          </div>
+          <div class="pfp-nm-row" style="margin-bottom:0">
+            <div class="pfp-nm-label">Falta acumular</div>
+            <div class="pfp-nm-bar"><div class="pfp-nm-fill" style="width:${100-progresso}%;background:rgba(255,255,255,.2)"></div></div>
+            <div class="pfp-nm-pval" style="color:var(--praxes-teal-20)">${pfpFmtM(Math.max(0, numMagico - p.patrimonio_inicio_plano))}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pfp-kstrip pfp-k3">
+        <div class="pfp-kcard">
+          <div class="pfp-klabel">Idade atual</div>
+          <div class="pfp-kval">${idadeAtual} anos</div>
+          <div class="pfp-ksub">aposentadoria aos ${p.idade_aposentadoria}</div>
+        </div>
+        <div class="pfp-kcard">
+          <div class="pfp-klabel">Aporte mensal planejado</div>
+          <div class="pfp-kval">${pfpFmtM(p.aporte_mensal_planejado)}</div>
+          <div class="pfp-ksub">por mês</div>
+        </div>
+        <div class="pfp-kcard">
+          <div class="pfp-klabel">PL projetado na aposent.</div>
+          <div class="pfp-kval pfp-up">${pfpFmtM(plProjetado)}</div>
+          <div class="pfp-ksub">em ${anosRestantes} anos · cenário base</div>
+        </div>
+      </div>
+
+      <div class="pfp-nota">
+        <span style="font-size:15px;flex-shrink:0">ℹ</span>
+        <span>Todos os valores em <strong>termos reais</strong> (poder de compra de hoje, IPCA ${p.ipca_projetado}% a.a.). O número mágico nominal na aposentadoria será maior, mas equivale ao poder de compra calculado aqui.</span>
+      </div>
+
+      <div class="pfp-card">
+        <div class="pfp-eyebrow">Renda projetada na aposentadoria</div>
+        <div class="pfp-card-title">Três cenários de retirada — com PL projetado de ${pfpFmtM(plProjetado)}</div>
+        <div class="pfp-sc-grid">
+          <div class="pfp-sc">
+            <div class="pfp-sc-label" style="color:#1a6645">Preservando capital</div>
+            <div class="pfp-sc-val pfp-up">${pfpFmtMes(rendaPreserva)}/mês</div>
+            <div class="pfp-sc-sub">patrimônio mantido ao longo do tempo</div>
+          </div>
+          <div class="pfp-sc feat">
+            <div class="pfp-sc-label" style="color:var(--praxes-teal)">Meta do plano</div>
+            <div class="pfp-sc-val" style="color:var(--praxes-teal)">${pfpFmtMes(p.meta_renda_mensal)}/mês</div>
+            <div class="pfp-sc-sub">objetivo definido no plano</div>
+          </div>
+          <div class="pfp-sc">
+            <div class="pfp-sc-label" style="color:#b8860b">Usufruindo</div>
+            <div class="pfp-sc-val" style="color:#b8860b">${pfpFmtMes(rendaUsufru)}/mês</div>
+            <div class="pfp-sc-sub">consumindo parte do principal</div>
+          </div>
+        </div>
+        <div style="background:var(--surface-sunken);border-radius:8px;padding:10px 12px;font-size:11px;color:var(--fg-mute);">
+          Baseado em rentabilidade real de ${p.rentabilidade_real_renda}% a.a. na fase de renda · Expectativa de vida: ${p.expectativa_vida} anos · valores reais (R$ de hoje)
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ABA: PROJEÇÃO -->
+    <div class="pfp-page" id="pfp-tab-projecao">
+      <div class="pfp-card">
+        <div class="pfp-eyebrow">Longo prazo</div>
+        <div class="pfp-card-title">Evolução patrimonial — hoje até ${p.expectativa_vida} anos</div>
+        <div style="display:flex;gap:12px;font-size:11px;color:var(--fg-mute);margin-bottom:12px;flex-wrap:wrap;">
+          <span style="display:flex;align-items:center;gap:4px;"><span style="width:14px;height:2px;background:var(--praxes-teal);display:inline-block;border-radius:2px;"></span>Acumulação</span>
+          <span style="display:flex;align-items:center;gap:4px;"><span style="width:14px;height:2px;background:#1a6645;display:inline-block;border-radius:2px;"></span>Preservando capital</span>
+          <span style="display:flex;align-items:center;gap:4px;"><span style="width:14px;height:2px;background:#b8860b;display:inline-block;border-radius:2px;border-top:2px dashed #b8860b;height:0;"></span>Usufruindo</span>
+        </div>
+        <div style="position:relative;height:260px;">
+          <canvas id="pfp-proj-chart" role="img" aria-label="Projeção de evolução patrimonial de longo prazo"></canvas>
+        </div>
+        <div style="font-size:10px;color:var(--fg-mute);margin-top:8px;text-align:center;">Cenário base: acumulação ${p.rentabilidade_real_acumulacao}% a.a. real · renda ${p.rentabilidade_real_renda}% a.a. real · valores reais (R$ de hoje)</div>
+      </div>
+
+      <div class="pfp-card">
+        <div class="pfp-eyebrow">Sensibilidade</div>
+        <div class="pfp-card-title">Cenários alternativos</div>
+        <table class="pfp-table">
+          <thead><tr><th>Cenário</th><th>Rentab. acum.</th><th>Rentab. renda</th><th style="text-align:right">PL projetado</th><th style="text-align:right">Renda/mês</th></tr></thead>
+          <tbody>
+            ${pfpTabelaCenarios(p)}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ABA: PLANO -->
+    <div class="pfp-page" id="pfp-tab-plano">
+      <div class="pfp-card">
+        <div class="pfp-card-title">Informações pessoais</div>
+        <div class="pfp-form-grid">
+          <div class="pfp-form-field"><div class="pfp-form-label">Idade atual</div><input value="${idadeAtual} anos" disabled></div>
+          <div class="pfp-form-field"><div class="pfp-form-label">Idade de aposentadoria</div><input value="${p.idade_aposentadoria} anos" disabled></div>
+          <div class="pfp-form-field"><div class="pfp-form-label">Expectativa de vida</div><input value="${p.expectativa_vida} anos" disabled></div>
+          <div class="pfp-form-field"><div class="pfp-form-label">Início do plano</div><input value="${new Date(p.data_inicio_plano).toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}" disabled></div>
+        </div>
+      </div>
+      <div class="pfp-card">
+        <div class="pfp-card-title">Parâmetros financeiros</div>
+        <div class="pfp-form-grid">
+          <div class="pfp-form-field"><div class="pfp-form-label">Patrimônio no início do plano</div><input value="${pfpFmtMes(p.patrimonio_inicio_plano)}" disabled></div>
+          <div class="pfp-form-field"><div class="pfp-form-label">Aporte mensal planejado</div><input value="${pfpFmtMes(p.aporte_mensal_planejado)}" disabled></div>
+          <div class="pfp-form-field"><div class="pfp-form-label">Rentabilidade real — acumulação</div><input value="${p.rentabilidade_real_acumulacao}% a.a." disabled></div>
+          <div class="pfp-form-field"><div class="pfp-form-label">Rentabilidade real — renda</div><input value="${p.rentabilidade_real_renda}% a.a." disabled></div>
+          <div class="pfp-form-field"><div class="pfp-form-label">IPCA projetado</div><input value="${p.ipca_projetado}% a.a." disabled></div>
+          <div class="pfp-form-field"><div class="pfp-form-label">Meta de renda mensal</div><input value="${pfpFmtMes(p.meta_renda_mensal)}/mês" disabled></div>
+        </div>
+      </div>
+      <div class="pfp-card">
+        <div class="pfp-card-title">Histórico de revisões</div>
+        <table class="pfp-table">
+          <thead><tr><th>Versão</th><th>Data</th><th>Criado por</th><th>Motivo</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><span class="pfp-badge pfp-bt">v${p.versao} — atual</span></td>
+              <td>${new Date(p.data_inicio_vigencia).toLocaleDateString('pt-BR',{month:'short',year:'numeric'})}</td>
+              <td>${p.criado_por || '—'}</td>
+              <td style="color:var(--fg-mute)">${p.motivo_revisao || 'Plano inicial'}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+  }
+
+  function pfpAposRestantes(p) {
+    const idadeAtual = pfpIdade(p.data_nascimento);
+    return Math.max(0, p.idade_aposentadoria - idadeAtual);
+  }
+
+  function pfpTabelaCenarios(p) {
+    const anos = pfpAposRestantes(p);
+    const aporteAnual = (p.aporte_mensal_planejado || 0) * 12;
+    const cenarios = [
+      { label:'Otimista', badge:'pfp-bg', ra: p.rentabilidade_real_acumulacao + 1.5, rr: p.rentabilidade_real_renda + 1.0 },
+      { label:'Base',     badge:'pfp-bt', ra: p.rentabilidade_real_acumulacao,       rr: p.rentabilidade_real_renda },
+      { label:'Pessimista',badge:'pfp-bk',ra: Math.max(0, p.rentabilidade_real_acumulacao - 1.5), rr: Math.max(0, p.rentabilidade_real_renda - 1.5) },
+    ];
+    return cenarios.map(c => {
+      const pl = pfpProjetarPL(p.patrimonio_inicio_plano, aporteAnual, c.ra, anos);
+      const renda = pl * (c.rr / 100) / 12;
+      const clsRenda = c.label === 'Otimista' ? 'pfp-up' : c.label === 'Pessimista' ? 'pfp-down' : '';
+      return `<tr>
+        <td><span class="pfp-badge ${c.badge}">${c.label}</span></td>
+        <td>${c.ra.toFixed(1)}% a.a.</td>
+        <td>${c.rr.toFixed(1)}% a.a.</td>
+        <td style="text-align:right" class="${clsRenda}">${pfpFmtM(pl)}</td>
+        <td style="text-align:right" class="${clsRenda}">${pfpFmtM(renda * 12 / 12)}/mês</td>
+      </tr>`;
+    }).join('');
+  }
+
+  function pfpRenderCharts(p) {
+    setTimeout(() => {
+      const canvas = document.getElementById('pfp-proj-chart');
+      if (!canvas) return;
+      if (_pfpChart) { _pfpChart.destroy(); _pfpChart = null; }
+
+      const idadeAtual = pfpIdade(p.data_nascimento);
+      const idadeApo   = p.idade_aposentadoria;
+      const idadeMax   = p.expectativa_vida;
+      const aporteAnual = (p.aporte_mensal_planejado || 0) * 12;
+      const ra = p.rentabilidade_real_acumulacao / 100;
+      const rr = p.rentabilidade_real_renda / 100;
+
+      const labels = [], acum = [], pres = [], usuf = [];
+      let plAtual = p.patrimonio_inicio_plano;
+      let apoAlcancado = false;
+
+      for (let idade = idadeAtual; idade <= idadeMax; idade++) {
+        labels.push(idade + ' anos');
+        if (idade < idadeApo) {
+          plAtual = plAtual * (1 + ra) + aporteAnual;
+          acum.push(+(plAtual / 1e6).toFixed(2));
+          pres.push(null); usuf.push(null);
+        } else {
+          if (!apoAlcancado) {
+            apoAlcancado = true;
+            acum.push(+(plAtual / 1e6).toFixed(2));
+            pres.push(+(plAtual / 1e6).toFixed(2));
+            usuf.push(+(plAtual / 1e6).toFixed(2));
+          } else {
+            acum.push(null);
+            const lp = pres.filter(v => v !== null).slice(-1)[0] || plAtual / 1e6;
+            const lu = usuf.filter(v => v !== null).slice(-1)[0] || plAtual / 1e6;
+            pres.push(+(Math.max(0, lp * (1 + rr) - lp * rr * 0.95)).toFixed(2));
+            usuf.push(+(Math.max(0, lu * (1 + rr) - lu * rr * 1.2)).toFixed(2));
+          }
+        }
+      }
+
+      _pfpChart = new Chart(canvas, {
+        type: 'line',
+        data: { labels, datasets: [
+          { label:'Acumulação', data:acum, borderColor:'#2a5a66', borderWidth:2, pointRadius:0, fill:false, tension:0.4, spanGaps:false },
+          { label:'Preservando', data:pres, borderColor:'#1a6645', borderWidth:1.5, pointRadius:0, fill:false, tension:0.4, spanGaps:false },
+          { label:'Usufruindo', data:usuf, borderColor:'#b8860b', borderWidth:1.5, pointRadius:0, fill:false, tension:0.4, spanGaps:false, borderDash:[4,3] },
+        ]},
+        options: {
+          responsive:true, maintainAspectRatio:false,
+          plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => ctx.dataset.label + ': R$ ' + (ctx.parsed.y||0).toFixed(1) + 'M' }}},
+          scales:{
+            x:{ grid:{display:false}, ticks:{ font:{size:10}, color:'var(--fg-mute)', maxRotation:0, autoSkip:true, maxTicksLimit:10 }},
+            y:{ grid:{color:'rgba(4,25,36,.05)'}, ticks:{ font:{size:10}, color:'var(--fg-mute)', callback: v => 'R$'+v+'M' }, min:0 }
+          }
+        }
+      });
+    }, 80);
+  }
+
+  function pfpShowTab(id, btn) {
+    document.querySelectorAll('.pfp-page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.pfp-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('pfp-tab-' + id).classList.add('active');
+    btn.classList.add('active');
+    if (id === 'projecao' && _pfpPlano) pfpRenderCharts(_pfpPlano);
+  }
+
+  function pfpAbrirCadastro() {
+    alert('Formulário de cadastro/revisão do plano — em breve!');
+  }
+
+  // ============================================================
+  // ========== FIM PFP =========================================
   // ============================================================
 
   </script>
