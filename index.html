@@ -17649,7 +17649,7 @@ Esta ação não pode ser desfeita.`)) return;
     root.innerHTML = '<div class="loading"><div class="spinner"></div><p>Carregando plano...</p></div>';
 
     try {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('pfp_planos')
         .select('*')
         .eq('cliente_id', window.patClientId)
