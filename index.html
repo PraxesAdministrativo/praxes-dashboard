@@ -17728,6 +17728,7 @@ Esta ação não pode ser desfeita.`)) return;
     root.innerHTML = '<div class="loading"><div class="spinner"></div><p>Carregando plano...</p></div>';
 
     try {
+      // Busca plano ativo
       const { data, error } = await db
         .from('pfp_planos')
         .select('*')
@@ -17735,14 +17736,22 @@ Esta ação não pode ser desfeita.`)) return;
         .eq('ativo', true)
         .single();
 
+      // Busca histórico completo de versões
+      const { data: historico } = await db
+        .from('pfp_planos')
+        .select('versao, data_inicio_vigencia, criado_por, motivo_revisao, ativo')
+        .eq('cliente_id', window.patClientId)
+        .order('versao', { ascending: false });
+
       if (error || !data) {
         root.innerHTML = pfpSemPlano();
         return;
       }
 
       _pfpPlano = data;
-      root.innerHTML = pfpRenderHTML(data);
-      pfpRenderCharts(data);
+      _pfpPlano._historico = historico || [data];
+      root.innerHTML = pfpRenderHTML(_pfpPlano);
+      pfpRenderCharts(_pfpPlano);
       _pfpLoaded = true;
     } catch(e) {
       console.error('pfpInit erro:', e);
@@ -18008,12 +18017,12 @@ Esta ação não pode ser desfeita.`)) return;
         <table class="pfp-table">
           <thead><tr><th>Versão</th><th>Data</th><th>Criado por</th><th>Motivo</th></tr></thead>
           <tbody>
-            <tr>
-              <td><span class="pfp-badge pfp-bt">v${p.versao} — atual</span></td>
-              <td>${new Date(p.data_inicio_vigencia).toLocaleDateString('pt-BR',{month:'short',year:'numeric'})}</td>
-              <td>${p.criado_por || '—'}</td>
-              <td style="color:var(--fg-mute)">${p.motivo_revisao || 'Plano inicial'}</td>
-            </tr>
+            ${(p._historico || [p]).map(h => `<tr>
+              <td><span class="pfp-badge ${h.ativo ? 'pfp-bt' : 'pfp-bk'}">v${h.versao}${h.ativo ? ' — atual' : ''}</span></td>
+              <td>${new Date(h.data_inicio_vigencia).toLocaleDateString('pt-BR',{month:'short',year:'numeric'})}</td>
+              <td>${h.criado_por || '—'}</td>
+              <td style="color:var(--fg-mute)">${h.motivo_revisao || 'Plano inicial'}</td>
+            </tr>`).join('')}
           </tbody>
         </table>
       </div>
