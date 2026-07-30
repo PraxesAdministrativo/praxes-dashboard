@@ -3200,6 +3200,85 @@
     </main>
   </div>
 
+  <!-- MODAL PFP -->
+  <div class="modal" id="modal-pfp">
+    <div class="modal-content" style="max-width:600px;max-height:90vh;overflow-y:auto;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-pfp-title">Novo Plano Patrimonial</h3>
+        <button class="modal-close" onclick="closeModal('modal-pfp')">&times;</button>
+      </div>
+      <div class="modal-body">
+
+        <div style="font-size:12px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--fg-mute);margin:0 0 10px;">Informações pessoais</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Data de nascimento *</label>
+            <input type="date" class="form-input" id="pfp-f-nasc">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Idade de aposentadoria *</label>
+            <input type="number" class="form-input" id="pfp-f-idadeapo" placeholder="Ex: 55" min="30" max="90">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Expectativa de vida</label>
+            <input type="number" class="form-input" id="pfp-f-expvida" placeholder="95" min="70" max="110" value="95">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Início do plano *</label>
+            <input type="date" class="form-input" id="pfp-f-inicioplano">
+          </div>
+        </div>
+
+        <div style="height:1px;background:var(--line);margin:16px 0;"></div>
+        <div style="font-size:12px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--fg-mute);margin:0 0 10px;">Parâmetros financeiros</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Patrimônio no início do plano (R$) *</label>
+            <input type="number" class="form-input" id="pfp-f-patrim" placeholder="Ex: 5000000" min="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Aporte mensal planejado (R$)</label>
+            <input type="number" class="form-input" id="pfp-f-aporte" placeholder="Ex: 50000" min="0" value="0">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Rentabilidade real — acumulação (% a.a.)</label>
+            <input type="number" class="form-input" id="pfp-f-rentacum" placeholder="4.0" step="0.1" min="0" max="20" value="4.0">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Rentabilidade real — renda (% a.a.)</label>
+            <input type="number" class="form-input" id="pfp-f-rentrenda" placeholder="4.5" step="0.1" min="0" max="20" value="4.5">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">IPCA projetado (% a.a.)</label>
+            <input type="number" class="form-input" id="pfp-f-ipca" placeholder="4.8" step="0.1" min="0" max="30" value="4.8">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Meta de renda mensal (R$) *</label>
+            <input type="number" class="form-input" id="pfp-f-metarenda" placeholder="Ex: 100000" min="0">
+          </div>
+        </div>
+
+        <div style="height:1px;background:var(--line);margin:16px 0;"></div>
+        <div style="font-size:12px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--fg-mute);margin:0 0 10px;">Revisão</div>
+        <div class="form-group">
+          <label class="form-label">Motivo da revisão</label>
+          <input type="text" class="form-input" id="pfp-f-motivo" placeholder="Ex: Plano inicial, Mudança de meta, Novo aporte pontual...">
+        </div>
+
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
+          <button class="btn-cancel" onclick="closeModal('modal-pfp')">Cancelar</button>
+          <button class="btn-save" onclick="pfpSalvar()" id="pfp-btn-salvar">Salvar plano</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL OBJETIVO -->
   <div class="modal" id="modal-objetivo">
     <div class="modal-content" style="max-width:520px;">
@@ -18035,7 +18114,88 @@ Esta ação não pode ser desfeita.`)) return;
   }
 
   function pfpAbrirCadastro() {
-    alert('Formulário de cadastro/revisão do plano — em breve!');
+    const p = _pfpPlano;
+    // Pré-preenche se já existe plano
+    document.getElementById('pfp-f-nasc').value        = p?.data_nascimento || '';
+    document.getElementById('pfp-f-idadeapo').value    = p?.idade_aposentadoria || '';
+    document.getElementById('pfp-f-expvida').value     = p?.expectativa_vida || 95;
+    document.getElementById('pfp-f-inicioplano').value = p?.data_inicio_plano || new Date().toISOString().slice(0,10);
+    document.getElementById('pfp-f-patrim').value      = p?.patrimonio_inicio_plano || '';
+    document.getElementById('pfp-f-aporte').value      = p?.aporte_mensal_planejado || 0;
+    document.getElementById('pfp-f-rentacum').value    = p?.rentabilidade_real_acumulacao || 4.0;
+    document.getElementById('pfp-f-rentrenda').value   = p?.rentabilidade_real_renda || 4.5;
+    document.getElementById('pfp-f-ipca').value        = p?.ipca_projetado || 4.8;
+    document.getElementById('pfp-f-metarenda').value   = p?.meta_renda_mensal || '';
+    document.getElementById('pfp-f-motivo').value      = '';
+    document.getElementById('modal-pfp-title').textContent = p ? 'Revisar Plano Patrimonial' : 'Novo Plano Patrimonial';
+    document.getElementById('pfp-btn-salvar').textContent  = p ? 'Salvar nova versão' : 'Criar plano';
+    openModal('modal-pfp');
+  }
+
+  async function pfpSalvar() {
+    const btn = document.getElementById('pfp-btn-salvar');
+    const nasc      = document.getElementById('pfp-f-nasc').value;
+    const idadeApo  = parseInt(document.getElementById('pfp-f-idadeapo').value);
+    const expVida   = parseInt(document.getElementById('pfp-f-expvida').value) || 95;
+    const inicio    = document.getElementById('pfp-f-inicioplano').value;
+    const patrim    = parseFloat(document.getElementById('pfp-f-patrim').value);
+    const aporte    = parseFloat(document.getElementById('pfp-f-aporte').value) || 0;
+    const rentAcum  = parseFloat(document.getElementById('pfp-f-rentacum').value) || 4.0;
+    const rentRenda = parseFloat(document.getElementById('pfp-f-rentrenda').value) || 4.5;
+    const ipca      = parseFloat(document.getElementById('pfp-f-ipca').value) || 4.8;
+    const metaRenda = parseFloat(document.getElementById('pfp-f-metarenda').value);
+    const motivo    = document.getElementById('pfp-f-motivo').value.trim() || 'Revisão do plano';
+
+    if (!nasc || !idadeApo || !inicio || isNaN(patrim) || isNaN(metaRenda)) {
+      alert('Preencha todos os campos obrigatórios (*).');
+      return;
+    }
+
+    btn.textContent = 'Salvando...';
+    btn.disabled = true;
+
+    try {
+      const hoje = new Date().toISOString().slice(0,10);
+      const novaVersao = (_pfpPlano?.versao || 0) + 1;
+
+      // Fecha versão anterior se existir
+      if (_pfpPlano?.id) {
+        await db.from('pfp_planos')
+          .update({ ativo: false, data_fim_vigencia: hoje })
+          .eq('id', _pfpPlano.id);
+      }
+
+      // Insere nova versão
+      const { error } = await db.from('pfp_planos').insert({
+        cliente_id:                   window.patClientId,
+        versao:                       novaVersao,
+        ativo:                        true,
+        data_inicio_vigencia:         hoje,
+        data_inicio_plano:            inicio,
+        motivo_revisao:               motivo,
+        criado_por:                   'Praxes',
+        data_nascimento:              nasc,
+        idade_aposentadoria:          idadeApo,
+        expectativa_vida:             expVida,
+        patrimonio_inicio_plano:      patrim,
+        aporte_mensal_planejado:      aporte,
+        rentabilidade_real_acumulacao: rentAcum,
+        rentabilidade_real_renda:     rentRenda,
+        ipca_projetado:               ipca,
+        meta_renda_mensal:            metaRenda
+      });
+
+      if (error) throw error;
+
+      closeModal('modal-pfp');
+      await pfpInit();
+    } catch(e) {
+      console.error('pfpSalvar erro:', e);
+      alert('Erro ao salvar: ' + (e?.message || JSON.stringify(e)));
+    } finally {
+      btn.textContent = _pfpPlano ? 'Salvar nova versão' : 'Criar plano';
+      btn.disabled = false;
+    }
   }
 
   // ============================================================
