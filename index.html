@@ -17666,7 +17666,8 @@ Esta ação não pode ser desfeita.`)) return;
       pfpRenderCharts(data);
       _pfpLoaded = true;
     } catch(e) {
-      root.innerHTML = '<div class="loading"><p>Erro ao carregar plano.</p></div>';
+      console.error('pfpInit erro:', e);
+      root.innerHTML = `<div class="loading"><p>Erro ao carregar plano: ${e?.message || JSON.stringify(e)}</p></div>`;
     }
   }
 
