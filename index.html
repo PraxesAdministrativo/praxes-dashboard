@@ -17643,7 +17643,7 @@ Esta ação não pode ser desfeita.`)) return;
   let _pfpChart = null;
 
   async function pfpInit() {
-    if (!clienteAtual) return;
+    if (!window.patClientId) return;
     _pfpLoaded = false;
     const root = document.getElementById('pfp-root');
     root.innerHTML = '<div class="loading"><div class="spinner"></div><p>Carregando plano...</p></div>';
@@ -17652,7 +17652,7 @@ Esta ação não pode ser desfeita.`)) return;
       const { data, error } = await supabase
         .from('pfp_planos')
         .select('*')
-        .eq('cliente_id', clienteAtual.id)
+        .eq('cliente_id', window.patClientId)
         .eq('ativo', true)
         .single();
 
