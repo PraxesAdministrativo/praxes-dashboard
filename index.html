@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Praxes — Family Office</title>
+  <title>Praxes Gestão Patrimonial</title>
   <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@400;500;600;700;800&family=Urbanist:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&display=swap" rel="stylesheet" />
   <style>
     /* ── PRAXES DESIGN SYSTEM ───────────────────────────────────
@@ -2253,7 +2253,7 @@
           <!-- Bloco de boas-vindas — preenchido pelo JS -->
           <div class="dash-welcome" id="dash-welcome-block" style="display:none;">
             <div class="dash-welcome-name" id="dash-welcome-name">Bem-vindo</div>
-            <div class="dash-welcome-sub" id="dash-welcome-sub">Posição consolidada · Praxes Family Office</div>
+            <div class="dash-welcome-sub" id="dash-welcome-sub">Posição consolidada · Praxes Gestão Patrimonial</div>
             <div style="margin-top:16px;">
               <button onclick="gerarRelatorioPatrimonial()" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:rgba(242,221,198,0.12);border:1px solid rgba(242,221,198,0.25);border-radius:8px;color:rgba(242,221,198,0.85);font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;transition:all .2s;letter-spacing:.02em;" onmouseover="this.style.background='rgba(242,221,198,0.2)'" onmouseout="this.style.background='rgba(242,221,198,0.12)'">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
@@ -8992,7 +8992,7 @@
           if(isFinite(PH)) doc.line(M, PH - 8, PW - M, PH - 8);
           doc.setFontSize(6); doc.setFont('helvetica','normal');
           doc.setTextColor(170, 180, 190);
-          doc.text('Praxes Family Office  ·  Confidencial', M, PH - 4);
+          doc.text('Praxes Gestão Patrimonial  ·  Confidencial', M, PH - 4);
           doc.text(String(num), PW - M, PH - 4, { align: 'right' });
         }
 
@@ -9272,7 +9272,7 @@
 
         doc.setTextColor(160, 200, 230);
         doc.setFontSize(9); doc.setFont('helvetica','normal');
-        doc.text('Family Office', M, 54);
+        doc.text('Gestão Patrimonial', M, 54);
 
         doc.setTextColor(...C.white);
         doc.setFontSize(20); doc.setFont('helvetica','bold');
@@ -11264,7 +11264,7 @@ Esta ação não pode ser desfeita.`)) return;
         for (var i=1; i<=totalPags; i++) {
           doc.setPage(i);
           doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(160,160,160);
-          doc.text('Praxes Family Office - Relatorio Confidencial', 14, ph-8);
+          doc.text('Praxes Gestão Patrimonial - Relatorio Confidencial', 14, ph-8);
           doc.text(i+' / '+totalPags, pw-14, ph-8, { align:'right' });
         }
       }
@@ -13737,7 +13737,7 @@ Esta ação não pode ser desfeita.`)) return;
   </section>
 
   <div class="page-ftr">
-    <span>Praxes Family Office · Confidencial</span>
+    <span>Praxes Gestão Patrimonial · Confidencial</span>
     <span>2 / ${totalPages}</span>
   </div>
 </div>
@@ -13795,7 +13795,7 @@ Esta ação não pode ser desfeita.`)) return;
   </section>
 
   <div class="page-ftr">
-    <span>Praxes Family Office · Confidencial</span>
+    <span>Praxes Gestão Patrimonial · Confidencial</span>
     <span>3 / ${totalPages}</span>
   </div>
 </div>
@@ -13842,7 +13842,7 @@ Esta ação não pode ser desfeita.`)) return;
   </section>
 
   <div class="page-ftr">
-    <span>Praxes Family Office · Confidencial</span>
+    <span>Praxes Gestão Patrimonial · Confidencial</span>
     <span>Gerado em ${hoje.toLocaleDateString('pt-BR')} às ${hoje.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span>
   </div>
 </div>
@@ -14870,7 +14870,7 @@ Esta ação não pode ser desfeita.`)) return;
       const ws = document.getElementById('dash-welcome-sub');
       if (wb && wn && ws) {
         wn.textContent = `${saudacao}, ${primeiroNome}`;
-        ws.textContent = `Posição consolidada de ${agora.toLocaleDateString('pt-BR', { day:'numeric', month:'long', year:'numeric' })} · Praxes Family Office`;
+        ws.textContent = `Posição consolidada de ${agora.toLocaleDateString('pt-BR', { day:'numeric', month:'long', year:'numeric' })} · Praxes Gestão Patrimonial`;
         wb.style.display = 'block';
       }
 
