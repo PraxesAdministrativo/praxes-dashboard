@@ -5287,9 +5287,14 @@
       } catch (e) { alert('Erro ao adicionar item: ' + (e.message || e)); }
     }
 
-    async function patRemoverLinha(id, desc) {
+    async function patRemoverLinha(id, desc, origem) {
       if (!patPodeEditar()) return;
-      if (!confirm('Remover "' + desc + '" deste rascunho?')) return;
+      var extra = (origem && origem !== 'manual')
+        ? '\n\nEsta linha foi gerada automaticamente a partir de '
+          + (PAT_ORIGEM[origem] || origem)
+          + '. Ela sai deste rascunho, mas volta a ser gerada no próximo fechamento.'
+        : '';
+      if (!confirm('Remover "' + desc + '" deste rascunho?' + extra)) return;
       try {
         var r = await db.from('pat_fechamento_linhas').delete().eq('id', id);
         if (r.error) throw r.error;
@@ -5424,8 +5429,8 @@
         + '.pat-inp{font-family:inherit;font-size:13px;color:var(--praxes-abyss);background:transparent;'
         +   'border:none;border-bottom:1px solid rgba(4,25,36,.24);padding:4px 2px;width:112px;text-align:right;outline:none;}'
         + '.pat-inp:focus{border-bottom-color:var(--praxes-abyss);}'
-        + '.pat-del{cursor:pointer;color:var(--praxes-teal-20);font-size:15px;line-height:1;padding:0 2px;}'
-        + '.pat-del:hover{color:var(--praxes-signal);}'
+        + '.pat-del{cursor:pointer;color:var(--praxes-teal-40);font-size:16px;line-height:1;padding:3px 7px;border-radius:5px;margin-left:2px;transition:background .12s,color .12s;}'
+        + '.pat-del:hover{color:var(--praxes-signal);background:rgba(4,25,36,.07);}'
         + '.pat-addbtn{border:none;background:transparent;color:var(--praxes-teal);font-family:inherit;font-size:10px;'
         +   'font-weight:500;letter-spacing:.04em;padding:2px 0;cursor:pointer;box-shadow:none;text-decoration:underline;text-underline-offset:2px;}'
         + '.pat-addrow td{padding:12px 20px 14px 44px;background:var(--praxes-paper);border-bottom:1px solid rgba(4,25,36,.06);}'
@@ -5456,8 +5461,8 @@
           + '" onchange="patSalvarValor(\'' + l.id + '\',this.value)">'
         : '<span class="pat-item-val">' + fmt(l.valor) + '</span>';
 
-      var lixo = (editavel && l.origem === 'manual')
-        ? '<span class="pat-del" onclick="patRemoverLinha(\'' + l.id + '\',\'' + esc(l.descricao).replace(/'/g, '') + '\')" title="Remover">&times;</span>'
+      var lixo = editavel
+        ? '<span class="pat-del" onclick="patRemoverLinha(\'' + l.id + '\',\'' + esc(l.descricao).replace(/'/g, '') + '\',\'' + (l.origem || '') + '\')" title="Remover deste rascunho">&times;</span>'
         : '';
 
       var dt = l.data_origem
