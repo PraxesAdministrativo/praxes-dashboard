@@ -12767,8 +12767,10 @@ Esta ação não pode ser desfeita.`)) return;
           const provIR   = parseFloat(r[7]) || 0;
           const liquidez = String(r[9]||'').trim();
           if (!ativo) return;
+          // Descarta linhas de subtotal do Comdinheiro (Total, Total da Carteira, Total Disponível…)
+          // ANTES do fallback de classeAtual, para não sequestrarem o agrupamento se vierem zeradas
+          if (/^total\b/i.test(ativo)) return;
           if (isNaN(saldoBr) || saldoBr === 0) { classeAtual = ativo; return; }
-          if (ativo.toLowerCase() === 'total') return;
           if (Object.keys(classeMap).includes(ativo)) { classeAtual = ativo; return; }
           // Decompõe movimentação: positivo = aporte, negativo = resgate
           const aportes  = (!isNaN(mov) && mov > 0) ? mov  : 0;
