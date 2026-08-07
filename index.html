@@ -5422,6 +5422,7 @@
         + '.pat-sub-val{font-size:11.5px;font-weight:600;font-variant-numeric:tabular-nums;}'
         + '.pat-item-row td{padding:9px 20px 9px 44px;border-bottom:1px solid rgba(4,25,36,.06);}'
         + '.pat-item-row.nested td{padding-left:56px;}'
+        + '.pat-item-row td:last-child,.pat-item-row.nested td:last-child{padding-left:8px;overflow:visible;}'
         + '.pat-item-desc{font-size:13px;color:var(--praxes-abyss);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}'
         + '.pat-item-val{font-size:13px;color:var(--praxes-deep);font-variant-numeric:tabular-nums;font-feature-settings:"tnum";white-space:nowrap;}'
         + '.pat-item-date{font-size:10px;color:var(--praxes-teal-20);white-space:nowrap;}'
@@ -5556,7 +5557,7 @@
       return '<div class="pat-col">'
         + '<div class="pat-colhd ' + hdCls + '"><span class="pat-colhd-lbl">' + hdTxt + '</span>'
         + '<span class="pat-colhd-val">' + fmt(total) + '</span></div>'
-        + '<table class="pat-tbl"><colgroup><col><col style="width:160px;"></colgroup>' + corpo + '</table>'
+        + '<table class="pat-tbl"><colgroup><col><col style="width:206px;"></colgroup>' + corpo + '</table>'
         + '<div class="pat-tot"><span>' + totLbl + '</span><span class="pat-tot-val">' + fmt(total) + '</span></div>'
         + '</div>';
     }
