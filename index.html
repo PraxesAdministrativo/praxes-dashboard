@@ -3245,34 +3245,34 @@
         <button class="modal-close" onclick="closeModal('modal-funil-servico')">&times;</button>
       </div>
       <div style="padding:0 4px;">
-        <div id="modal-funil-sub" style="font-size:11px;color:rgba(242,221,198,0.4);margin-bottom:14px;"></div>
-        <div id="funil-alertas" style="display:none;margin-bottom:14px;padding:8px 10px;background:rgba(240,160,0,0.1);border:1px solid rgba(240,160,0,0.2);border-radius:var(--r-md);"></div>
+        <div id="modal-funil-sub" style="font-size:11px;color:var(--fg-3);margin-bottom:14px;"></div>
+        <div id="funil-alertas" style="display:none;margin-bottom:14px;padding:8px 10px;background:rgba(240,160,0,0.12);border:1px solid rgba(240,160,0,0.35);border-radius:var(--r-md);"></div>
 
-        <label style="display:block;font-size:11px;color:rgba(242,221,198,0.5);margin-bottom:4px;">Serviço</label>
-        <select id="funil-servico" onchange="adminFunilPreview()" style="width:100%;padding:8px 10px;font-size:12px;font-family:inherit;background:rgba(242,221,198,0.06);border:1px solid rgba(242,221,198,0.15);border-radius:var(--r-md);color:rgba(242,221,198,0.85);outline:none;margin-bottom:12px;">
-          <option style="background:#041924;">Consultoria Básica</option>
-          <option style="background:#041924;">Consultoria Completa</option>
-          <option style="background:#041924;">PFP 3 Áreas</option>
-          <option style="background:#041924;">PFP Completo</option>
+        <label style="display:block;font-size:11px;color:var(--fg-3);margin-bottom:4px;">Serviço</label>
+        <select id="funil-servico" onchange="adminFunilPreview()" style="width:100%;padding:8px 10px;font-size:12px;font-family:inherit;background:var(--surface);border:1px solid var(--line-strong);border-radius:var(--r-md);color:var(--fg-1);outline:none;margin-bottom:12px;">
+          <option>Consultoria Básica</option>
+          <option>Consultoria Completa</option>
+          <option>PFP 3 Áreas</option>
+          <option>PFP Completo</option>
         </select>
 
         <div style="display:flex;gap:10px;margin-bottom:14px;">
           <div style="flex:1;" id="funil-taxa-wrap">
-            <label style="display:block;font-size:11px;color:rgba(242,221,198,0.5);margin-bottom:4px;">Taxa (% a.a. sobre PL)</label>
-            <input id="funil-taxa" type="text" inputmode="decimal" style="width:100%;padding:8px 10px;font-size:12px;font-family:inherit;background:rgba(242,221,198,0.06);border:1px solid rgba(242,221,198,0.15);border-radius:var(--r-md);color:rgba(242,221,198,0.85);outline:none;">
+            <label style="display:block;font-size:11px;color:var(--fg-3);margin-bottom:4px;">Taxa (% a.a. sobre PL)</label>
+            <input id="funil-taxa" type="text" inputmode="decimal" style="width:100%;padding:8px 10px;font-size:12px;font-family:inherit;background:var(--surface);border:1px solid var(--line-strong);border-radius:var(--r-md);color:var(--fg-1);outline:none;">
           </div>
           <div style="flex:1;">
-            <label style="display:block;font-size:11px;color:rgba(242,221,198,0.5);margin-bottom:4px;">Data de assinatura</label>
-            <input id="funil-assinatura" type="date" style="width:100%;padding:8px 10px;font-size:12px;font-family:inherit;background:rgba(242,221,198,0.06);border:1px solid rgba(242,221,198,0.15);border-radius:var(--r-md);color:rgba(242,221,198,0.85);outline:none;">
+            <label style="display:block;font-size:11px;color:var(--fg-3);margin-bottom:4px;">Data de assinatura</label>
+            <input id="funil-assinatura" type="date" style="width:100%;padding:8px 10px;font-size:12px;font-family:inherit;background:var(--surface);border:1px solid var(--line-strong);border-radius:var(--r-md);color:var(--fg-1);outline:none;">
           </div>
         </div>
 
-        <div id="funil-entregas" style="background:rgba(242,221,198,0.04);border:1px solid rgba(242,221,198,0.08);border-radius:var(--r-md);padding:12px 14px;margin-bottom:14px;"></div>
-        <div id="funil-erro" style="display:none;font-size:11px;color:#ff8080;margin-bottom:10px;"></div>
+        <div id="funil-entregas" style="background:rgba(4,25,36,0.04);border:1px solid var(--line);border-radius:var(--r-md);padding:12px 14px;margin-bottom:14px;"></div>
+        <div id="funil-erro" style="display:none;font-size:11px;color:#c0392b;margin-bottom:10px;"></div>
 
         <div style="display:flex;gap:8px;justify-content:flex-end;padding-bottom:4px;">
-          <button onclick="closeModal('modal-funil-servico')" style="padding:8px 16px;font-size:12px;font-family:inherit;background:transparent;border:1px solid rgba(242,221,198,0.15);border-radius:var(--r-pill);color:rgba(242,221,198,0.6);cursor:pointer;">Cancelar</button>
-          <button id="funil-salvar-btn" onclick="adminFunilSalvar()" style="padding:8px 16px;font-size:12px;font-family:inherit;background:rgba(42,90,102,0.5);border:1px solid rgba(242,221,198,0.2);border-radius:var(--r-pill);color:rgba(242,221,198,0.9);cursor:pointer;">Confirmar contrato</button>
+          <button onclick="closeModal('modal-funil-servico')" style="padding:8px 16px;font-size:12px;font-family:inherit;background:transparent;border:1px solid var(--line-strong);border-radius:var(--r-pill);color:var(--fg-2);cursor:pointer;">Cancelar</button>
+          <button id="funil-salvar-btn" onclick="adminFunilSalvar()" style="padding:8px 16px;font-size:12px;font-family:inherit;background:var(--praxes-teal);border:1px solid var(--praxes-teal);border-radius:var(--r-pill);color:#ffffff;cursor:pointer;">Confirmar contrato</button>
         </div>
       </div>
     </div>
@@ -14574,7 +14574,7 @@ Esta ação não pode ser desfeita.`)) return;
       const al = funilAlertas(c);
       const box = document.getElementById('funil-alertas');
       box.innerHTML = al.length
-        ? al.map(x => '<div style="font-size:11px;color:#ffc040;margin-bottom:3px;">⚠ ' + esc(x) + '</div>').join('')
+        ? al.map(x => '<div style="font-size:11px;color:#8a5a00;margin-bottom:3px;">⚠ ' + esc(x) + '</div>').join('')
         : '';
       box.style.display = al.length ? 'block' : 'none';
 
@@ -14610,9 +14610,9 @@ Esta ação não pode ser desfeita.`)) return;
       }
 
       document.getElementById('funil-entregas').innerHTML =
-        '<div style="font-size:11px;color:rgba(242,221,198,0.4);margin-bottom:8px;">Entregas que este contrato gera</div>' +
-        s.entregas.map(e => '<div style="font-size:12px;color:rgba(242,221,198,0.75);line-height:1.9;">· ' + esc(e) + '</div>').join('') +
-        '<div style="font-size:11px;color:rgba(242,221,198,0.3);margin-top:10px;padding-top:8px;border-top:1px solid rgba(242,221,198,0.08);">' +
+        '<div style="font-size:11px;color:var(--fg-3);margin-bottom:8px;">Entregas que este contrato gera</div>' +
+        s.entregas.map(e => '<div style="font-size:12px;color:var(--fg-1);line-height:1.9;">· ' + esc(e) + '</div>').join('') +
+        '<div style="font-size:11px;color:var(--fg-3);margin-top:10px;padding-top:8px;border-top:1px solid var(--line);">' +
           (c.px ? 'Código atual: ' + esc(c.px) : 'Código a atribuir: ' + adminFunilProximoPX()) +
           ' · as entregas ainda não são criadas automaticamente' +
         '</div>';
