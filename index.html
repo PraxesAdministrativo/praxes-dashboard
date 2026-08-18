@@ -1448,6 +1448,11 @@
     .akp-resp   { background: rgba(242,221,198,0.1); color: rgba(242,221,198,0.5); }
     .admin-kanban-empty { font-size: 11px; color: rgba(242,221,198,0.2); padding: 8px 4px; text-align: center; }
 
+    /* Funil */
+    .admin-funil-card-nome  { font-size: 12px; font-weight: 600; color: rgba(242,221,198,0.9); line-height: 1.35; margin-bottom: 6px; }
+    .admin-funil-card-meta  { display: flex; flex-wrap: wrap; gap: 4px; }
+    .admin-funil-alerta     { font-size: 10px; color: #ffc040; margin-top: 6px; line-height: 1.3; }
+
     /* Views */
     .admin-view { display: none; }
     .admin-view.active { display: block; }
@@ -3233,6 +3238,46 @@
   </div>
 
   <!-- MODAL TAREFA ADMIN KANBAN -->
+  <div class="modal" id="modal-funil-servico" style="z-index:6100;">
+    <div class="modal-content" style="max-width:460px;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-funil-titulo">Definir serviço</h3>
+        <button class="modal-close" onclick="closeModal('modal-funil-servico')">&times;</button>
+      </div>
+      <div style="padding:0 4px;">
+        <div id="modal-funil-sub" style="font-size:11px;color:rgba(242,221,198,0.4);margin-bottom:14px;"></div>
+        <div id="funil-alertas" style="display:none;margin-bottom:14px;padding:8px 10px;background:rgba(240,160,0,0.1);border:1px solid rgba(240,160,0,0.2);border-radius:var(--r-md);"></div>
+
+        <label style="display:block;font-size:11px;color:rgba(242,221,198,0.5);margin-bottom:4px;">Serviço</label>
+        <select id="funil-servico" onchange="adminFunilPreview()" style="width:100%;padding:8px 10px;font-size:12px;font-family:inherit;background:rgba(242,221,198,0.06);border:1px solid rgba(242,221,198,0.15);border-radius:var(--r-md);color:rgba(242,221,198,0.85);outline:none;margin-bottom:12px;">
+          <option style="background:#041924;">Consultoria Básica</option>
+          <option style="background:#041924;">Consultoria Completa</option>
+          <option style="background:#041924;">PFP 3 Áreas</option>
+          <option style="background:#041924;">PFP Completo</option>
+        </select>
+
+        <div style="display:flex;gap:10px;margin-bottom:14px;">
+          <div style="flex:1;" id="funil-taxa-wrap">
+            <label style="display:block;font-size:11px;color:rgba(242,221,198,0.5);margin-bottom:4px;">Taxa (% a.a. sobre PL)</label>
+            <input id="funil-taxa" type="text" inputmode="decimal" style="width:100%;padding:8px 10px;font-size:12px;font-family:inherit;background:rgba(242,221,198,0.06);border:1px solid rgba(242,221,198,0.15);border-radius:var(--r-md);color:rgba(242,221,198,0.85);outline:none;">
+          </div>
+          <div style="flex:1;">
+            <label style="display:block;font-size:11px;color:rgba(242,221,198,0.5);margin-bottom:4px;">Data de assinatura</label>
+            <input id="funil-assinatura" type="date" style="width:100%;padding:8px 10px;font-size:12px;font-family:inherit;background:rgba(242,221,198,0.06);border:1px solid rgba(242,221,198,0.15);border-radius:var(--r-md);color:rgba(242,221,198,0.85);outline:none;">
+          </div>
+        </div>
+
+        <div id="funil-entregas" style="background:rgba(242,221,198,0.04);border:1px solid rgba(242,221,198,0.08);border-radius:var(--r-md);padding:12px 14px;margin-bottom:14px;"></div>
+        <div id="funil-erro" style="display:none;font-size:11px;color:#ff8080;margin-bottom:10px;"></div>
+
+        <div style="display:flex;gap:8px;justify-content:flex-end;padding-bottom:4px;">
+          <button onclick="closeModal('modal-funil-servico')" style="padding:8px 16px;font-size:12px;font-family:inherit;background:transparent;border:1px solid rgba(242,221,198,0.15);border-radius:var(--r-pill);color:rgba(242,221,198,0.6);cursor:pointer;">Cancelar</button>
+          <button id="funil-salvar-btn" onclick="adminFunilSalvar()" style="padding:8px 16px;font-size:12px;font-family:inherit;background:rgba(42,90,102,0.5);border:1px solid rgba(242,221,198,0.2);border-radius:var(--r-pill);color:rgba(242,221,198,0.9);cursor:pointer;">Confirmar contrato</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="modal" id="modal-admin-tarefa" style="z-index:6100;">
     <div class="modal-content" style="max-width:480px;">
       <div class="modal-header">
@@ -4144,6 +4189,10 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
         Clientes
       </div>
+      <div class="admin-nav-item" id="admin-nav-funil" onclick="adminSetView('funil')">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 4h18l-7 8v6l-4 2v-8z"/></svg>
+        Funil
+      </div>
       <div class="admin-nav-item" id="admin-nav-tarefas" onclick="adminSetView('tarefas')">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
         Tarefas
@@ -4177,6 +4226,22 @@
             <div style="color:rgba(255,255,255,0.4);padding:40px;grid-column:1/-1;text-align:center;">
               <div class="spinner" style="border-color:rgba(255,255,255,0.15);border-top-color:rgba(255,255,255,0.7);margin:0 auto;"></div>
               <p style="margin-top:16px;font-size:13px;">Carregando clientes...</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- VIEW: Board do Funil -->
+        <div class="admin-view" id="admin-view-funil">
+          <div class="admin-kanban-filters">
+            <button onclick="adminFunilLoad()" style="padding:7px 14px;font-size:12px;font-family:inherit;background:rgba(242,221,198,0.08);border:1px solid rgba(242,221,198,0.15);border-radius:var(--r-pill);color:rgba(242,221,198,0.6);cursor:pointer;display:flex;align-items:center;gap:6px;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+              Atualizar
+            </button>
+            <span id="admin-funil-status" style="font-size:11px;color:rgba(242,221,198,0.3);margin-left:4px;"></span>
+          </div>
+          <div class="admin-kanban" id="admin-funil-board" style="grid-template-columns:repeat(5,1fr);">
+            <div style="grid-column:1/-1;text-align:center;padding:40px;color:rgba(242,221,198,0.3);font-size:13px;">
+              Clique em "Funil" para carregar o board.
             </div>
           </div>
         </div>
@@ -14372,11 +14437,249 @@ Esta ação não pode ser desfeita.`)) return;
       document.querySelectorAll('.admin-view').forEach(el => el.classList.remove('active'));
       document.getElementById('admin-nav-' + view).classList.add('active');
       document.getElementById('admin-view-' + view).classList.add('active');
-      const titles = { clientes:'Clientes', tarefas:'Tarefas', semana:'Relatório da Semana' };
+      const titles = { clientes:'Clientes', funil:'Funil de Vendas', tarefas:'Tarefas', semana:'Relatório da Semana' };
       document.getElementById('admin-topbar-title').textContent = titles[view] || view;
       document.getElementById('admin-search').style.display = view === 'clientes' ? '' : 'none';
+      if (view === 'funil'   && !_adminFunilLoaded)  adminFunilLoad();
       if (view === 'tarefas' && !_adminKanbanLoaded) adminKanbanLoad();
       if (view === 'semana'  && !_adminSemanaLoaded) adminSemanaLoad();
+    }
+
+    // ── BOARD DO FUNIL ───────────────────────────────────────────
+    const FUNIL_DB    = '1ec701b863e68056bb30f8d6b32617d8';
+    const FUNIL_ETAPAS = ['Lead','Em negociação','Em onboarding','Ativo','Perdido/Desistiu'];
+
+    // Matriz de entregas por serviço (somente exibição — não gera nada ainda)
+    const FUNIL_SERVICOS = {
+      'Consultoria Básica':   { tipo:'rec',  taxa:0.005, entregas:['Relatório de rentabilidade — mensal','Aportes e resgates — mensal','Relatório patrimonial — semestral','Reunião com o cliente — semestral','Aderência ao plano — semestral','Livro Praxes — anual'] },
+      'Consultoria Completa': { tipo:'rec',  taxa:0.003, entregas:['Relatório de rentabilidade — mensal','Aportes e resgates — mensal','Relatório patrimonial — semestral','Reunião com o cliente — bimestral','Acompanhamento patrimonial — semestral','Livro Praxes — anual'] },
+      'PFP 3 Áreas':          { tipo:'proj', taxa:null,  entregas:['Reunião por área — 3 no total','Ata de cada reunião','Relatório final consolidado','Proposta de recorrência com desconto'] },
+      'PFP Completo':         { tipo:'proj', taxa:null,  entregas:['Reunião por área coberta','Ata de cada reunião','Plano de ações','Relatório final consolidado','Proposta de recorrência com desconto'] },
+    };
+
+    let _adminFunilLoaded = false;
+    let _adminFunilLeads  = [];
+    let _adminFunilSel    = null;
+
+    function funilFmtPL(v) {
+      if (v == null) return '—';
+      if (v >= 1e6) return 'R$ ' + (v/1e6).toFixed(v % 1e6 ? 1 : 0) + ' mi';
+      return 'R$ ' + (v/1e3).toFixed(0) + ' mil';
+    }
+
+    function funilAlertas(c) {
+      const a = [];
+      if (c.etapa === 'Lead' && c.px) a.push('Lead já com código ' + c.px);
+      if (c.etapa === 'Ativo' && !c.px) a.push('Ativo sem código Praxes');
+      if (c.etapa === 'Ativo' && c.status === 'Inativo') a.push('Etapa Ativo com status Inativo');
+      if (c.etapa === 'Em onboarding' && c.status === 'Inativo') a.push('Onboarding com status Inativo');
+      if (c.etapa === 'Perdido/Desistiu' && c.px) a.push('Perdido mantendo o código ' + c.px);
+      return a;
+    }
+
+    async function adminFunilLoad() {
+      const board  = document.getElementById('admin-funil-board');
+      const status = document.getElementById('admin-funil-status');
+      board.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:rgba(242,221,198,0.3);font-size:13px;"><div class="spinner" style="border-color:rgba(255,255,255,0.1);border-top-color:rgba(255,255,255,0.5);margin:0 auto;"></div><p style="margin-top:12px;">Carregando funil...</p></div>';
+      if (status) status.textContent = '';
+
+      try {
+        let all = [], cursor;
+        do {
+          const body = { page_size: 100 };
+          if (cursor) body.start_cursor = cursor;
+          const resp = await fetch('https://urckolcywijllkdyjcgc.supabase.co/functions/v1/notion-proxy/v1/databases/' + FUNIL_DB + '/query', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+          });
+          if (!resp.ok) throw new Error('HTTP ' + resp.status);
+          const data = await resp.json();
+          all = all.concat(data.results || []);
+          cursor = data.has_more ? data.next_cursor : undefined;
+        } while (cursor);
+
+        _adminFunilLeads = all.map(page => {
+          const p = page.properties || {};
+          return {
+            id:       page.id,
+            nome:     p['Nome']?.title?.map(t => t.plain_text).join('') || '(sem nome)',
+            etapa:    p['Etapa do Funil']?.select?.name || '',
+            status:   p['Status']?.status?.name || '',
+            px:       p['ID Praxes']?.rich_text?.map(t => t.plain_text).join('') || '',
+            servicos: (p['Serviço Prestado']?.multi_select || []).map(s => s.name),
+            taxa:     p['Taxa de Consultoria']?.number ?? null,
+            plPot:    p['PL Potencial']?.number ?? null,
+            plAtual:  p['PL Atual']?.number ?? null,
+            assin:    p['Data de assinatura']?.date?.start || null,
+          };
+        });
+
+        _adminFunilLoaded = true;
+        if (status) status.textContent = _adminFunilLeads.length + ' registros';
+        adminFunilRender();
+      } catch(err) {
+        board.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:rgba(242,221,198,0.3);font-size:13px;">Erro ao carregar o funil.<br><small>' + esc(err.message) + '</small><br><button onclick="adminFunilLoad()" style="margin-top:14px;padding:7px 14px;font-size:12px;font-family:inherit;background:rgba(242,221,198,0.08);border:1px solid rgba(242,221,198,0.15);border-radius:var(--r-pill);color:rgba(242,221,198,0.6);cursor:pointer;">Tentar novamente</button></div>';
+      }
+    }
+
+    function adminFunilRender() {
+      const board = document.getElementById('admin-funil-board');
+      if (!board) return;
+
+      board.innerHTML = FUNIL_ETAPAS.map(etapa => {
+        const lista = _adminFunilLeads
+          .filter(c => c.etapa === etapa)
+          .sort((a,b) => (b.plPot||0) - (a.plPot||0));
+        const label = etapa === 'Perdido/Desistiu' ? 'Perdido' : etapa;
+
+        return '<div class="admin-kanban-col">' +
+          '<div class="admin-kanban-col-header">' +
+            '<span class="admin-kanban-col-title">' + esc(label) + '</span>' +
+            '<span class="admin-kanban-col-count">' + lista.length + '</span>' +
+          '</div>' +
+          '<div class="admin-kanban-col-body">' +
+            (lista.length === 0
+              ? '<div class="admin-kanban-empty">Vazio</div>'
+              : lista.map(c => {
+                  const al = funilAlertas(c);
+                  return '<div class="admin-kanban-card" onclick="adminFunilAbrir(\'' + c.id + '\')">' +
+                    '<div class="admin-funil-card-nome">' + esc(c.nome) + '</div>' +
+                    '<div class="admin-funil-card-meta">' +
+                      (c.px ? '<span class="admin-kanban-pill akp-cliente">' + esc(c.px) + '</span>' : '') +
+                      (c.servicos.length ? '<span class="admin-kanban-pill akp-resp">' + esc(c.servicos[0]) + '</span>' : '') +
+                      (!c.px && !c.servicos.length && c.plPot != null ? '<span class="admin-kanban-pill akp-resp">' + funilFmtPL(c.plPot) + '</span>' : '') +
+                    '</div>' +
+                    (al.length ? '<div class="admin-funil-alerta">⚠ ' + esc(al[0]) + '</div>' : '') +
+                  '</div>';
+                }).join('')
+            ) +
+          '</div></div>';
+      }).join('');
+    }
+
+    function adminFunilAbrir(id) {
+      const c = _adminFunilLeads.find(x => x.id === id);
+      if (!c) return;
+      _adminFunilSel = c;
+
+      document.getElementById('modal-funil-titulo').textContent = c.nome;
+      document.getElementById('modal-funil-sub').textContent =
+        (c.etapa || 'sem etapa') + ' · ' + (c.px || 'sem código Praxes') + ' · PL potencial ' + funilFmtPL(c.plPot);
+
+      const sel = document.getElementById('funil-servico');
+      sel.value = c.servicos[0] || 'Consultoria Básica';
+
+      const dt = document.getElementById('funil-assinatura');
+      dt.value = c.assin || new Date().toISOString().split('T')[0];
+
+      const al = funilAlertas(c);
+      const box = document.getElementById('funil-alertas');
+      box.innerHTML = al.length
+        ? al.map(x => '<div style="font-size:11px;color:#ffc040;margin-bottom:3px;">⚠ ' + esc(x) + '</div>').join('')
+        : '';
+      box.style.display = al.length ? 'block' : 'none';
+
+      const btn = document.getElementById('funil-salvar-btn');
+      btn.disabled = false;
+      btn.textContent = c.px ? 'Salvar alterações' : 'Confirmar contrato';
+
+      document.getElementById('funil-erro').style.display = 'none';
+      adminFunilPreview();
+      openModal('modal-funil-servico');
+    }
+
+    function adminFunilProximoPX() {
+      const nums = _adminFunilLeads
+        .map(c => /^PX(\d{4})$/.exec(c.px || ''))
+        .filter(Boolean)
+        .map(m => parseInt(m[1], 10))
+        .filter(n => n < 9000);
+      const prox = (nums.length ? Math.max.apply(null, nums) : 0) + 1;
+      return 'PX' + String(prox).padStart(4, '0');
+    }
+
+    function adminFunilPreview() {
+      const nome = document.getElementById('funil-servico').value;
+      const s    = FUNIL_SERVICOS[nome];
+      const c    = _adminFunilSel;
+      if (!s || !c) return;
+
+      const taxaEl = document.getElementById('funil-taxa-wrap');
+      taxaEl.style.display = s.tipo === 'rec' ? '' : 'none';
+      if (s.tipo === 'rec' && !document.getElementById('funil-taxa').value) {
+        document.getElementById('funil-taxa').value = (s.taxa * 100).toFixed(2);
+      }
+
+      document.getElementById('funil-entregas').innerHTML =
+        '<div style="font-size:11px;color:rgba(242,221,198,0.4);margin-bottom:8px;">Entregas que este contrato gera</div>' +
+        s.entregas.map(e => '<div style="font-size:12px;color:rgba(242,221,198,0.75);line-height:1.9;">· ' + esc(e) + '</div>').join('') +
+        '<div style="font-size:11px;color:rgba(242,221,198,0.3);margin-top:10px;padding-top:8px;border-top:1px solid rgba(242,221,198,0.08);">' +
+          (c.px ? 'Código atual: ' + esc(c.px) : 'Código a atribuir: ' + adminFunilProximoPX()) +
+          ' · as entregas ainda não são criadas automaticamente' +
+        '</div>';
+    }
+
+    async function adminFunilSalvar() {
+      const c = _adminFunilSel;
+      if (!c) return;
+
+      const servico = document.getElementById('funil-servico').value;
+      const s       = FUNIL_SERVICOS[servico];
+      const assin   = document.getElementById('funil-assinatura').value;
+      const taxaRaw = document.getElementById('funil-taxa').value;
+      const erro    = document.getElementById('funil-erro');
+
+      if (!assin) {
+        erro.textContent = 'Informe a data de assinatura.';
+        erro.style.display = 'block';
+        return;
+      }
+      let taxa = null;
+      if (s.tipo === 'rec') {
+        taxa = parseFloat(String(taxaRaw).replace(',', '.'));
+        if (isNaN(taxa) || taxa <= 0) {
+          erro.textContent = 'Informe uma taxa válida.';
+          erro.style.display = 'block';
+          return;
+        }
+        taxa = taxa / 100;
+      }
+      erro.style.display = 'none';
+
+      const px = c.px || adminFunilProximoPX();
+      const btn = document.getElementById('funil-salvar-btn');
+      btn.disabled = true;
+      btn.textContent = 'Salvando…';
+
+      const props = {
+        'Serviço Prestado':   { multi_select: [{ name: servico }] },
+        'Data de assinatura': { date: { start: assin } },
+        'ID Praxes':          { rich_text: [{ text: { content: px } }] },
+      };
+      if (taxa != null) props['Taxa de Consultoria'] = { number: taxa };
+      if (c.etapa === 'Lead' || c.etapa === 'Em negociação') {
+        props['Etapa do Funil'] = { select: { name: 'Em onboarding' } };
+      }
+
+      try {
+        const resp = await fetch('https://urckolcywijllkdyjcgc.supabase.co/functions/v1/notion-proxy/v1/pages/' + c.id.replace(/-/g,''), {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ properties: props })
+        });
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+
+        c.servicos = [servico];
+        c.assin    = assin;
+        c.px       = px;
+        if (taxa != null) c.taxa = taxa;
+        if (props['Etapa do Funil']) c.etapa = 'Em onboarding';
+
+        closeModal('modal-funil-servico');
+        adminFunilRender();
+      } catch(err) {
+        erro.textContent = 'Erro ao salvar: ' + err.message;
+        erro.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = c.px ? 'Salvar alterações' : 'Confirmar contrato';
+      }
     }
 
     // ── RELATÓRIO DA SEMANA ──────────────────────────────────────
