@@ -1453,6 +1453,12 @@
     .admin-funil-card-meta  { display: flex; flex-wrap: wrap; gap: 4px; }
     .admin-funil-alerta     { font-size: 10px; color: #ffc040; margin-top: 6px; line-height: 1.3; }
     .admin-funil-card       { cursor: grab; }
+    .funil-inp {
+      padding: 8px 10px; font-size: 12px; font-family: inherit;
+      background: var(--surface); border: 1px solid var(--line-strong);
+      border-radius: var(--r-md); color: var(--fg-1); outline: none;
+    }
+    .funil-inp:focus { border-color: var(--accent); }
     .admin-funil-card.dragging { opacity: .4; cursor: grabbing; }
     .admin-kanban-col.drop-alvo { outline: 1px dashed rgba(242,221,198,0.45); outline-offset: -3px; }
     .admin-kanban-col.drop-alvo .admin-kanban-col-body { background: rgba(242,221,198,0.05); }
@@ -3242,6 +3248,126 @@
   </div>
 
   <!-- MODAL TAREFA ADMIN KANBAN -->
+  <div class="modal" id="modal-funil-novo" style="z-index:6100;">
+    <div class="modal-content" style="max-width:520px;">
+      <div class="modal-header">
+        <h3 class="modal-title">Novo cliente</h3>
+        <button class="modal-close" onclick="closeModal('modal-funil-novo')">&times;</button>
+      </div>
+      <div style="padding:0 4px;">
+
+        <div style="font-size:11px;color:var(--fg-3);margin-bottom:14px;">Só o nome é obrigatório. O resto pode ser completado depois.</div>
+
+        <label style="display:block;font-size:11px;color:var(--fg-3);margin-bottom:4px;">Nome *</label>
+        <input id="novo-nome" type="text" class="funil-inp" style="width:100%;margin-bottom:12px;">
+
+        <div style="display:flex;gap:10px;margin-bottom:12px;">
+          <div style="flex:1;">
+            <label style="display:block;font-size:11px;color:var(--fg-3);margin-bottom:4px;">Etapa</label>
+            <select id="novo-etapa" class="funil-inp" style="width:100%;">
+              <option>Lead</option>
+              <option>Em negociação</option>
+              <option>Em onboarding</option>
+              <option>Ativo</option>
+            </select>
+          </div>
+          <div style="flex:1;">
+            <label style="display:block;font-size:11px;color:var(--fg-3);margin-bottom:4px;">Origem</label>
+            <select id="novo-origem" class="funil-inp" style="width:100%;">
+              <option value="">—</option>
+              <option>Indicação</option>
+              <option>Inbound</option>
+              <option>Evento</option>
+              <option>Prospecção ativa</option>
+              <option>Outro</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:10px;margin-bottom:12px;">
+          <div style="flex:1;">
+            <label style="display:block;font-size:11px;color:var(--fg-3);margin-bottom:4px;">E-mail</label>
+            <input id="novo-email" type="email" class="funil-inp" style="width:100%;">
+          </div>
+          <div style="flex:1;">
+            <label style="display:block;font-size:11px;color:var(--fg-3);margin-bottom:4px;">Telefone</label>
+            <input id="novo-tel" type="tel" class="funil-inp" style="width:100%;">
+          </div>
+        </div>
+
+        <div style="display:flex;gap:10px;margin-bottom:12px;">
+          <div style="flex:1;">
+            <label style="display:block;font-size:11px;color:var(--fg-3);margin-bottom:4px;">CPF</label>
+            <input id="novo-cpf" type="text" class="funil-inp" style="width:100%;">
+          </div>
+          <div style="flex:1;">
+            <label style="display:block;font-size:11px;color:var(--fg-3);margin-bottom:4px;">Data de nascimento</label>
+            <input id="novo-nasc" type="date" class="funil-inp" style="width:100%;">
+          </div>
+        </div>
+
+        <label style="display:block;font-size:11px;color:var(--fg-3);margin-bottom:4px;">Endereço</label>
+        <input id="novo-end" type="text" class="funil-inp" style="width:100%;margin-bottom:12px;">
+
+        <div style="display:flex;gap:10px;margin-bottom:12px;">
+          <div style="flex:1;">
+            <label style="display:block;font-size:11px;color:var(--fg-3);margin-bottom:4px;">Estado civil</label>
+            <select id="novo-civil" class="funil-inp" style="width:100%;">
+              <option value="">—</option>
+              <option>SOLTEIRO (A)</option>
+              <option>CASADO (A)</option>
+              <option>DIVORCIADO (A)</option>
+              <option>VIÚVO (A)</option>
+            </select>
+          </div>
+          <div style="flex:1;">
+            <label style="display:block;font-size:11px;color:var(--fg-3);margin-bottom:4px;">Profissão</label>
+            <select id="novo-prof" class="funil-inp" style="width:100%;">
+              <option value="">—</option>
+              <option>Empresário</option>
+              <option>Médico</option>
+              <option>Advogado</option>
+              <option>Dentista</option>
+              <option>Consultor</option>
+              <option>Aposentado</option>
+              <option>Analista de Investimentos</option>
+              <option>Planejador Financeiro</option>
+              <option>Desembargador de Justiça</option>
+              <option>Oficial de Justiça</option>
+              <option>Publicitário</option>
+              <option>Atleta</option>
+              <option>Jogador de Futebol</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:10px;margin-bottom:14px;">
+          <div style="flex:1;">
+            <label style="display:block;font-size:11px;color:var(--fg-3);margin-bottom:4px;">PL potencial (R$)</label>
+            <input id="novo-pl" type="text" inputmode="decimal" placeholder="5000000" class="funil-inp" style="width:100%;">
+          </div>
+          <div style="flex:1;">
+            <label style="display:block;font-size:11px;color:var(--fg-3);margin-bottom:4px;">Consultor responsável</label>
+            <select id="novo-consultor" class="funil-inp" style="width:100%;">
+              <option value="">—</option>
+              <option value="1f2d872b-594c-8115-9dd0-000256f46389">Alexandre Amorim</option>
+              <option value="1e7d872b-594c-813b-8865-0002b484a81e">Caio H. Alberconi</option>
+              <option value="1f2d872b-594c-817b-bb7d-00026db7ced4">Luiz Beck</option>
+              <option value="1a7d872b-594c-8187-93b9-0002690009a5">Administrativo Praxes</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="novo-erro" style="display:none;font-size:11px;color:#c0392b;margin-bottom:10px;"></div>
+
+        <div style="display:flex;gap:8px;justify-content:flex-end;padding-bottom:4px;">
+          <button onclick="closeModal('modal-funil-novo')" style="padding:8px 16px;font-size:12px;font-family:inherit;background:transparent;border:1px solid var(--line-strong);border-radius:var(--r-pill);color:var(--fg-2);cursor:pointer;">Cancelar</button>
+          <button id="novo-salvar-btn" onclick="adminFunilNovoSalvar()" style="padding:8px 16px;font-size:12px;font-family:inherit;background:var(--praxes-teal);border:1px solid var(--praxes-teal);border-radius:var(--r-pill);color:#ffffff;cursor:pointer;">Cadastrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="modal" id="modal-funil-servico" style="z-index:6100;">
     <div class="modal-content" style="max-width:460px;">
       <div class="modal-header">
@@ -4249,7 +4375,7 @@
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
               Atualizar
             </button>
-            <button onclick="adminFunilNovo()" style="padding:7px 14px;font-size:12px;font-family:inherit;background:rgba(42,90,102,0.5);border:1px solid rgba(242,221,198,0.2);border-radius:var(--r-pill);color:rgba(242,221,198,0.9);cursor:pointer;">+ Novo lead</button>
+            <button onclick="adminFunilNovo()" style="padding:7px 14px;font-size:12px;font-family:inherit;background:rgba(42,90,102,0.5);border:1px solid rgba(242,221,198,0.2);border-radius:var(--r-pill);color:rgba(242,221,198,0.9);cursor:pointer;">+ Novo cliente</button>
             <span id="admin-funil-status" style="font-size:11px;color:rgba(242,221,198,0.3);margin-left:4px;"></span>
           </div>
           <div class="admin-kanban" id="admin-funil-board" style="grid-template-columns:repeat(5,1fr);">
@@ -14631,36 +14757,97 @@ Esta ação não pode ser desfeita.`)) return;
       }
     }
 
-    async function adminFunilNovo() {
-      const nome = prompt('Nome do novo lead:');
-      if (!nome || !nome.trim()) return;
+    function adminFunilNovo() {
+      ['novo-nome','novo-email','novo-tel','novo-cpf','novo-nasc','novo-end','novo-pl'].forEach(id => {
+        const el = document.getElementById(id); if (el) el.value = '';
+      });
+      ['novo-civil','novo-prof','novo-origem','novo-consultor'].forEach(id => {
+        const el = document.getElementById(id); if (el) el.selectedIndex = 0;
+      });
+      document.getElementById('novo-etapa').value = 'Lead';
+      const err = document.getElementById('novo-erro');
+      err.style.display = 'none';
+      const btn = document.getElementById('novo-salvar-btn');
+      btn.disabled = false; btn.textContent = 'Cadastrar';
+      openModal('modal-funil-novo');
+      setTimeout(() => document.getElementById('novo-nome')?.focus(), 100);
+    }
 
-      const status = document.getElementById('admin-funil-status');
-      if (status) status.textContent = 'Criando…';
+    async function adminFunilNovoSalvar() {
+      const nome = (document.getElementById('novo-nome').value || '').trim();
+      const err  = document.getElementById('novo-erro');
+
+      if (!nome) {
+        err.textContent = 'O nome é obrigatório.';
+        err.style.display = 'block';
+        document.getElementById('novo-nome').focus();
+        return;
+      }
+      const email = (document.getElementById('novo-email').value || '').trim();
+      if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+        err.textContent = 'E-mail inválido.';
+        err.style.display = 'block';
+        return;
+      }
+      const dup = _adminFunilLeads.find(c => c.nome.toLowerCase() === nome.toLowerCase());
+      if (dup && !confirm('Já existe "' + dup.nome + '" no funil (' + dup.etapa + ').\n\nCadastrar assim mesmo?')) return;
+      err.style.display = 'none';
+
+      const etapa = document.getElementById('novo-etapa').value;
+      const plRaw = (document.getElementById('novo-pl').value || '').replace(/\./g,'').replace(',','.');
+      const pl    = plRaw ? parseFloat(plRaw) : null;
+
+      const props = {
+        'Nome':           { title: [{ text: { content: nome } }] },
+        'Etapa do Funil': { select: { name: etapa } },
+        'Status':         { status: { name: etapa === 'Ativo' ? 'Ativo' : 'Inativo' } },
+      };
+      const tel   = (document.getElementById('novo-tel').value   || '').trim();
+      const cpf   = (document.getElementById('novo-cpf').value   || '').trim();
+      const nasc  = document.getElementById('novo-nasc').value;
+      const ende  = (document.getElementById('novo-end').value   || '').trim();
+      const civil = document.getElementById('novo-civil').value;
+      const prof  = document.getElementById('novo-prof').value;
+      const orig  = document.getElementById('novo-origem').value;
+      const cons  = document.getElementById('novo-consultor').value;
+
+      if (email) props['E-mail']            = { email: email };
+      if (tel)   props['Telefone']          = { phone_number: tel };
+      if (cpf)   props['CPF']               = { rich_text: [{ text: { content: cpf } }] };
+      if (nasc)  props['Data de Nascimento']= { date: { start: nasc } };
+      if (ende)  props['Endereço']          = { rich_text: [{ text: { content: ende } }] };
+      if (civil) props['Estado Civil']      = { select: { name: civil } };
+      if (prof)  props['Profissão']         = { select: { name: prof } };
+      if (orig)  props['Origem']            = { select: { name: orig } };
+      if (cons)  props['Consultor Responsável'] = { people: [{ object: 'user', id: cons }] };
+      if (pl != null && !isNaN(pl)) props['PL Potencial'] = { number: pl };
+
+      const btn = document.getElementById('novo-salvar-btn');
+      btn.disabled = true; btn.textContent = 'Cadastrando…';
 
       try {
         const resp = await fetch('https://urckolcywijllkdyjcgc.supabase.co/functions/v1/notion-proxy/v1/pages', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            parent: { database_id: FUNIL_DB },
-            properties: {
-              'Nome':           { title: [{ text: { content: nome.trim() } }] },
-              'Etapa do Funil': { select: { name: 'Lead' } },
-              'Status':         { status: { name: 'Inativo' } },
-            }
-          })
+          body: JSON.stringify({ parent: { database_id: FUNIL_DB }, properties: props })
         });
-        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        if (!resp.ok) throw new Error('HTTP ' + resp.status + ' — ' + (await resp.text()).slice(0,140));
         const page = await resp.json();
 
         _adminFunilLeads.push({
-          id: page.id, nome: nome.trim(), etapa: 'Lead', status: 'Inativo',
-          px: '', servicos: [], taxa: null, plPot: null, plAtual: null, assin: null
+          id: page.id, nome: nome, etapa: etapa,
+          status: etapa === 'Ativo' ? 'Ativo' : 'Inativo',
+          px: '', servicos: [], taxa: null,
+          plPot: (pl != null && !isNaN(pl)) ? pl : null, plAtual: null, assin: null
         });
+
+        closeModal('modal-funil-novo');
         adminFunilRender();
-        if (status) status.textContent = 'Lead criado: ' + nome.trim();
-      } catch(err) {
-        if (status) status.textContent = 'Erro ao criar: ' + err.message;
+        const status = document.getElementById('admin-funil-status');
+        if (status) status.textContent = nome + ' cadastrado em ' + etapa;
+      } catch(e2) {
+        err.textContent = 'Erro ao cadastrar: ' + e2.message;
+        err.style.display = 'block';
+        btn.disabled = false; btn.textContent = 'Cadastrar';
       }
     }
 
