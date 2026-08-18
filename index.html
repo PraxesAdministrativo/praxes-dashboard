@@ -1452,6 +1452,10 @@
     .admin-funil-card-nome  { font-size: 12px; font-weight: 600; color: rgba(242,221,198,0.9); line-height: 1.35; margin-bottom: 6px; }
     .admin-funil-card-meta  { display: flex; flex-wrap: wrap; gap: 4px; }
     .admin-funil-alerta     { font-size: 10px; color: #ffc040; margin-top: 6px; line-height: 1.3; }
+    .admin-funil-card       { cursor: grab; }
+    .admin-funil-card.dragging { opacity: .4; cursor: grabbing; }
+    .admin-kanban-col.drop-alvo { outline: 1px dashed rgba(242,221,198,0.45); outline-offset: -3px; }
+    .admin-kanban-col.drop-alvo .admin-kanban-col-body { background: rgba(242,221,198,0.05); }
 
     /* Views */
     .admin-view { display: none; }
@@ -3257,6 +3261,10 @@
         </select>
 
         <div style="display:flex;gap:10px;margin-bottom:14px;">
+          <div style="flex:1;">
+            <label style="display:block;font-size:11px;color:var(--fg-3);margin-bottom:4px;">Código Praxes</label>
+            <input id="funil-px" type="text" oninput="adminFunilPreview()" style="width:100%;padding:8px 10px;font-size:12px;font-family:inherit;background:var(--surface);border:1px solid var(--line-strong);border-radius:var(--r-md);color:var(--fg-1);outline:none;">
+          </div>
           <div style="flex:1;" id="funil-taxa-wrap">
             <label style="display:block;font-size:11px;color:var(--fg-3);margin-bottom:4px;">Taxa (% a.a. sobre PL)</label>
             <input id="funil-taxa" type="text" inputmode="decimal" style="width:100%;padding:8px 10px;font-size:12px;font-family:inherit;background:var(--surface);border:1px solid var(--line-strong);border-radius:var(--r-md);color:var(--fg-1);outline:none;">
@@ -3268,11 +3276,15 @@
         </div>
 
         <div id="funil-entregas" style="background:rgba(4,25,36,0.04);border:1px solid var(--line);border-radius:var(--r-md);padding:12px 14px;margin-bottom:14px;"></div>
+        <div id="funil-px-aviso" style="display:none;font-size:11px;color:#8a5a00;margin-bottom:10px;"></div>
         <div id="funil-erro" style="display:none;font-size:11px;color:#c0392b;margin-bottom:10px;"></div>
 
-        <div style="display:flex;gap:8px;justify-content:flex-end;padding-bottom:4px;">
+        <div style="display:flex;gap:8px;align-items:center;padding-bottom:4px;">
+          <button onclick="adminFunilArquivar()" style="padding:8px 14px;font-size:12px;font-family:inherit;background:transparent;border:1px solid rgba(192,57,43,0.35);border-radius:var(--r-pill);color:#c0392b;cursor:pointer;">Arquivar</button>
+          <div style="margin-left:auto;display:flex;gap:8px;">
           <button onclick="closeModal('modal-funil-servico')" style="padding:8px 16px;font-size:12px;font-family:inherit;background:transparent;border:1px solid var(--line-strong);border-radius:var(--r-pill);color:var(--fg-2);cursor:pointer;">Cancelar</button>
           <button id="funil-salvar-btn" onclick="adminFunilSalvar()" style="padding:8px 16px;font-size:12px;font-family:inherit;background:var(--praxes-teal);border:1px solid var(--praxes-teal);border-radius:var(--r-pill);color:#ffffff;cursor:pointer;">Confirmar contrato</button>
+          </div>
         </div>
       </div>
     </div>
@@ -4237,6 +4249,7 @@
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
               Atualizar
             </button>
+            <button onclick="adminFunilNovo()" style="padding:7px 14px;font-size:12px;font-family:inherit;background:rgba(42,90,102,0.5);border:1px solid rgba(242,221,198,0.2);border-radius:var(--r-pill);color:rgba(242,221,198,0.9);cursor:pointer;">+ Novo lead</button>
             <span id="admin-funil-status" style="font-size:11px;color:rgba(242,221,198,0.3);margin-left:4px;"></span>
           </div>
           <div class="admin-kanban" id="admin-funil-board" style="grid-template-columns:repeat(5,1fr);">
@@ -14530,18 +14543,20 @@ Esta ação não pode ser desfeita.`)) return;
           .filter(c => c.etapa === etapa)
           .sort((a,b) => (b.plPot||0) - (a.plPot||0));
         const label = etapa === 'Perdido/Desistiu' ? 'Perdido' : etapa;
+        const totalPL = lista.reduce((s,c) => s + (c.plAtual || c.plPot || 0), 0);
 
-        return '<div class="admin-kanban-col">' +
+        return '<div class="admin-kanban-col" data-etapa="' + esc(etapa) + '">' +
           '<div class="admin-kanban-col-header">' +
             '<span class="admin-kanban-col-title">' + esc(label) + '</span>' +
             '<span class="admin-kanban-col-count">' + lista.length + '</span>' +
           '</div>' +
+          (totalPL > 0 ? '<div style="padding:0 12px 6px;font-size:10px;color:rgba(242,221,198,0.3);">' + funilFmtPL(totalPL) + '</div>' : '') +
           '<div class="admin-kanban-col-body">' +
             (lista.length === 0
               ? '<div class="admin-kanban-empty">Vazio</div>'
               : lista.map(c => {
                   const al = funilAlertas(c);
-                  return '<div class="admin-kanban-card" onclick="adminFunilAbrir(\'' + c.id + '\')">' +
+                  return '<div class="admin-kanban-card admin-funil-card" draggable="true" data-id="' + c.id + '" onclick="adminFunilAbrir(\'' + c.id + '\')">' +
                     '<div class="admin-funil-card-nome">' + esc(c.nome) + '</div>' +
                     '<div class="admin-funil-card-meta">' +
                       (c.px ? '<span class="admin-kanban-pill akp-cliente">' + esc(c.px) + '</span>' : '') +
@@ -14554,6 +14569,121 @@ Esta ação não pode ser desfeita.`)) return;
             ) +
           '</div></div>';
       }).join('');
+
+      adminFunilLigarDrag();
+    }
+
+    let _funilArrastando = null;
+
+    function adminFunilLigarDrag() {
+      document.querySelectorAll('#admin-funil-board .admin-funil-card').forEach(card => {
+        card.addEventListener('dragstart', e => {
+          _funilArrastando = card.dataset.id;
+          card.classList.add('dragging');
+          e.dataTransfer.effectAllowed = 'move';
+          try { e.dataTransfer.setData('text/plain', card.dataset.id); } catch(_) {}
+        });
+        card.addEventListener('dragend', () => {
+          card.classList.remove('dragging');
+          document.querySelectorAll('#admin-funil-board .admin-kanban-col').forEach(c => c.classList.remove('drop-alvo'));
+          _funilArrastando = null;
+        });
+      });
+
+      document.querySelectorAll('#admin-funil-board .admin-kanban-col').forEach(col => {
+        col.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; col.classList.add('drop-alvo'); });
+        col.addEventListener('dragleave', () => col.classList.remove('drop-alvo'));
+        col.addEventListener('drop', e => {
+          e.preventDefault();
+          col.classList.remove('drop-alvo');
+          const id = _funilArrastando || e.dataTransfer.getData('text/plain');
+          if (id) adminFunilMover(id, col.dataset.etapa);
+        });
+      });
+    }
+
+    async function adminFunilMover(id, novaEtapa) {
+      const c = _adminFunilLeads.find(x => x.id === id);
+      if (!c || !novaEtapa || c.etapa === novaEtapa) return;
+
+      const anterior = c.etapa;
+      c.etapa = novaEtapa;
+      adminFunilRender();
+
+      const status = document.getElementById('admin-funil-status');
+      if (status) status.textContent = 'Movendo…';
+
+      const props = { 'Etapa do Funil': { select: { name: novaEtapa } } };
+      if (novaEtapa === 'Ativo')             props['Status'] = { status: { name: 'Ativo' } };
+      if (novaEtapa === 'Perdido/Desistiu')  props['Status'] = { status: { name: 'Inativo' } };
+
+      try {
+        const resp = await fetch('https://urckolcywijllkdyjcgc.supabase.co/functions/v1/notion-proxy/v1/pages/' + id.replace(/-/g,''), {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ properties: props })
+        });
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        if (props['Status']) c.status = props['Status'].status.name;
+        if (status) status.textContent = c.nome + ' → ' + novaEtapa;
+      } catch(err) {
+        c.etapa = anterior;
+        adminFunilRender();
+        if (status) status.textContent = 'Erro ao mover: ' + err.message;
+      }
+    }
+
+    async function adminFunilNovo() {
+      const nome = prompt('Nome do novo lead:');
+      if (!nome || !nome.trim()) return;
+
+      const status = document.getElementById('admin-funil-status');
+      if (status) status.textContent = 'Criando…';
+
+      try {
+        const resp = await fetch('https://urckolcywijllkdyjcgc.supabase.co/functions/v1/notion-proxy/v1/pages', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            parent: { database_id: FUNIL_DB },
+            properties: {
+              'Nome':           { title: [{ text: { content: nome.trim() } }] },
+              'Etapa do Funil': { select: { name: 'Lead' } },
+              'Status':         { status: { name: 'Inativo' } },
+            }
+          })
+        });
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        const page = await resp.json();
+
+        _adminFunilLeads.push({
+          id: page.id, nome: nome.trim(), etapa: 'Lead', status: 'Inativo',
+          px: '', servicos: [], taxa: null, plPot: null, plAtual: null, assin: null
+        });
+        adminFunilRender();
+        if (status) status.textContent = 'Lead criado: ' + nome.trim();
+      } catch(err) {
+        if (status) status.textContent = 'Erro ao criar: ' + err.message;
+      }
+    }
+
+    async function adminFunilArquivar() {
+      const c = _adminFunilSel;
+      if (!c) return;
+      if (!confirm('Arquivar "' + c.nome + '"?\n\nO registro vai para a lixeira do Notion e pode ser restaurado por lá em até 30 dias.')) return;
+
+      const erro = document.getElementById('funil-erro');
+      try {
+        const resp = await fetch('https://urckolcywijllkdyjcgc.supabase.co/functions/v1/notion-proxy/v1/pages/' + c.id.replace(/-/g,''), {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ archived: true })
+        });
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        _adminFunilLeads = _adminFunilLeads.filter(x => x.id !== c.id);
+        closeModal('modal-funil-servico');
+        adminFunilRender();
+        const status = document.getElementById('admin-funil-status');
+        if (status) status.textContent = c.nome + ' arquivado';
+      } catch(err) {
+        erro.textContent = 'Erro ao arquivar: ' + err.message;
+        erro.style.display = 'block';
+      }
     }
 
     function adminFunilAbrir(id) {
@@ -14570,6 +14700,8 @@ Esta ação não pode ser desfeita.`)) return;
 
       const dt = document.getElementById('funil-assinatura');
       dt.value = c.assin || new Date().toISOString().split('T')[0];
+
+      document.getElementById('funil-px').value = c.px || adminFunilProximoPX();
 
       const al = funilAlertas(c);
       const box = document.getElementById('funil-alertas');
@@ -14609,13 +14741,19 @@ Esta ação não pode ser desfeita.`)) return;
         document.getElementById('funil-taxa').value = (s.taxa * 100).toFixed(2);
       }
 
+      const pxAtual = (document.getElementById('funil-px').value || '').trim();
+      const dup = pxAtual && _adminFunilLeads.some(x => x.id !== c.id && x.px === pxAtual);
+
       document.getElementById('funil-entregas').innerHTML =
         '<div style="font-size:11px;color:var(--fg-3);margin-bottom:8px;">Entregas que este contrato gera</div>' +
         s.entregas.map(e => '<div style="font-size:12px;color:var(--fg-1);line-height:1.9;">· ' + esc(e) + '</div>').join('') +
         '<div style="font-size:11px;color:var(--fg-3);margin-top:10px;padding-top:8px;border-top:1px solid var(--line);">' +
-          (c.px ? 'Código atual: ' + esc(c.px) : 'Código a atribuir: ' + adminFunilProximoPX()) +
-          ' · as entregas ainda não são criadas automaticamente' +
+          'as entregas ainda não são criadas automaticamente' +
         '</div>';
+
+      const av = document.getElementById('funil-px-aviso');
+      av.textContent = dup ? '⚠ Já existe outro cliente com o código ' + pxAtual : '';
+      av.style.display = dup ? 'block' : 'none';
     }
 
     async function adminFunilSalvar() {
@@ -14645,7 +14783,12 @@ Esta ação não pode ser desfeita.`)) return;
       }
       erro.style.display = 'none';
 
-      const px = c.px || adminFunilProximoPX();
+      const px = (document.getElementById('funil-px').value || '').trim();
+      if (!px) {
+        erro.textContent = 'Informe o código Praxes.';
+        erro.style.display = 'block';
+        return;
+      }
       const btn = document.getElementById('funil-salvar-btn');
       btn.disabled = true;
       btn.textContent = 'Salvando…';
