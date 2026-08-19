@@ -14640,6 +14640,7 @@ Esta ação não pode ser desfeita.`)) return;
           const p = page.properties || {};
           return {
             id:       page.id,
+            url:      page.url || ('https://www.notion.so/' + page.id.replace(/-/g,'')),
             nome:     p['Nome']?.title?.map(t => t.plain_text).join('') || '(sem nome)',
             etapa:    p['Etapa do Funil']?.select?.name || '',
             status:   p['Status']?.status?.name || '',
@@ -14773,6 +14774,15 @@ Esta ação não pode ser desfeita.`)) return;
       setTimeout(() => document.getElementById('novo-nome')?.focus(), 100);
     }
 
+    function adminFunilAvisoTemplate(nome, url, comTemplate) {
+      const status = document.getElementById('admin-funil-status');
+      if (!status) return;
+      const link = '<a href="' + esc(url) + '" target="_blank" rel="noopener" style="color:rgba(242,221,198,0.8);text-decoration:underline;">abrir no Notion</a>';
+      status.innerHTML = comTemplate
+        ? esc(nome) + ' cadastrado · template aplicado, leva alguns segundos · ' + link
+        : esc(nome) + ' cadastrado · <span style="color:#ffc040;">template não aplicado, aplicar manualmente</span> · ' + link;
+    }
+
     async function adminFunilNovoSalvar() {
       const nome = (document.getElementById('novo-nome').value || '').trim();
       const err  = document.getElementById('novo-erro');
@@ -14825,25 +14835,45 @@ Esta ação não pode ser desfeita.`)) return;
       const btn = document.getElementById('novo-salvar-btn');
       btn.disabled = true; btn.textContent = 'Cadastrando…';
 
-      try {
-        const resp = await fetch('https://urckolcywijllkdyjcgc.supabase.co/functions/v1/notion-proxy/v1/pages', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ parent: { database_id: FUNIL_DB }, properties: props })
+      const criar = async (comTemplate) => {
+        const corpo = { parent: { database_id: FUNIL_DB }, properties: props };
+        if (comTemplate) corpo.template = { type: 'default' };
+        return fetch('https://urckolcywijllkdyjcgc.supabase.co/functions/v1/notion-proxy/v1/pages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Notion-Version': '2025-09-03' },
+          body: JSON.stringify(corpo)
         });
-        if (!resp.ok) throw new Error('HTTP ' + resp.status + ' — ' + (await resp.text()).slice(0,140));
+      };
+
+      try {
+        let comTemplate = true;
+        let resp = await criar(true);
+
+        // Se a versão da API do proxy não suportar o parâmetro, cria sem template
+        if (!resp.ok) {
+          const txt = await resp.text();
+          if (/template/i.test(txt) || resp.status === 400) {
+            comTemplate = false;
+            resp = await criar(false);
+            if (!resp.ok) throw new Error('HTTP ' + resp.status + ' — ' + (await resp.text()).slice(0,140));
+          } else {
+            throw new Error('HTTP ' + resp.status + ' — ' + txt.slice(0,140));
+          }
+        }
         const page = await resp.json();
+        const urlPag = page.url || ('https://www.notion.so/' + page.id.replace(/-/g,''));
 
         _adminFunilLeads.push({
           id: page.id, nome: nome, etapa: etapa,
           status: etapa === 'Ativo' ? 'Ativo' : 'Inativo',
           px: '', servicos: [], taxa: null,
-          plPot: (pl != null && !isNaN(pl)) ? pl : null, plAtual: null, assin: null
+          plPot: (pl != null && !isNaN(pl)) ? pl : null, plAtual: null, assin: null,
+          url: urlPag
         });
 
         closeModal('modal-funil-novo');
         adminFunilRender();
-        const status = document.getElementById('admin-funil-status');
-        if (status) status.textContent = nome + ' cadastrado em ' + etapa;
+        adminFunilAvisoTemplate(nome, urlPag, comTemplate);
       } catch(e2) {
         err.textContent = 'Erro ao cadastrar: ' + e2.message;
         err.style.display = 'block';
@@ -14879,8 +14909,9 @@ Esta ação não pode ser desfeita.`)) return;
       _adminFunilSel = c;
 
       document.getElementById('modal-funil-titulo').textContent = c.nome;
-      document.getElementById('modal-funil-sub').textContent =
-        (c.etapa || 'sem etapa') + ' · ' + (c.px || 'sem código Praxes') + ' · PL potencial ' + funilFmtPL(c.plPot);
+      document.getElementById('modal-funil-sub').innerHTML =
+        esc((c.etapa || 'sem etapa') + ' · ' + (c.px || 'sem código Praxes') + ' · PL potencial ' + funilFmtPL(c.plPot)) +
+        (c.url ? ' · <a href="' + esc(c.url) + '" target="_blank" rel="noopener" style="color:var(--praxes-teal);text-decoration:underline;">abrir no Notion</a>' : '');
 
       const sel = document.getElementById('funil-servico');
       sel.value = c.servicos[0] || 'Consultoria Básica';
