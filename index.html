@@ -3248,6 +3248,45 @@
   </div>
 
   <!-- MODAL TAREFA ADMIN KANBAN -->
+  <div class="modal" id="modal-funil-docs" style="z-index:6100;">
+    <div class="modal-content" style="max-width:480px;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-docs-titulo">Documentos</h3>
+        <button class="modal-close" onclick="closeModal('modal-funil-docs')">&times;</button>
+      </div>
+      <div style="padding:0 4px;">
+        <div style="font-size:11px;color:var(--fg-3);margin-bottom:14px;">Os arquivos vão para a pasta do cliente no Drive. Enquanto ele for lead, ficam na raiz; ao entrar em negociação, são recolhidos para 1.1 Proposta Comercial.</div>
+
+        <div style="display:flex;gap:10px;margin-bottom:10px;">
+          <div style="flex:1;">
+            <label style="display:block;font-size:11px;color:var(--fg-3);margin-bottom:4px;">Categoria</label>
+            <select id="docs-categoria" class="funil-inp" style="width:100%;">
+              <option value="">Sem categoria</option>
+              <option>DIRPF</option>
+              <option>Extrato de investimentos</option>
+              <option>Documentos pessoais</option>
+              <option>Proposta comercial</option>
+              <option>Contrato</option>
+              <option>Outros</option>
+            </select>
+          </div>
+        </div>
+
+        <label style="display:block;font-size:11px;color:var(--fg-3);margin-bottom:4px;">Arquivos</label>
+        <input id="docs-input" type="file" multiple class="funil-inp" style="width:100%;margin-bottom:10px;">
+
+        <div id="docs-erro" style="display:none;font-size:11px;color:#c0392b;margin-bottom:10px;"></div>
+
+        <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
+          <button id="docs-enviar-btn" onclick="adminFunilDocsEnviar()" style="padding:8px 16px;font-size:12px;font-family:inherit;background:var(--praxes-teal);border:1px solid var(--praxes-teal);border-radius:var(--r-pill);color:#ffffff;cursor:pointer;">Enviar</button>
+        </div>
+
+        <div style="font-size:11px;color:var(--fg-3);margin-bottom:6px;">Na pasta</div>
+        <div id="docs-lista" style="border:1px solid var(--line);border-radius:var(--r-md);max-height:240px;overflow-y:auto;margin-bottom:14px;"></div>
+      </div>
+    </div>
+  </div>
+
   <div class="modal" id="modal-funil-novo" style="z-index:6100;">
     <div class="modal-content" style="max-width:520px;">
       <div class="modal-header">
@@ -3407,6 +3446,7 @@
 
         <div style="display:flex;gap:8px;align-items:center;padding-bottom:4px;">
           <button onclick="adminFunilArquivar()" style="padding:8px 14px;font-size:12px;font-family:inherit;background:transparent;border:1px solid rgba(192,57,43,0.35);border-radius:var(--r-pill);color:#c0392b;cursor:pointer;">Arquivar</button>
+          <button onclick="adminFunilDocsAbrir()" style="padding:8px 14px;font-size:12px;font-family:inherit;background:transparent;border:1px solid var(--line-strong);border-radius:var(--r-pill);color:var(--fg-2);cursor:pointer;">Documentos</button>
           <div style="margin-left:auto;display:flex;gap:8px;">
           <button onclick="closeModal('modal-funil-servico')" style="padding:8px 16px;font-size:12px;font-family:inherit;background:transparent;border:1px solid var(--line-strong);border-radius:var(--r-pill);color:var(--fg-2);cursor:pointer;">Cancelar</button>
           <button id="funil-salvar-btn" onclick="adminFunilSalvar()" style="padding:8px 16px;font-size:12px;font-family:inherit;background:var(--praxes-teal);border:1px solid var(--praxes-teal);border-radius:var(--r-pill);color:#ffffff;cursor:pointer;">Confirmar contrato</button>
@@ -14675,6 +14715,141 @@ Esta ação não pode ser desfeita.`)) return;
           await db.from('clients').update({ drive_folder_id: folderId }).eq('name', cliente.nome);
         }
       } catch(e) { console.warn('Supabase: falha ao gravar drive_folder_id', e); }
+    }
+
+    // ── DOCUMENTOS DO CLIENTE ────────────────────────────────────
+    const FUNIL_DOC_CATEGORIAS = ['DIRPF','Extrato de investimentos','Documentos pessoais','Proposta comercial','Contrato','Outros'];
+    let _funilDocsPastaAtual = null;
+
+    // Resolve onde o arquivo deve cair: 1.1 Proposta Comercial se existir, senão a raiz do cliente
+    async function funilDocsDestino(folderId) {
+      try {
+        const docs = await gapi.client.drive.files.list({
+          q: `'${folderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+          fields: 'files(id, name)', supportsAllDrives: true, includeItemsFromAllDrives: true
+        });
+        const pastaDocs = (docs.result.files || []).find(f => /^1\.\s*Documentos/i.test(f.name));
+        if (!pastaDocs) return folderId;
+        const subs = await gapi.client.drive.files.list({
+          q: `'${pastaDocs.id}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+          fields: 'files(id, name)', supportsAllDrives: true, includeItemsFromAllDrives: true
+        });
+        const proposta = (subs.result.files || []).find(f => /Proposta Comercial/i.test(f.name));
+        return proposta ? proposta.id : pastaDocs.id;
+      } catch(_) { return folderId; }
+    }
+
+    function funilDocsIcone(mime) {
+      if (/pdf/.test(mime)) return '📄';
+      if (/image/.test(mime)) return '🖼️';
+      if (/sheet|excel|csv/.test(mime)) return '📊';
+      if (/folder/.test(mime)) return '📁';
+      return '📎';
+    }
+
+    function funilDocsTamanho(b) {
+      if (!b) return '';
+      const n = parseInt(b, 10);
+      if (n > 1048576) return (n/1048576).toFixed(1) + ' MB';
+      return Math.max(1, Math.round(n/1024)) + ' KB';
+    }
+
+    async function adminFunilDocsAbrir() {
+      const c = _adminFunilSel;
+      if (!c) return;
+      if (!c.driveFolderId) {
+        alert('Este cliente ainda não tem pasta no Drive.\n\nA pasta é criada automaticamente no cadastro. Para clientes antigos, ela precisa ser vinculada manualmente.');
+        return;
+      }
+      closeModal('modal-funil-servico');
+      document.getElementById('modal-docs-titulo').textContent = c.nome;
+      document.getElementById('docs-input').value = '';
+      document.getElementById('docs-erro').style.display = 'none';
+      openModal('modal-funil-docs');
+      _funilDocsPastaAtual = await funilDocsDestino(c.driveFolderId);
+      adminFunilDocsListar();
+    }
+
+    async function adminFunilDocsListar() {
+      const box = document.getElementById('docs-lista');
+      box.innerHTML = '<div style="font-size:12px;color:var(--fg-3);padding:12px;">Carregando…</div>';
+      try {
+        const r = await gapi.client.drive.files.list({
+          q: `'${_funilDocsPastaAtual}' in parents and trashed=false`,
+          fields: 'files(id, name, mimeType, size, modifiedTime, webViewLink)',
+          orderBy: 'modifiedTime desc',
+          supportsAllDrives: true, includeItemsFromAllDrives: true, pageSize: 100
+        });
+        const files = (r.result.files || []).filter(f => f.mimeType !== 'application/vnd.google-apps.folder');
+        if (!files.length) {
+          box.innerHTML = '<div style="font-size:12px;color:var(--fg-3);padding:16px;text-align:center;">Nenhum documento ainda.</div>';
+          return;
+        }
+        box.innerHTML = files.map(f =>
+          '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-bottom:1px solid var(--line);">' +
+            '<span style="font-size:16px;">' + funilDocsIcone(f.mimeType) + '</span>' +
+            '<div style="flex:1;min-width:0;">' +
+              '<a href="' + esc(f.webViewLink) + '" target="_blank" rel="noopener" style="font-size:12px;color:var(--fg-1);text-decoration:none;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(f.name) + '</a>' +
+              '<span style="font-size:10px;color:var(--fg-3);">' + new Date(f.modifiedTime).toLocaleDateString('pt-BR') + (f.size ? ' · ' + funilDocsTamanho(f.size) : '') + '</span>' +
+            '</div>' +
+          '</div>'
+        ).join('');
+      } catch(e) {
+        box.innerHTML = '<div style="font-size:12px;color:#c0392b;padding:12px;">Erro ao listar: ' + esc(e.message || '') + '</div>';
+      }
+    }
+
+    async function adminFunilDocsEnviar() {
+      const input = document.getElementById('docs-input');
+      const cat   = document.getElementById('docs-categoria').value;
+      const erro  = document.getElementById('docs-erro');
+      const btn   = document.getElementById('docs-enviar-btn');
+      const files = input.files;
+
+      if (!files || !files.length) {
+        erro.textContent = 'Selecione ao menos um arquivo.';
+        erro.style.display = 'block';
+        return;
+      }
+      erro.style.display = 'none';
+      btn.disabled = true;
+
+      const token = gapi.client.getToken()?.access_token;
+      if (!token) {
+        erro.textContent = 'Sessão do Google expirada. Recarregue a página e entre novamente.';
+        erro.style.display = 'block';
+        btn.disabled = false;
+        return;
+      }
+
+      let ok = 0, falhas = [];
+      for (let i = 0; i < files.length; i++) {
+        const f = files[i];
+        btn.textContent = 'Enviando ' + (i+1) + '/' + files.length + '…';
+        const nomeFinal = cat ? (cat + ' - ' + f.name) : f.name;
+        try {
+          const meta = { name: nomeFinal, parents: [_funilDocsPastaAtual] };
+          const form = new FormData();
+          form.append('metadata', new Blob([JSON.stringify(meta)], { type: 'application/json' }));
+          form.append('file', f);
+          const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name&supportsAllDrives=true', {
+            method: 'POST', headers: { Authorization: 'Bearer ' + token }, body: form
+          });
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          ok++;
+        } catch(e) {
+          falhas.push(f.name);
+        }
+      }
+
+      btn.disabled = false;
+      btn.textContent = 'Enviar';
+      input.value = '';
+      if (falhas.length) {
+        erro.textContent = ok + ' enviado(s). Falhou: ' + falhas.join(', ');
+        erro.style.display = 'block';
+      }
+      adminFunilDocsListar();
     }
 
     // ── BOARD DO FUNIL ───────────────────────────────────────────
