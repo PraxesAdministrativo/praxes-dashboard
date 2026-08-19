@@ -14584,6 +14584,99 @@ Esta ação não pode ser desfeita.`)) return;
       if (view === 'semana'  && !_adminSemanaLoaded) adminSemanaLoad();
     }
 
+    // ── DRIVE DO FUNIL ───────────────────────────────────────────
+    // Raiz: "2. Clientes & Prospects > 3. Proposta Comercial" (Shared Drive)
+    const DRIVE_RAIZ_PADRAO = '1AY9lIkgTwTsFn0UJsCksLHCXoDM9cTPo';
+    const DRIVE_SUBPASTAS   = ['1. Documentos', '2. Carteira de Investimentos', '3. Gestão de Patrimônio'];
+    const DRIVE_SUB_PROPOSTA = '1.1 Proposta Comercial';
+
+    let _driveRaizId = null;
+
+    async function funilDriveRaiz() {
+      if (_driveRaizId) return _driveRaizId;
+      try {
+        const { data } = await db.from('praxes_config').select('valor').eq('chave','drive_raiz_prospects').maybeSingle();
+        _driveRaizId = data?.valor || DRIVE_RAIZ_PADRAO;
+      } catch(_) {
+        _driveRaizId = DRIVE_RAIZ_PADRAO;
+      }
+      return _driveRaizId;
+    }
+
+    function funilDriveNomeSeguro(nome) {
+      return String(nome).replace(/[/\\?%*:|"<>]/g, '_').trim();
+    }
+
+    async function funilDriveCriarPasta(nome, paiId) {
+      const r = await gapi.client.drive.files.create({
+        resource: { name: funilDriveNomeSeguro(nome), mimeType: 'application/vnd.google-apps.folder', parents: [paiId] },
+        fields: 'id, webViewLink',
+        supportsAllDrives: true
+      });
+      return r.result;
+    }
+
+    // Cria a pasta raiz do cliente dentro de "3. Proposta Comercial"
+    async function funilDriveCriarPastaCliente(nome) {
+      const raiz = await funilDriveRaiz();
+      return funilDriveCriarPasta(nome, raiz);
+    }
+
+    // Monta a estrutura definitiva e move os documentos soltos para 1.1 Proposta Comercial
+    async function funilDriveEstruturar(folderId) {
+      const criadas = {};
+      for (const nome of DRIVE_SUBPASTAS) {
+        criadas[nome] = (await funilDriveCriarPasta(nome, folderId)).id;
+      }
+      const propostaId = (await funilDriveCriarPasta(DRIVE_SUB_PROPOSTA, criadas['1. Documentos'])).id;
+
+      // Move para 1.1 tudo que estava solto na raiz do cliente (exceto as pastas recém-criadas)
+      const novos = new Set([...Object.values(criadas), propostaId]);
+      let movidos = 0;
+      try {
+        const lista = await gapi.client.drive.files.list({
+          q: `'${folderId}' in parents and trashed=false`,
+          fields: 'files(id, name, mimeType)',
+          supportsAllDrives: true, includeItemsFromAllDrives: true, pageSize: 200
+        });
+        for (const f of (lista.result.files || [])) {
+          if (novos.has(f.id)) continue;
+          await gapi.client.drive.files.update({
+            fileId: f.id, addParents: propostaId, removeParents: folderId,
+            fields: 'id', supportsAllDrives: true
+          });
+          movidos++;
+        }
+      } catch(e) {
+        console.warn('Não foi possível mover documentos soltos:', e);
+      }
+      return { propostaId, movidos };
+    }
+
+    async function funilDriveRenomear(folderId, novoNome) {
+      await gapi.client.drive.files.update({
+        fileId: folderId, resource: { name: funilDriveNomeSeguro(novoNome) },
+        fields: 'id', supportsAllDrives: true
+      });
+    }
+
+    // Grava o Folder ID no Notion e no Supabase
+    async function funilGravarFolderId(cliente, folderId) {
+      cliente.driveFolderId = folderId;
+      try {
+        await fetch('https://urckolcywijllkdyjcgc.supabase.co/functions/v1/notion-proxy/v1/pages/' + cliente.id.replace(/-/g,''), {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ properties: { 'Drive Folder ID': { rich_text: [{ text: { content: folderId } }] } } })
+        });
+      } catch(e) { console.warn('Notion: falha ao gravar Drive Folder ID', e); }
+
+      try {
+        if (cliente.px) {
+          await db.from('clients').update({ drive_folder_id: folderId }).eq('name', cliente.nome);
+        }
+      } catch(e) { console.warn('Supabase: falha ao gravar drive_folder_id', e); }
+    }
+
     // ── BOARD DO FUNIL ───────────────────────────────────────────
     const FUNIL_DB    = '1ec701b863e68056bb30f8d6b32617d8';
     const FUNIL_ETAPAS = ['Lead','Em negociação','Em onboarding','Ativo','Perdido/Desistiu'];
@@ -14610,8 +14703,6 @@ Esta ação não pode ser desfeita.`)) return;
       const a = [];
       if (c.etapa === 'Lead' && c.px) a.push('Lead já com código ' + c.px);
       if (c.etapa === 'Ativo' && !c.px) a.push('Ativo sem código Praxes');
-      if (c.etapa === 'Ativo' && c.status === 'Inativo') a.push('Etapa Ativo com status Inativo');
-      if (c.etapa === 'Em onboarding' && c.status === 'Inativo') a.push('Onboarding com status Inativo');
       if (c.etapa === 'Perdido/Desistiu' && c.px) a.push('Perdido mantendo o código ' + c.px);
       return a;
     }
@@ -14643,8 +14734,8 @@ Esta ação não pode ser desfeita.`)) return;
             url:      page.url || ('https://www.notion.so/' + page.id.replace(/-/g,'')),
             nome:     p['Nome']?.title?.map(t => t.plain_text).join('') || '(sem nome)',
             etapa:    p['Etapa do Funil']?.select?.name || '',
-            status:   p['Status']?.status?.name || '',
             px:       p['ID Praxes']?.rich_text?.map(t => t.plain_text).join('') || '',
+            driveFolderId: p['Drive Folder ID']?.rich_text?.map(t => t.plain_text).join('') || '',
             servicos: (p['Serviço Prestado']?.multi_select || []).map(s => s.name),
             taxa:     p['Taxa de Consultoria']?.number ?? null,
             plPot:    p['PL Potencial']?.number ?? null,
@@ -14741,16 +14832,26 @@ Esta ação não pode ser desfeita.`)) return;
       if (status) status.textContent = 'Movendo…';
 
       const props = { 'Etapa do Funil': { select: { name: novaEtapa } } };
-      if (novaEtapa === 'Ativo')             props['Status'] = { status: { name: 'Ativo' } };
-      if (novaEtapa === 'Perdido/Desistiu')  props['Status'] = { status: { name: 'Inativo' } };
 
       try {
         const resp = await fetch('https://urckolcywijllkdyjcgc.supabase.co/functions/v1/notion-proxy/v1/pages/' + id.replace(/-/g,''), {
           method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ properties: props })
         });
         if (!resp.ok) throw new Error('HTTP ' + resp.status);
-        if (props['Status']) c.status = props['Status'].status.name;
         if (status) status.textContent = c.nome + ' → ' + novaEtapa;
+
+        // Ao entrar em negociação, monta a estrutura de pastas e recolhe os documentos soltos
+        if (novaEtapa === 'Em negociação' && c.driveFolderId && !c.driveEstruturado) {
+          if (status) status.textContent = c.nome + ' → ' + novaEtapa + ' · organizando o Drive…';
+          try {
+            const r = await funilDriveEstruturar(c.driveFolderId);
+            c.driveEstruturado = true;
+            if (status) status.textContent = c.nome + ' → ' + novaEtapa +
+              ' · Drive estruturado' + (r.movidos ? ', ' + r.movidos + ' documento(s) movido(s) para Proposta Comercial' : '');
+          } catch(e2) {
+            if (status) status.textContent = c.nome + ' → ' + novaEtapa + ' · Drive não estruturado: ' + e2.message;
+          }
+        }
       } catch(err) {
         c.etapa = anterior;
         adminFunilRender();
@@ -14810,7 +14911,6 @@ Esta ação não pode ser desfeita.`)) return;
       const props = {
         'Nome':           { title: [{ text: { content: nome } }] },
         'Etapa do Funil': { select: { name: etapa } },
-        'Status':         { status: { name: etapa === 'Ativo' ? 'Ativo' : 'Inativo' } },
       };
       const tel   = (document.getElementById('novo-tel').value   || '').trim();
       const cpf   = (document.getElementById('novo-cpf').value   || '').trim();
@@ -14865,7 +14965,6 @@ Esta ação não pode ser desfeita.`)) return;
 
         _adminFunilLeads.push({
           id: page.id, nome: nome, etapa: etapa,
-          status: etapa === 'Ativo' ? 'Ativo' : 'Inativo',
           px: '', servicos: [], taxa: null,
           plPot: (pl != null && !isNaN(pl)) ? pl : null, plAtual: null, assin: null,
           url: urlPag
@@ -14874,6 +14973,20 @@ Esta ação não pode ser desfeita.`)) return;
         closeModal('modal-funil-novo');
         adminFunilRender();
         adminFunilAvisoTemplate(nome, urlPag, comTemplate);
+
+        // Cria a pasta do cliente no Drive e grava o ID nos dois sistemas
+        const novo = _adminFunilLeads[_adminFunilLeads.length - 1];
+        try {
+          const pasta = await funilDriveCriarPastaCliente(nome);
+          await funilGravarFolderId(novo, pasta.id);
+          const st = document.getElementById('admin-funil-status');
+          if (st) st.innerHTML += ' · <a href="' + esc(pasta.webViewLink) + '" target="_blank" rel="noopener" style="color:rgba(242,221,198,0.8);text-decoration:underline;">pasta criada no Drive</a>';
+          adminFunilRender();
+        } catch(e3) {
+          const st = document.getElementById('admin-funil-status');
+          if (st) st.innerHTML += ' · <span style="color:#ffc040;">pasta no Drive não criada</span>';
+          console.warn('Drive:', e3);
+        }
       } catch(e2) {
         err.textContent = 'Erro ao cadastrar: ' + e2.message;
         err.style.display = 'block';
@@ -15027,9 +15140,14 @@ Esta ação não pode ser desfeita.`)) return;
         });
         if (!resp.ok) throw new Error('HTTP ' + resp.status);
 
+        const pxAnterior = c.px;
         c.servicos = [servico];
         c.assin    = assin;
         c.px       = px;
+        if (c.driveFolderId && px && px !== pxAnterior) {
+          try { await funilDriveRenomear(c.driveFolderId, px + ' - ' + c.nome); }
+          catch(e2) { console.warn('Drive: falha ao renomear pasta', e2); }
+        }
         if (taxa != null) c.taxa = taxa;
         if (props['Etapa do Funil']) c.etapa = 'Em onboarding';
 
