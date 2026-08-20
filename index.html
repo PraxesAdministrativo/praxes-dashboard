@@ -13273,8 +13273,8 @@ Esta ação não pode ser desfeita.`)) return;
       const sheetId = window.invSheetId;
       if (!sheetId) { alert('ID da planilha não configurado.'); return; }
 
-      const btn = document.getElementById('inv-btn-atualizar');
-      const txt = document.getElementById('inv-btn-atualizar-txt');
+      const btn = document.getElementById('inv-btn-atualizar') || { };
+      const txt = document.getElementById('inv-btn-atualizar-txt') || { };
       btn.disabled = true;
 
       const toDDMM = iso => iso.split('-').reverse().join('/');
@@ -13297,7 +13297,9 @@ Esta ação não pode ser desfeita.`)) return;
             data: [
               { range: 'Configuração!C10', values: [[toDDMM(fromVal)]] },
               { range: 'Configuração!C11', values: [[toDDMM(toVal)]] },
-            ]
+            ].concat(window.invPortfolio
+              ? [{ range: 'Configuração!C6', values: [[window.invPortfolio]] }]
+              : [])
           }
         });
 
@@ -13359,9 +13361,17 @@ Esta ação não pode ser desfeita.`)) return;
       if (!invData.loaded) return;
       const serie = invGetSerie();
       if (!serie.length) {
-        console.warn('invRender: série vazia. invData.serie:', invData.serie?.length);
         // Ainda renderiza posições mesmo sem série temporal
-        if (invData.posicoes) invRenderPosicoes();
+        if (invData.posicoes && invData.posicoes.length) { invRenderPosicoes(); return; }
+
+        // Planilha ainda sem dados do Comdinheiro: estado vazio explícito
+        const tb = document.getElementById('inv-posicoes-tbody');
+        if (tb) tb.innerHTML =
+          '<tr><td colspan="9" class="empty-state" style="padding:28px;text-align:center;">' +
+            '<div style="font-size:14px;margin-bottom:6px;">Ainda não há dados de investimentos</div>' +
+            '<div style="font-size:12px;opacity:.7;margin-bottom:14px;">A planilha deste cliente ainda não foi carregada com o Comdinheiro.</div>' +
+            '<button onclick="invAtualizarComdinheiro()" style="padding:8px 16px;font-size:12px;font-family:inherit;cursor:pointer;">Buscar dados no Comdinheiro</button>' +
+          '</td></tr>';
         return;
       }
       const isMerc = invMarcacao === 'mercado';
