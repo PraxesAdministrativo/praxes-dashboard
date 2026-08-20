@@ -14628,20 +14628,98 @@ Esta ação não pode ser desfeita.`)) return;
     // ── DRIVE DO FUNIL ───────────────────────────────────────────
     // Raiz: "2. Clientes & Prospects > 3. Proposta Comercial" (Shared Drive)
     const DRIVE_RAIZ_PADRAO = '1AY9lIkgTwTsFn0UJsCksLHCXoDM9cTPo';
+    const DRIVE_RAIZ_CLIENTES_PADRAO = '1Ux26YgVmek78zbdtRDmQ76-7QWTKYwS0';
+    const DRIVE_RAIZ_INATIVOS_PADRAO = '1kwnHBCAK4df6z3nQEGURCu4G-bawfg95';
+
+    // Raiz de destino conforme a etapa do funil
+    const DRIVE_RAIZ_POR_ETAPA = {
+      'Lead':             'prospects',
+      'Em negociação':    'prospects',
+      'Em onboarding':    'clientes',
+      'Ativo':            'clientes',
+      'Perdido/Desistiu': 'inativos',
+    };
     const DRIVE_SUBPASTAS   = ['1. Documentos', '2. Carteira de Investimentos', '3. Gestão de Patrimônio'];
     const DRIVE_SUB_PROPOSTA = '1.1 Proposta Comercial';
 
     let _driveRaizId = null;
 
-    async function funilDriveRaiz() {
-      if (_driveRaizId) return _driveRaizId;
+    const DRIVE_RAIZ_FALLBACK = {
+      prospects: DRIVE_RAIZ_PADRAO,
+      clientes:  DRIVE_RAIZ_CLIENTES_PADRAO,
+      inativos:  DRIVE_RAIZ_INATIVOS_PADRAO,
+    };
+
+    async function funilDriveRaizPor(area) {
+      if (_driveRaizId && _driveRaizId[area]) return _driveRaizId[area];
+      if (!_driveRaizId) _driveRaizId = {};
+      const chave = 'drive_raiz_' + area;
       try {
-        const { data } = await db.from('praxes_config').select('valor').eq('chave','drive_raiz_prospects').maybeSingle();
-        _driveRaizId = data?.valor || DRIVE_RAIZ_PADRAO;
+        const { data } = await db.from('praxes_config').select('valor').eq('chave', chave).maybeSingle();
+        _driveRaizId[area] = data?.valor || DRIVE_RAIZ_FALLBACK[area];
       } catch(_) {
-        _driveRaizId = DRIVE_RAIZ_PADRAO;
+        _driveRaizId[area] = DRIVE_RAIZ_FALLBACK[area];
       }
-      return _driveRaizId;
+      return _driveRaizId[area];
+    }
+
+    async function funilDriveRaiz() {
+      return funilDriveRaizPor('prospects');
+    }
+
+    // Move a pasta do cliente para a raiz correspondente à etapa
+    async function funilDriveMoverParaEtapa(folderId, etapa) {
+      const area = DRIVE_RAIZ_POR_ETAPA[etapa];
+      if (!area) return null;
+      const destino = await funilDriveRaizPor(area);
+
+      const atual = await gapi.client.drive.files.get({
+        fileId: folderId, fields: 'parents, name', supportsAllDrives: true
+      });
+      const pais = atual.result.parents || [];
+      if (pais.includes(destino)) return { movida: false, area: area };
+
+      await gapi.client.drive.files.update({
+        fileId: folderId,
+        addParents: destino,
+        removeParents: pais.join(','),
+        fields: 'id, parents',
+        supportsAllDrives: true
+      });
+      return { movida: true, area: area };
+    }
+
+    // Garante que as três subpastas existem (não recria as que já existem)
+    async function funilDriveGarantirEstrutura(folderId) {
+      const r = await gapi.client.drive.files.list({
+        q: `'${folderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+        fields: 'files(id, name)', supportsAllDrives: true, includeItemsFromAllDrives: true
+      });
+      const existentes = r.result.files || [];
+      let criadas = 0;
+      for (const nome of DRIVE_SUBPASTAS) {
+        const prefixo = nome.split('.')[0];
+        if (existentes.some(f => f.name.trim().startsWith(prefixo + '.'))) continue;
+        await funilDriveCriarPasta(nome, folderId);
+        criadas++;
+      }
+      // 1.1 Proposta Comercial dentro de 1. Documentos
+      const rr = await gapi.client.drive.files.list({
+        q: `'${folderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+        fields: 'files(id, name)', supportsAllDrives: true, includeItemsFromAllDrives: true
+      });
+      const docs = (rr.result.files || []).find(f => /^1\./.test(f.name.trim()));
+      if (docs) {
+        const subs = await gapi.client.drive.files.list({
+          q: `'${docs.id}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+          fields: 'files(id, name)', supportsAllDrives: true, includeItemsFromAllDrives: true
+        });
+        if (!(subs.result.files || []).some(f => /Proposta Comercial/i.test(f.name))) {
+          await funilDriveCriarPasta(DRIVE_SUB_PROPOSTA, docs.id);
+          criadas++;
+        }
+      }
+      return criadas;
     }
 
     function funilDriveNomeSeguro(nome) {
@@ -15016,16 +15094,47 @@ Esta ação não pode ser desfeita.`)) return;
         if (!resp.ok) throw new Error('HTTP ' + resp.status);
         if (status) status.textContent = c.nome + ' → ' + novaEtapa;
 
-        // Ao entrar em negociação, monta a estrutura de pastas e recolhe os documentos soltos
-        if (novaEtapa === 'Em negociação' && c.driveFolderId && !c.driveEstruturado) {
-          if (status) status.textContent = c.nome + ' → ' + novaEtapa + ' · organizando o Drive…';
+        // ── Automações de Drive por etapa ──
+        if (c.driveFolderId) {
+          const partes = [];
           try {
-            const r = await funilDriveEstruturar(c.driveFolderId);
-            c.driveEstruturado = true;
-            if (status) status.textContent = c.nome + ' → ' + novaEtapa +
-              ' · Drive estruturado' + (r.movidos ? ', ' + r.movidos + ' documento(s) movido(s) para Proposta Comercial' : '');
+            // Em negociação: monta a estrutura e recolhe os documentos soltos
+            if (novaEtapa === 'Em negociação' && !c.driveEstruturado) {
+              if (status) status.textContent = c.nome + ' → ' + novaEtapa + ' · organizando o Drive…';
+              const r = await funilDriveEstruturar(c.driveFolderId);
+              c.driveEstruturado = true;
+              partes.push('Drive estruturado' + (r.movidos ? ', ' + r.movidos + ' doc(s) para Proposta Comercial' : ''));
+            }
+
+            // Onboarding e Ativo: garante a estrutura e migra para Clientes
+            if (novaEtapa === 'Em onboarding' || novaEtapa === 'Ativo') {
+              if (status) status.textContent = c.nome + ' → ' + novaEtapa + ' · movendo no Drive…';
+              const criadas = await funilDriveGarantirEstrutura(c.driveFolderId);
+              c.driveEstruturado = true;
+              if (criadas) partes.push(criadas + ' subpasta(s) criada(s)');
+              const m = await funilDriveMoverParaEtapa(c.driveFolderId, novaEtapa);
+              if (m && m.movida) partes.push('pasta movida para Clientes');
+            }
+
+            // Perdido: arquiva na área de inativos
+            if (novaEtapa === 'Perdido/Desistiu') {
+              if (status) status.textContent = c.nome + ' → ' + novaEtapa + ' · movendo no Drive…';
+              const m = await funilDriveMoverParaEtapa(c.driveFolderId, novaEtapa);
+              if (m && m.movida) partes.push('pasta movida para Inativos');
+            }
+
+            // Voltou para negociação ou lead: devolve para Prospects
+            if ((novaEtapa === 'Lead' || novaEtapa === 'Em negociação') &&
+                (anterior === 'Ativo' || anterior === 'Em onboarding' || anterior === 'Perdido/Desistiu')) {
+              const m = await funilDriveMoverParaEtapa(c.driveFolderId, novaEtapa);
+              if (m && m.movida) partes.push('pasta devolvida para Prospects');
+            }
+
+            if (partes.length && status) {
+              status.textContent = c.nome + ' → ' + novaEtapa + ' · ' + partes.join(' · ');
+            }
           } catch(e2) {
-            if (status) status.textContent = c.nome + ' → ' + novaEtapa + ' · Drive não estruturado: ' + e2.message;
+            if (status) status.textContent = c.nome + ' → ' + novaEtapa + ' · Drive: ' + (e2.message || 'falha') ;
           }
         }
       } catch(err) {
