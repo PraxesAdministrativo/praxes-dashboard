@@ -15017,18 +15017,41 @@ Esta ação não pode ser desfeita.`)) return;
       return _webappSetup;
     }
 
-    // Copia as planilhas modelo para dentro de _Praxes Hub
-    async function funilCriarPlanilhas(nomeCliente, pastaDestinoId) {
+    // Cada planilha vai para a subpasta correspondente dentro de _Praxes Hub
+    const PLANILHA_DESTINO = {
+      spreadsheet:   'praxesHub',        // Planejamento Patrimonial fica na raiz do _Praxes Hub
+      imoveis:       'hubImoveis',
+      veiculos:      'hubVeiculos',
+      investimentos: 'hubInvestimentos',
+    };
+
+    async function funilChamarWebapp(nomeCliente, pastaDestinoId, modelos) {
       const cfg = await funilWebappSetup();
       const res = await fetch(cfg.url, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },  // evita preflight CORS
-        body: JSON.stringify({ token: cfg.token, nomeCliente: nomeCliente, pastaDestinoId: pastaDestinoId })
+        body: JSON.stringify({ token: cfg.token, nomeCliente: nomeCliente, pastaDestinoId: pastaDestinoId, modelos: modelos })
       });
       if (!res.ok) throw new Error('Web App HTTP ' + res.status);
       const out = await res.json();
       if (!out.ok) throw new Error(out.erro || 'falha no Web App');
       return out.planilhas || {};
+    }
+
+    // Copia cada modelo para a subpasta certa
+    async function funilCriarPlanilhas(nomeCliente, chaves) {
+      const porDestino = {};
+      for (const [modelo, chaveDestino] of Object.entries(PLANILHA_DESTINO)) {
+        const pasta = chaves[chaveDestino] || chaves.praxesHub;
+        if (!pasta) continue;
+        (porDestino[pasta] = porDestino[pasta] || []).push(modelo);
+      }
+      let todas = {};
+      for (const [pastaId, modelos] of Object.entries(porDestino)) {
+        const r = await funilChamarWebapp(nomeCliente, pastaId, modelos);
+        todas = Object.assign(todas, r);
+      }
+      return todas;
     }
 
     // Cria ou atualiza a linha do cliente no Supabase com todos os ponteiros
@@ -15049,13 +15072,20 @@ Esta ação não pode ser desfeita.`)) return;
         if (dados.planilhas.veiculos)      registro.veiculos_sheet_id     = dados.planilhas.veiculos;
       }
 
-      const { data: existente } = await db.from('clients').select('id').eq('name', cliente.nome).maybeSingle();
-      if (existente) {
-        await db.from('clients').update(registro).eq('id', existente.id);
+      const busca = await db.from('clients').select('id').eq('name', cliente.nome).maybeSingle();
+      if (busca.error) throw new Error('consulta: ' + busca.error.message);
+
+      if (busca.data) {
+        const up = await db.from('clients').update(registro).eq('id', busca.data.id).select('id');
+        if (up.error) throw new Error('update: ' + up.error.message);
+        if (!up.data || !up.data.length) throw new Error('update sem efeito (RLS?)');
         return 'atualizado';
       }
+
       registro.status = 'ativo';
-      await db.from('clients').insert(registro);
+      const ins = await db.from('clients').insert(registro).select('id');
+      if (ins.error) throw new Error('insert: ' + ins.error.message);
+      if (!ins.data || !ins.data.length) throw new Error('insert sem efeito (RLS?)');
       return 'criado';
     }
 
@@ -15231,7 +15261,7 @@ Esta ação não pode ser desfeita.`)) return;
           if (est.chaves.praxesHub) {
             try {
               diz('criando planilhas…');
-              planilhas = await funilCriarPlanilhas(c.nome, est.chaves.praxesHub);
+              planilhas = await funilCriarPlanilhas(c.nome, est.chaves);
               const n = Object.keys(planilhas).length;
               if (n) partes.push(n + ' planilha(s) criada(s)');
             } catch(e7) { partes.push('planilhas não criadas: ' + (e7.message || 'erro')); }
