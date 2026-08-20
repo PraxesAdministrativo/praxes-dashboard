@@ -15203,6 +15203,84 @@ Esta ação não pode ser desfeita.`)) return;
       });
     }
 
+    // Executa as automações de Drive/planilhas/Supabase para uma mudança de etapa.
+    // Chamada tanto pelo arraste do cartão quanto pela confirmação de contrato.
+    async function funilAplicarDriveEtapa(c, novaEtapa, anterior, status) {
+      if (!c || !c.driveFolderId) {
+        if (status && c) status.textContent = c.nome + ' → ' + novaEtapa + ' · sem pasta no Drive vinculada';
+        return;
+      }
+      const partes = [];
+      const diz = (txt) => { if (status) status.textContent = c.nome + ' → ' + novaEtapa + ' · ' + txt; };
+
+      try {
+        if (novaEtapa === 'Em negociação' && !c.driveEstruturado) {
+          diz('organizando o Drive…');
+          const r = await funilDriveEstruturar(c.driveFolderId);
+          c.driveEstruturado = true;
+          partes.push('Drive estruturado' + (r.movidos ? ', ' + r.movidos + ' doc(s) para Proposta Comercial' : ''));
+        }
+
+        if (novaEtapa === 'Em onboarding' || novaEtapa === 'Ativo') {
+          diz('montando as pastas…');
+          const est = await funilDriveGarantirEstrutura(c.driveFolderId);
+          c.driveEstruturado = true;
+          if (est.criadas) partes.push(est.criadas + ' subpasta(s) criada(s)');
+
+          let planilhas = {};
+          if (est.chaves.praxesHub) {
+            try {
+              diz('criando planilhas…');
+              planilhas = await funilCriarPlanilhas(c.nome, est.chaves.praxesHub);
+              const n = Object.keys(planilhas).length;
+              if (n) partes.push(n + ' planilha(s) criada(s)');
+            } catch(e7) { partes.push('planilhas não criadas: ' + (e7.message || 'erro')); }
+          }
+
+          try {
+            diz('gravando no Supabase…');
+            const r = await funilGravarSupabase(c, { chaves: est.chaves, planilhas: planilhas });
+            partes.push('Supabase ' + r);
+          } catch(e8) { partes.push('Supabase falhou: ' + (e8.message || 'erro')); }
+
+          diz('movendo a pasta…');
+          const m = await funilDriveMoverParaEtapa(c.driveFolderId, novaEtapa);
+          if (m && m.movida) partes.push('pasta movida para Clientes');
+
+          if (c.px) {
+            const nomePadrao = c.px + ' - ' + c.nome;
+            try {
+              const at = await gapi.client.drive.files.get({ fileId: c.driveFolderId, fields: 'name', supportsAllDrives: true });
+              if ((at.result.name || '').trim() !== nomePadrao) {
+                await funilDriveRenomear(c.driveFolderId, nomePadrao);
+                partes.push('pasta renomeada para ' + c.px);
+              }
+            } catch(e6) { console.warn('Drive: renomear', e6); }
+          } else {
+            partes.push('sem código PX — pasta mantém o nome simples');
+          }
+        }
+
+        if (novaEtapa === 'Perdido/Desistiu') {
+          diz('movendo a pasta…');
+          const m = await funilDriveMoverParaEtapa(c.driveFolderId, novaEtapa);
+          if (m && m.movida) partes.push('pasta movida para Inativos');
+        }
+
+        if ((novaEtapa === 'Lead' || novaEtapa === 'Em negociação') &&
+            (anterior === 'Ativo' || anterior === 'Em onboarding' || anterior === 'Perdido/Desistiu')) {
+          const m = await funilDriveMoverParaEtapa(c.driveFolderId, novaEtapa);
+          if (m && m.movida) partes.push('pasta devolvida para Prospects');
+        }
+
+        if (status) {
+          status.textContent = c.nome + ' → ' + novaEtapa + (partes.length ? ' · ' + partes.join(' · ') : '');
+        }
+      } catch(e2) {
+        if (status) status.textContent = c.nome + ' → ' + novaEtapa + ' · Drive: ' + (e2?.result?.error?.message || e2?.message || 'falha');
+      }
+    }
+
     async function adminFunilMover(id, novaEtapa) {
       const c = _adminFunilLeads.find(x => x.id === id);
       if (!c || !novaEtapa || c.etapa === novaEtapa) return;
@@ -15224,83 +15302,8 @@ Esta ação não pode ser desfeita.`)) return;
         if (status) status.textContent = c.nome + ' → ' + novaEtapa;
 
         // ── Automações de Drive por etapa ──
-        if (c.driveFolderId) {
-          const partes = [];
-          try {
-            // Em negociação: monta a estrutura e recolhe os documentos soltos
-            if (novaEtapa === 'Em negociação' && !c.driveEstruturado) {
-              if (status) status.textContent = c.nome + ' → ' + novaEtapa + ' · organizando o Drive…';
-              const r = await funilDriveEstruturar(c.driveFolderId);
-              c.driveEstruturado = true;
-              partes.push('Drive estruturado' + (r.movidos ? ', ' + r.movidos + ' doc(s) para Proposta Comercial' : ''));
-            }
+        await funilAplicarDriveEtapa(c, novaEtapa, anterior, status);
 
-            // Onboarding e Ativo: garante a estrutura e migra para Clientes
-            if (novaEtapa === 'Em onboarding' || novaEtapa === 'Ativo') {
-              if (status) status.textContent = c.nome + ' → ' + novaEtapa + ' · movendo no Drive…';
-              const est = await funilDriveGarantirEstrutura(c.driveFolderId);
-              c.driveEstruturado = true;
-              if (est.criadas) partes.push(est.criadas + ' subpasta(s) criada(s)');
-
-              // Copia as planilhas modelo para dentro de _Praxes Hub
-              let planilhas = {};
-              if (est.chaves.praxesHub) {
-                try {
-                  if (status) status.textContent = c.nome + ' → ' + novaEtapa + ' · criando planilhas…';
-                  planilhas = await funilCriarPlanilhas(c.nome, est.chaves.praxesHub);
-                  const n = Object.keys(planilhas).length;
-                  if (n) partes.push(n + ' planilha(s) criada(s)');
-                } catch(e7) {
-                  partes.push('planilhas não criadas: ' + (e7.message || 'erro'));
-                }
-              }
-
-              // Grava tudo no Supabase
-              try {
-                if (status) status.textContent = c.nome + ' → ' + novaEtapa + ' · gravando no Supabase…';
-                const r = await funilGravarSupabase(c, { chaves: est.chaves, planilhas: planilhas });
-                partes.push('Supabase ' + r);
-              } catch(e8) {
-                partes.push('Supabase falhou: ' + (e8.message || 'erro'));
-              }
-              const m = await funilDriveMoverParaEtapa(c.driveFolderId, novaEtapa);
-              if (m && m.movida) partes.push('pasta movida para Clientes');
-              // Padroniza o nome da pasta: "PX00NN - Nome do Cliente"
-              if (c.px) {
-                const nomePadrao = c.px + ' - ' + c.nome;
-                try {
-                  const at = await gapi.client.drive.files.get({ fileId: c.driveFolderId, fields: 'name', supportsAllDrives: true });
-                  if ((at.result.name || '').trim() !== nomePadrao) {
-                    await funilDriveRenomear(c.driveFolderId, nomePadrao);
-                    partes.push('pasta renomeada para ' + c.px);
-                  }
-                } catch(e6) { console.warn('Drive: renomear na migração', e6); }
-              } else {
-                partes.push('sem código PX — pasta mantém o nome simples');
-              }
-            }
-
-            // Perdido: arquiva na área de inativos
-            if (novaEtapa === 'Perdido/Desistiu') {
-              if (status) status.textContent = c.nome + ' → ' + novaEtapa + ' · movendo no Drive…';
-              const m = await funilDriveMoverParaEtapa(c.driveFolderId, novaEtapa);
-              if (m && m.movida) partes.push('pasta movida para Inativos');
-            }
-
-            // Voltou para negociação ou lead: devolve para Prospects
-            if ((novaEtapa === 'Lead' || novaEtapa === 'Em negociação') &&
-                (anterior === 'Ativo' || anterior === 'Em onboarding' || anterior === 'Perdido/Desistiu')) {
-              const m = await funilDriveMoverParaEtapa(c.driveFolderId, novaEtapa);
-              if (m && m.movida) partes.push('pasta devolvida para Prospects');
-            }
-
-            if (partes.length && status) {
-              status.textContent = c.nome + ' → ' + novaEtapa + ' · ' + partes.join(' · ');
-            }
-          } catch(e2) {
-            if (status) status.textContent = c.nome + ' → ' + novaEtapa + ' · Drive: ' + (e2.message || 'falha') ;
-          }
-        }
       } catch(err) {
         c.etapa = anterior;
         adminFunilRender();
@@ -15699,18 +15702,28 @@ Esta ação não pode ser desfeita.`)) return;
         });
         if (!resp.ok) throw new Error('HTTP ' + resp.status);
 
-        const pxAnterior = c.px;
+        const etapaAnterior = c.etapa;
         c.servicos = [servico];
         c.assin    = assin;
         c.px       = px;
-        if (c.driveFolderId && px && px !== pxAnterior) {
-          try { await funilDriveRenomear(c.driveFolderId, px + ' - ' + c.nome); }
-          catch(e2) { console.warn('Drive: falha ao renomear pasta', e2); }
-        }
         if (taxa != null) c.taxa = taxa;
-        if (props['Etapa do Funil']) c.etapa = 'Em onboarding';
+        const migrou = !!props['Etapa do Funil'];
+        if (migrou) c.etapa = 'Em onboarding';
 
         closeModal('modal-funil-servico');
+        adminFunilRender();
+
+        // Contrato fechado: roda o mesmo setup do arraste (pastas, planilhas, Supabase, rename)
+        const st = document.getElementById('admin-funil-status');
+        if (migrou) {
+          await funilAplicarDriveEtapa(c, 'Em onboarding', etapaAnterior, st);
+        } else if (c.driveFolderId && c.px) {
+          try {
+            const nomePadrao = c.px + ' - ' + c.nome;
+            const at = await gapi.client.drive.files.get({ fileId: c.driveFolderId, fields: 'name', supportsAllDrives: true });
+            if ((at.result.name || '').trim() !== nomePadrao) await funilDriveRenomear(c.driveFolderId, nomePadrao);
+          } catch(e2) { console.warn('Drive: renomear', e2); }
+        }
         adminFunilRender();
       } catch(err) {
         erro.textContent = 'Erro ao salvar: ' + err.message;
