@@ -15114,6 +15114,19 @@ Esta ação não pode ser desfeita.`)) return;
               if (criadas) partes.push(criadas + ' subpasta(s) criada(s)');
               const m = await funilDriveMoverParaEtapa(c.driveFolderId, novaEtapa);
               if (m && m.movida) partes.push('pasta movida para Clientes');
+              // Padroniza o nome da pasta: "PX00NN - Nome do Cliente"
+              if (c.px) {
+                const nomePadrao = c.px + ' - ' + c.nome;
+                try {
+                  const at = await gapi.client.drive.files.get({ fileId: c.driveFolderId, fields: 'name', supportsAllDrives: true });
+                  if ((at.result.name || '').trim() !== nomePadrao) {
+                    await funilDriveRenomear(c.driveFolderId, nomePadrao);
+                    partes.push('pasta renomeada para ' + c.px);
+                  }
+                } catch(e6) { console.warn('Drive: renomear na migração', e6); }
+              } else {
+                partes.push('sem código PX — pasta mantém o nome simples');
+              }
             }
 
             // Perdido: arquiva na área de inativos
