@@ -3290,7 +3290,7 @@
   <div class="modal" id="modal-funil-novo" style="z-index:6100;">
     <div class="modal-content" style="max-width:520px;">
       <div class="modal-header">
-        <h3 class="modal-title">Novo cliente</h3>
+        <h3 class="modal-title" id="modal-novo-titulo">Novo cliente</h3>
         <button class="modal-close" onclick="closeModal('modal-funil-novo')">&times;</button>
       </div>
       <div style="padding:0 4px;">
@@ -3447,6 +3447,7 @@
         <div style="display:flex;gap:8px;align-items:center;padding-bottom:4px;">
           <button onclick="adminFunilArquivar()" style="padding:8px 14px;font-size:12px;font-family:inherit;background:transparent;border:1px solid rgba(192,57,43,0.35);border-radius:var(--r-pill);color:#c0392b;cursor:pointer;">Arquivar</button>
           <button onclick="adminFunilDocsAbrir()" style="padding:8px 14px;font-size:12px;font-family:inherit;background:transparent;border:1px solid var(--line-strong);border-radius:var(--r-pill);color:var(--fg-2);cursor:pointer;">Documentos</button>
+          <button onclick="adminFunilEditar()" style="padding:8px 14px;font-size:12px;font-family:inherit;background:transparent;border:1px solid var(--line-strong);border-radius:var(--r-pill);color:var(--fg-2);cursor:pointer;">Editar dados</button>
           <div style="margin-left:auto;display:flex;gap:8px;">
           <button onclick="closeModal('modal-funil-servico')" style="padding:8px 16px;font-size:12px;font-family:inherit;background:transparent;border:1px solid var(--line-strong);border-radius:var(--r-pill);color:var(--fg-2);cursor:pointer;">Cancelar</button>
           <button id="funil-salvar-btn" onclick="adminFunilSalvar()" style="padding:8px 16px;font-size:12px;font-family:inherit;background:var(--praxes-teal);border:1px solid var(--praxes-teal);border-radius:var(--r-pill);color:#ffffff;cursor:pointer;">Confirmar contrato</button>
@@ -15034,7 +15035,10 @@ Esta ação não pode ser desfeita.`)) return;
       }
     }
 
+    let _funilEditandoId = null;
+
     function adminFunilNovo() {
+      _funilEditandoId = null;
       ['novo-nome','novo-email','novo-tel','novo-cpf','novo-nasc','novo-end','novo-pl'].forEach(id => {
         const el = document.getElementById(id); if (el) el.value = '';
       });
@@ -15042,12 +15046,70 @@ Esta ação não pode ser desfeita.`)) return;
         const el = document.getElementById(id); if (el) el.selectedIndex = 0;
       });
       document.getElementById('novo-etapa').value = 'Lead';
+      document.getElementById('modal-novo-titulo').textContent = 'Novo cliente';
+      document.getElementById('novo-etapa').disabled = false;
       const err = document.getElementById('novo-erro');
       err.style.display = 'none';
       const btn = document.getElementById('novo-salvar-btn');
       btn.disabled = false; btn.textContent = 'Cadastrar';
       openModal('modal-funil-novo');
       setTimeout(() => document.getElementById('novo-nome')?.focus(), 100);
+    }
+
+    async function adminFunilEditar() {
+      const c = _adminFunilSel;
+      if (!c) return;
+      closeModal('modal-funil-servico');
+
+      _funilEditandoId = c.id;
+      document.getElementById('modal-novo-titulo').textContent = 'Editar cliente';
+      document.getElementById('novo-etapa').value = c.etapa || 'Lead';
+      document.getElementById('novo-etapa').disabled = true;  // etapa se muda arrastando o cartão
+      document.getElementById('novo-nome').value = c.nome || '';
+      document.getElementById('novo-erro').style.display = 'none';
+
+      const btn = document.getElementById('novo-salvar-btn');
+      btn.disabled = true; btn.textContent = 'Carregando…';
+      openModal('modal-funil-novo');
+
+      // Busca as demais propriedades direto da página
+      try {
+        const resp = await fetch('https://urckolcywijllkdyjcgc.supabase.co/functions/v1/notion-proxy/v1/pages/' + c.id.replace(/-/g,''), {
+          method: 'GET', headers: { 'Content-Type': 'application/json' }
+        });
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        const page = await resp.json();
+        const p = page.properties || {};
+        const txt = k => p[k]?.rich_text?.map(t => t.plain_text).join('') || '';
+
+        document.getElementById('novo-email').value = p['E-mail']?.email || '';
+        document.getElementById('novo-tel').value   = p['Telefone']?.phone_number || '';
+        document.getElementById('novo-cpf').value   = txt('CPF');
+        document.getElementById('novo-nasc').value  = p['Data de Nascimento']?.date?.start || '';
+        document.getElementById('novo-end').value   = txt('Endereço');
+        document.getElementById('novo-pl').value    = p['PL Potencial']?.number ?? '';
+
+        const setSel = (id, valor) => {
+          const el = document.getElementById(id);
+          if (!el) return;
+          const achou = Array.from(el.options).find(o => (o.value || o.text) === valor);
+          el.value = achou ? (achou.value || achou.text) : '';
+        };
+        setSel('novo-civil',  p['Estado Civil']?.select?.name || '');
+        setSel('novo-prof',   p['Profissão']?.select?.name || '');
+        setSel('novo-origem', p['Origem']?.select?.name || '');
+
+        const cons = p['Consultor Responsável']?.people?.[0]?.id || '';
+        const elC = document.getElementById('novo-consultor');
+        elC.value = Array.from(elC.options).some(o => o.value === cons) ? cons : '';
+
+        btn.disabled = false; btn.textContent = 'Salvar alterações';
+      } catch(e) {
+        const err = document.getElementById('novo-erro');
+        err.textContent = 'Não foi possível carregar os dados atuais: ' + e.message + '. Os campos preenchidos serão gravados assim mesmo.';
+        err.style.display = 'block';
+        btn.disabled = false; btn.textContent = 'Salvar alterações';
+      }
     }
 
     function adminFunilAvisoTemplate(nome, url, comTemplate) {
@@ -15075,8 +15137,10 @@ Esta ação não pode ser desfeita.`)) return;
         err.style.display = 'block';
         return;
       }
-      const dup = _adminFunilLeads.find(c => c.nome.toLowerCase() === nome.toLowerCase());
-      if (dup && !confirm('Já existe "' + dup.nome + '" no funil (' + dup.etapa + ').\n\nCadastrar assim mesmo?')) return;
+      if (!_funilEditandoId) {
+        const dup = _adminFunilLeads.find(c => c.nome.toLowerCase() === nome.toLowerCase());
+        if (dup && !confirm('Já existe "' + dup.nome + '" no funil (' + dup.etapa + ').\n\nCadastrar assim mesmo?')) return;
+      }
       err.style.display = 'none';
 
       const etapa = document.getElementById('novo-etapa').value;
@@ -15108,6 +15172,53 @@ Esta ação não pode ser desfeita.`)) return;
       if (pl != null && !isNaN(pl)) props['PL Potencial'] = { number: pl };
 
       const btn = document.getElementById('novo-salvar-btn');
+
+      // ── MODO EDIÇÃO ──
+      if (_funilEditandoId) {
+        btn.disabled = true; btn.textContent = 'Salvando…';
+        // Na edição, campo apagado significa limpar o valor no Notion
+        props['E-mail']            = email ? { email: email } : { email: null };
+        props['Telefone']          = tel   ? { phone_number: tel } : { phone_number: null };
+        props['CPF']               = { rich_text: cpf  ? [{ text: { content: cpf } }] : [] };
+        props['Endereço']          = { rich_text: ende ? [{ text: { content: ende } }] : [] };
+        props['Data de Nascimento']= nasc  ? { date: { start: nasc } } : { date: null };
+        props['Estado Civil']      = civil ? { select: { name: civil } } : { select: null };
+        props['Profissão']         = prof  ? { select: { name: prof } } : { select: null };
+        props['Origem']            = orig  ? { select: { name: orig } } : { select: null };
+        props['Consultor Responsável'] = { people: cons ? [{ object: 'user', id: cons }] : [] };
+        props['PL Potencial']      = (pl != null && !isNaN(pl)) ? { number: pl } : { number: null };
+        delete props['Etapa do Funil'];  // etapa se muda arrastando o cartão
+
+        try {
+          const resp = await fetch('https://urckolcywijllkdyjcgc.supabase.co/functions/v1/notion-proxy/v1/pages/' + _funilEditandoId.replace(/-/g,''), {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ properties: props })
+          });
+          if (!resp.ok) throw new Error('HTTP ' + resp.status + ' — ' + (await resp.text()).slice(0,140));
+
+          const alvo = _adminFunilLeads.find(x => x.id === _funilEditandoId);
+          if (alvo) {
+            const nomeMudou = alvo.nome !== nome;
+            alvo.nome  = nome;
+            alvo.plPot = (pl != null && !isNaN(pl)) ? pl : null;
+            // Se o nome mudou e a pasta ainda não tem código, acompanha a renomeação
+            if (nomeMudou && alvo.driveFolderId && !alvo.px) {
+              try { await funilDriveRenomear(alvo.driveFolderId, nome); } catch(e4) { console.warn('Drive: renomear', e4); }
+            }
+          }
+          _funilEditandoId = null;
+          closeModal('modal-funil-novo');
+          adminFunilRender();
+          const st = document.getElementById('admin-funil-status');
+          if (st) st.textContent = nome + ' atualizado';
+        } catch(e5) {
+          err.textContent = 'Erro ao salvar: ' + e5.message;
+          err.style.display = 'block';
+          btn.disabled = false; btn.textContent = 'Salvar alterações';
+        }
+        return;
+      }
+
       btn.disabled = true; btn.textContent = 'Cadastrando…';
 
       const criar = async (comTemplate) => {
