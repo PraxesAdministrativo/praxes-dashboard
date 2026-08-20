@@ -5016,6 +5016,8 @@
         // Se tiver um sheet específico, usa ele; caso contrário, usa o spreadsheet_id (mesmo do resumo)
         window.finSheetOverride = client.financeiro_sheet_id || client.spreadsheet_id;
         window.invSheetId      = client.investimentos_sheet_id || null;
+      window.invPortfolio    = client.px_code || null;
+        window.invPortfolio    = client.px_code || null;
         window.invScriptId     = client.investimentos_script_id || null;
         window.invWebAppUrl    = client.investimentos_webapp_url || null;
         window.veiSheetId      = client.veiculos_sheet_id || null;
@@ -13249,9 +13251,15 @@ Esta ação não pode ser desfeita.`)) return;
     // URL do Web App do Apps Script publicado como:
     //   Executar como: Eu mesmo | Quem pode acessar: Qualquer pessoa
     // Substitua pela URL gerada na implantação Web App:
+    // Web App CENTRAL do Comdinheiro: um único deployment atende todos os clientes.
+    // Recebe spreadsheetId por parâmetro, em vez de viver dentro da planilha.
+    const INV_WEBAPP_CENTRAL = 'https://script.google.com/macros/s/AKfycbwmvXTOrzBVPmtKK7jb_N4fwqCal3vzFpVYdxlx183ANJXC0MnnsVNkcqjPoTBEofS5NQ/exec';
+    const INV_WEBAPP_TOKEN   = 'prx@2025!';
+
+    // Fallback: clientes antigos que ainda usam script próprio por planilha
     const INV_WEBAPP_URL = window.INV_WEBAPP_URL
       || (window.invWebAppUrl)
-      || ''; // cole a URL do Web App aqui ou coloque em investimentos_webapp_url no Supabase
+      || '';
 
     // Script ID (mantido para fallback futuro)
     const INV_SCRIPT_ID = window.INV_SCRIPT_ID || '1FABJ_Da7KbIhcN-9jDEAZEqdBb7jWzm6dlmGHV70NJk0mEmLhzwuNU0e';
@@ -13301,23 +13309,38 @@ Esta ação não pode ser desfeita.`)) return;
         // Se ainda não tiver o Script ID configurado, pula o passo 2 e apenas
         // recarrega os dados já existentes na planilha.
         // ── 2. Chama o Web App via GET (evita CORS preflight) ────────────────────
-        const webAppUrl = INV_WEBAPP_URL || window.invWebAppUrl;
-        if (webAppUrl) {
-          txt.textContent = '⏳ Executando COMDINHEIRO...';
+        txt.textContent = '⏳ Executando COMDINHEIRO...';
+        if (INV_WEBAPP_CENTRAL) {
           try {
-            const url = new URL(webAppUrl);
-            url.searchParams.set('action',      'atualizar');
-            url.searchParams.set('sheet_id',    sheetId);
-            url.searchParams.set('data_inicio', toDDMM(fromVal));
-            url.searchParams.set('data_fim',    toDDMM(toVal));
-            // no-cors: não lê a resposta mas dispara a execução no servidor
-            await fetch(url.toString(), { method: 'GET', mode: 'no-cors' });
-            console.info('Web App acionado via GET no-cors');
+            const url = new URL(INV_WEBAPP_CENTRAL);
+            url.searchParams.set('token',         INV_WEBAPP_TOKEN);
+            url.searchParams.set('spreadsheetId', sheetId);
+            url.searchParams.set('dataIni',       toDDMM(fromVal));
+            url.searchParams.set('dataFim',       toDDMM(toVal));
+            if (window.invPortfolio) url.searchParams.set('portfolio', window.invPortfolio);
+
+            const resp = await fetch(url.toString(), { method: 'GET' });
+            const out  = await resp.json();
+            if (!out.ok) throw new Error(out.erro || 'falha no Comdinheiro');
+            console.info('Comdinheiro atualizado:', out.portfolio, out.periodo);
           } catch(webErr) {
-            console.warn('Web App indisponível:', webErr.message);
+            console.warn('Web App central:', webErr.message);
+            // Fallback para o script próprio do cliente, se existir
+            const antiga = INV_WEBAPP_URL || window.invWebAppUrl;
+            if (antiga) {
+              try {
+                const u2 = new URL(antiga);
+                u2.searchParams.set('action',      'atualizar');
+                u2.searchParams.set('sheet_id',    sheetId);
+                u2.searchParams.set('data_inicio', toDDMM(fromVal));
+                u2.searchParams.set('data_fim',    toDDMM(toVal));
+                await fetch(u2.toString(), { method: 'GET', mode: 'no-cors' });
+                console.info('Fallback: Web App do cliente acionado');
+              } catch(e9) { console.warn('Fallback indisponível:', e9.message); }
+            } else {
+              alert('Não foi possível atualizar o Comdinheiro:\n' + webErr.message);
+            }
           }
-        } else {
-          console.info('INV_WEBAPP_URL não definido — datas gravadas, script não disparado.');
         }
 
         // ── 3. Recarrega os dados da planilha ─────────────────────────────────────
@@ -15054,13 +15077,32 @@ Esta ação não pode ser desfeita.`)) return;
       return todas;
     }
 
+    // Busca o e-mail direto do Notion se não estiver em cache
+    async function funilBuscarEmail(cliente) {
+      if (cliente.email) return cliente.email;
+      try {
+        const r = await fetch('https://urckolcywijllkdyjcgc.supabase.co/functions/v1/notion-proxy/v1/pages/' + cliente.id.replace(/-/g,''), {
+          method: 'GET', headers: { 'Content-Type': 'application/json' }
+        });
+        if (!r.ok) return '';
+        const page = await r.json();
+        cliente.email = page.properties?.['E-mail']?.email || '';
+        return cliente.email;
+      } catch(_) { return ''; }
+    }
+
     // Cria ou atualiza a linha do cliente no Supabase com todos os ponteiros
     async function funilGravarSupabase(cliente, dados) {
       const registro = {
         name:             cliente.nome,
         drive_folder_id:  cliente.driveFolderId || null,
       };
-      if (cliente.email) registro.email = cliente.email;
+      if (cliente.px) registro.px_code = cliente.px;
+      const email = await funilBuscarEmail(cliente);
+      if (email) registro.email = email;
+
+      // investimentos_webapp_url é específico de cada cliente (script vinculado à planilha dele)
+      // e precisa ser publicado manualmente. Fica em branco no setup, de propósito.
       if (dados.chaves) {
         if (dados.chaves.hubImoveis)  registro.imoveis_folder_id  = dados.chaves.hubImoveis;
         if (dados.chaves.hubVeiculos) registro.veiculos_folder_id = dados.chaves.hubVeiculos;
@@ -15082,7 +15124,7 @@ Esta ação não pode ser desfeita.`)) return;
         return 'atualizado';
       }
 
-      registro.status = 'ativo';
+      registro.status = 'active';
       const ins = await db.from('clients').insert(registro).select('id');
       if (ins.error) throw new Error('insert: ' + ins.error.message);
       if (!ins.data || !ins.data.length) throw new Error('insert sem efeito (RLS?)');
@@ -15270,7 +15312,9 @@ Esta ação não pode ser desfeita.`)) return;
           try {
             diz('gravando no Supabase…');
             const r = await funilGravarSupabase(c, { chaves: est.chaves, planilhas: planilhas });
-            partes.push('Supabase ' + r);
+            partes.push('Supabase ' + r
+              + (c.email ? '' : ' (SEM E-MAIL — cliente não conseguirá entrar)')
+              + ' · falta publicar o Web App de investimentos');
           } catch(e8) { partes.push('Supabase falhou: ' + (e8.message || 'erro')); }
 
           diz('movendo a pasta…');
