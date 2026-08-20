@@ -14639,8 +14639,37 @@ Esta ação não pode ser desfeita.`)) return;
       'Ativo':            'clientes',
       'Perdido/Desistiu': 'inativos',
     };
-    const DRIVE_SUBPASTAS   = ['1. Documentos', '2. Carteira de Investimentos', '3. Gestão de Patrimônio'];
-    const DRIVE_SUB_PROPOSTA = '1.1 Proposta Comercial';
+    // Estrutura padrão da pasta de cliente (espelha o modelo do Drive)
+    const DRIVE_ESTRUTURA = [
+      { nome: '1. Documentos', filhos: [
+        { nome: '1. Documentos pessoais' },
+        { nome: '2. Contratos' },
+        { nome: '3. IRPF', filhos: [{ nome: '__ANO__' }] },
+        { nome: '99. Proposta Comercial', chave: 'proposta' },
+      ]},
+      { nome: '2. Carteira de Investimento', filhos: [
+        { nome: '1. Extratos de Investimentos', chave: 'extratos' },
+      ]},
+      { nome: '3. Gestão de Patrimônio', filhos: [
+        { nome: '1. Imobiliário' },
+        { nome: '2. Veículos' },
+        { nome: '3. Empresas' },
+        { nome: '_Praxes Hub', chave: 'praxesHub', filhos: [
+          { nome: '1. Imóveis', chave: 'hubImoveis' },
+          { nome: '2. Veículos e-ou Embarcações', chave: 'hubVeiculos' },
+          { nome: '3. Investimentos', chave: 'hubInvestimentos' },
+        ]},
+      ]},
+    ];
+
+    // Pasta do ano no IRPF: "2026 _ 2025"
+    function drivePastaAnoIRPF() {
+      const a = new Date().getFullYear();
+      return a + ' _ ' + (a - 1);
+    }
+
+    const DRIVE_SUBPASTAS   = DRIVE_ESTRUTURA.map(x => x.nome);
+    const DRIVE_SUB_PROPOSTA = '99. Proposta Comercial';
 
     let _driveRaizId = null;
 
@@ -14690,36 +14719,40 @@ Esta ação não pode ser desfeita.`)) return;
     }
 
     // Garante que as três subpastas existem (não recria as que já existem)
+    // Cria a estrutura completa de forma recursiva, sem duplicar o que já existe.
+    // Devolve { criadas, chaves: { proposta, hubImoveis, hubVeiculos, ... } }
     async function funilDriveGarantirEstrutura(folderId) {
-      const r = await gapi.client.drive.files.list({
-        q: `'${folderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
-        fields: 'files(id, name)', supportsAllDrives: true, includeItemsFromAllDrives: true
-      });
-      const existentes = r.result.files || [];
+      const chaves = {};
       let criadas = 0;
-      for (const nome of DRIVE_SUBPASTAS) {
-        const prefixo = nome.split('.')[0];
-        if (existentes.some(f => f.name.trim().startsWith(prefixo + '.'))) continue;
-        await funilDriveCriarPasta(nome, folderId);
-        criadas++;
-      }
-      // 1.1 Proposta Comercial dentro de 1. Documentos
-      const rr = await gapi.client.drive.files.list({
-        q: `'${folderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
-        fields: 'files(id, name)', supportsAllDrives: true, includeItemsFromAllDrives: true
-      });
-      const docs = (rr.result.files || []).find(f => /^1\./.test(f.name.trim()));
-      if (docs) {
-        const subs = await gapi.client.drive.files.list({
-          q: `'${docs.id}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
-          fields: 'files(id, name)', supportsAllDrives: true, includeItemsFromAllDrives: true
+
+      async function nivel(paiId, nos) {
+        const r = await gapi.client.drive.files.list({
+          q: `'${paiId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+          fields: 'files(id, name)', supportsAllDrives: true, includeItemsFromAllDrives: true, pageSize: 100
         });
-        if (!(subs.result.files || []).some(f => /Proposta Comercial/i.test(f.name))) {
-          await funilDriveCriarPasta(DRIVE_SUB_PROPOSTA, docs.id);
-          criadas++;
+        const existentes = r.result.files || [];
+
+        for (const no of nos) {
+          const nome = no.nome === '__ANO__' ? drivePastaAnoIRPF() : no.nome;
+          const prefixo = /^\d+\./.test(nome) ? nome.split('.')[0] + '.' : null;
+
+          let achada = existentes.find(f => f.name.trim() === nome);
+          if (!achada && prefixo) achada = existentes.find(f => f.name.trim().startsWith(prefixo));
+
+          let id;
+          if (achada) {
+            id = achada.id;
+          } else {
+            id = (await funilDriveCriarPasta(nome, paiId)).id;
+            criadas++;
+          }
+          if (no.chave) chaves[no.chave] = id;
+          if (no.filhos && no.filhos.length) await nivel(id, no.filhos);
         }
       }
-      return criadas;
+
+      await nivel(folderId, DRIVE_ESTRUTURA);
+      return { criadas, chaves };
     }
 
     function funilDriveNomeSeguro(nome) {
@@ -14931,6 +14964,64 @@ Esta ação não pode ser desfeita.`)) return;
       adminFunilDocsListar();
     }
 
+    // ── SETUP COMPLETO DO CLIENTE ────────────────────────────────
+    const WEBAPP_SETUP_PADRAO = 'https://script.google.com/macros/s/AKfycbzoeYzxJFrurGlwtqcpDdBi30zepnbiJ05Cd_7eb1HJM3waBxiW4cTFqgMKXTxwU5TF6g/exec';
+    let _webappSetup = null;
+
+    async function funilWebappSetup() {
+      if (_webappSetup) return _webappSetup;
+      try {
+        const { data } = await db.from('praxes_config').select('chave, valor').in('chave', ['webapp_setup_cliente','webapp_setup_token']);
+        const m = Object.fromEntries((data || []).map(r => [r.chave, r.valor]));
+        _webappSetup = { url: m.webapp_setup_cliente || WEBAPP_SETUP_PADRAO, token: m.webapp_setup_token || 'prx@2025!' };
+      } catch(_) {
+        _webappSetup = { url: WEBAPP_SETUP_PADRAO, token: 'prx@2025!' };
+      }
+      return _webappSetup;
+    }
+
+    // Copia as planilhas modelo para dentro de _Praxes Hub
+    async function funilCriarPlanilhas(nomeCliente, pastaDestinoId) {
+      const cfg = await funilWebappSetup();
+      const res = await fetch(cfg.url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },  // evita preflight CORS
+        body: JSON.stringify({ token: cfg.token, nomeCliente: nomeCliente, pastaDestinoId: pastaDestinoId })
+      });
+      if (!res.ok) throw new Error('Web App HTTP ' + res.status);
+      const out = await res.json();
+      if (!out.ok) throw new Error(out.erro || 'falha no Web App');
+      return out.planilhas || {};
+    }
+
+    // Cria ou atualiza a linha do cliente no Supabase com todos os ponteiros
+    async function funilGravarSupabase(cliente, dados) {
+      const registro = {
+        name:             cliente.nome,
+        drive_folder_id:  cliente.driveFolderId || null,
+      };
+      if (cliente.email) registro.email = cliente.email;
+      if (dados.chaves) {
+        if (dados.chaves.hubImoveis)  registro.imoveis_folder_id  = dados.chaves.hubImoveis;
+        if (dados.chaves.hubVeiculos) registro.veiculos_folder_id = dados.chaves.hubVeiculos;
+      }
+      if (dados.planilhas) {
+        if (dados.planilhas.spreadsheet)   registro.spreadsheet_id        = dados.planilhas.spreadsheet;
+        if (dados.planilhas.imoveis)       registro.imoveis_sheet_id      = dados.planilhas.imoveis;
+        if (dados.planilhas.investimentos) registro.investimentos_sheet_id = dados.planilhas.investimentos;
+        if (dados.planilhas.veiculos)      registro.veiculos_sheet_id     = dados.planilhas.veiculos;
+      }
+
+      const { data: existente } = await db.from('clients').select('id').eq('name', cliente.nome).maybeSingle();
+      if (existente) {
+        await db.from('clients').update(registro).eq('id', existente.id);
+        return 'atualizado';
+      }
+      registro.status = 'ativo';
+      await db.from('clients').insert(registro);
+      return 'criado';
+    }
+
     // ── BOARD DO FUNIL ───────────────────────────────────────────
     const FUNIL_DB    = '1ec701b863e68056bb30f8d6b32617d8';
     const FUNIL_ETAPAS = ['Lead','Em negociação','Em onboarding','Ativo','Perdido/Desistiu'];
@@ -14990,6 +15081,7 @@ Esta ação não pode ser desfeita.`)) return;
             etapa:    p['Etapa do Funil']?.select?.name || '',
             px:       p['ID Praxes']?.rich_text?.map(t => t.plain_text).join('') || '',
             driveFolderId: p['Drive Folder ID']?.rich_text?.map(t => t.plain_text).join('') || '',
+            email:    p['E-mail']?.email || '',
             servicos: (p['Serviço Prestado']?.multi_select || []).map(s => s.name),
             taxa:     p['Taxa de Consultoria']?.number ?? null,
             plPot:    p['PL Potencial']?.number ?? null,
@@ -15109,9 +15201,31 @@ Esta ação não pode ser desfeita.`)) return;
             // Onboarding e Ativo: garante a estrutura e migra para Clientes
             if (novaEtapa === 'Em onboarding' || novaEtapa === 'Ativo') {
               if (status) status.textContent = c.nome + ' → ' + novaEtapa + ' · movendo no Drive…';
-              const criadas = await funilDriveGarantirEstrutura(c.driveFolderId);
+              const est = await funilDriveGarantirEstrutura(c.driveFolderId);
               c.driveEstruturado = true;
-              if (criadas) partes.push(criadas + ' subpasta(s) criada(s)');
+              if (est.criadas) partes.push(est.criadas + ' subpasta(s) criada(s)');
+
+              // Copia as planilhas modelo para dentro de _Praxes Hub
+              let planilhas = {};
+              if (est.chaves.praxesHub) {
+                try {
+                  if (status) status.textContent = c.nome + ' → ' + novaEtapa + ' · criando planilhas…';
+                  planilhas = await funilCriarPlanilhas(c.nome, est.chaves.praxesHub);
+                  const n = Object.keys(planilhas).length;
+                  if (n) partes.push(n + ' planilha(s) criada(s)');
+                } catch(e7) {
+                  partes.push('planilhas não criadas: ' + (e7.message || 'erro'));
+                }
+              }
+
+              // Grava tudo no Supabase
+              try {
+                if (status) status.textContent = c.nome + ' → ' + novaEtapa + ' · gravando no Supabase…';
+                const r = await funilGravarSupabase(c, { chaves: est.chaves, planilhas: planilhas });
+                partes.push('Supabase ' + r);
+              } catch(e8) {
+                partes.push('Supabase falhou: ' + (e8.message || 'erro'));
+              }
               const m = await funilDriveMoverParaEtapa(c.driveFolderId, novaEtapa);
               if (m && m.movida) partes.push('pasta movida para Clientes');
               // Padroniza o nome da pasta: "PX00NN - Nome do Cliente"
