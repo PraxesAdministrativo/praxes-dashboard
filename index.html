@@ -14698,6 +14698,7 @@ Esta ação não pode ser desfeita.`)) return;
 
     // Move a pasta do cliente para a raiz correspondente à etapa
     async function funilDriveMoverParaEtapa(folderId, etapa) {
+      await funilGarantirDrive();
       const area = DRIVE_RAIZ_POR_ETAPA[etapa];
       if (!area) return null;
       const destino = await funilDriveRaizPor(area);
@@ -14722,6 +14723,7 @@ Esta ação não pode ser desfeita.`)) return;
     // Cria a estrutura completa de forma recursiva, sem duplicar o que já existe.
     // Devolve { criadas, chaves: { proposta, hubImoveis, hubVeiculos, ... } }
     async function funilDriveGarantirEstrutura(folderId) {
+      await funilGarantirDrive();
       const chaves = {};
       let criadas = 0;
 
@@ -14759,6 +14761,36 @@ Esta ação não pode ser desfeita.`)) return;
       return String(nome).replace(/[/\\?%*:|"<>]/g, '_').trim();
     }
 
+    // Garante gapi + Drive carregados e com token válido, mesmo fora da tela de cliente
+    async function funilGarantirDrive() {
+      if (typeof gapi === 'undefined') throw new Error('Google API não carregada — recarregue a página');
+
+      if (!window.gInit || !gapi.client || !gapi.client.drive) {
+        await new Promise((ok, err) => {
+          try {
+            gapi.load('client', async () => {
+              try {
+                if (!gapi.client.getToken) await gapi.client.init({ apiKey: cfg.apiKey });
+                if (!gapi.client.drive) await gapi.client.load('drive', 'v3');
+                window.gInit = true;
+                ok();
+              } catch(e) { err(e); }
+            });
+          } catch(e) { err(e); }
+        });
+      }
+
+      // Token do Google via sessão do Supabase (pode ter expirado ou nunca ter sido setado)
+      let tok = gapi.client.getToken && gapi.client.getToken()?.access_token;
+      if (!tok) {
+        const { data } = await db.auth.getSession();
+        tok = data?.session?.provider_token;
+        if (!tok) throw new Error('sessão Google sem token — saia e entre novamente');
+        gapi.client.setToken({ access_token: tok });
+      }
+      return true;
+    }
+
     async function funilDriveCriarPasta(nome, paiId) {
       const r = await gapi.client.drive.files.create({
         resource: { name: funilDriveNomeSeguro(nome), mimeType: 'application/vnd.google-apps.folder', parents: [paiId] },
@@ -14770,6 +14802,7 @@ Esta ação não pode ser desfeita.`)) return;
 
     // Cria a pasta raiz do cliente dentro de "3. Proposta Comercial"
     async function funilDriveCriarPastaCliente(nome) {
+      await funilGarantirDrive();
       const raiz = await funilDriveRaiz();
       return funilDriveCriarPasta(nome, raiz);
     }
@@ -14884,6 +14917,10 @@ Esta ação não pode ser desfeita.`)) return;
 
     async function adminFunilDocsListar() {
       const box = document.getElementById('docs-lista');
+      try { await funilGarantirDrive(); } catch(e) {
+        box.innerHTML = '<div style="font-size:12px;color:#c0392b;padding:12px;">' + esc(e.message) + '</div>';
+        return;
+      }
       box.innerHTML = '<div style="font-size:12px;color:var(--fg-3);padding:12px;">Carregando…</div>';
       try {
         const r = await gapi.client.drive.files.list({
@@ -15506,7 +15543,7 @@ Esta ação não pode ser desfeita.`)) return;
           adminFunilRender();
         } catch(e3) {
           const st = document.getElementById('admin-funil-status');
-          if (st) st.innerHTML += ' · <span style="color:#ffc040;">pasta no Drive não criada</span>';
+          if (st) st.innerHTML += ' · <span style="color:#ffc040;">pasta no Drive não criada: ' + esc(e3?.result?.error?.message || e3?.message || 'erro desconhecido') + '</span>';
           console.warn('Drive:', e3);
         }
       } catch(e2) {
