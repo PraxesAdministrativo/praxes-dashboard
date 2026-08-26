@@ -2147,6 +2147,14 @@
           <div class="nav-item-sub">Balanço, fechamentos, evolução</div>
         </div>
 
+        <div class="nav-item" data-page="pfp">
+          <div class="nav-item-main">
+            <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg></span>
+            Plano financeiro
+          </div>
+          <div class="nav-item-sub">Premissas, metas, aderência</div>
+        </div>
+
         <div class="nav-item" data-page="investimentos">
           <div class="nav-item-main">
             <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg></span>
@@ -2299,6 +2307,15 @@
           <div id="pat-root">
             <div style="display:flex;align-items:center;justify-content:center;padding:60px 0;color:var(--fg-3, #999);font-size:14px;">
               <div class="spinner" style="margin-right:12px;"></div> Carregando balanço patrimonial...
+            </div>
+          </div>
+        </div>
+
+        <!-- PLANO FINANCEIRO (PFP) PAGE -->
+        <div class="page" id="page-pfp">
+          <div id="pfp-root">
+            <div style="display:flex;align-items:center;justify-content:center;padding:60px 0;color:var(--fg-3, #999);font-size:14px;">
+              <div class="spinner" style="margin-right:12px;"></div> Carregando plano financeiro...
             </div>
           </div>
         </div>
@@ -4924,6 +4941,7 @@
       const titles = {
         dashboard:      'Visão Geral',
         patrimonio:     'Planejamento Patrimonial',
+        pfp:            'Plano Financeiro',
         investimentos:  'Investimentos',
         imoveis:        'Portfólio Imobiliário',
         financeiro:     'Controle Financeiro',
@@ -4941,6 +4959,7 @@
         loadImoveis();
       }
       if (pageName === 'patrimonio')    { loadPatrimonio(); }
+      if (pageName === 'pfp')           { loadPFP(); }
       if (pageName === 'financeiro')    { finInit(); }
       if (pageName === 'investimentos') { invInit(); }
       if (pageName === 'veiculos')   { veiculosInit(); }
@@ -5994,6 +6013,287 @@
         + '<div class="pat-cols">' + _patColunaHTML('ativo', editavel) + _patColunaHTML('passivo', editavel) + '</div>'
         + _patRodapePLHTML()
         + legenda + _patHistoricoHTML() + '</div>';
+    }
+
+    // ============================================================
+    // ===== PFP — PLANEJAMENTO FINANCEIRO PESSOAL =================
+    // ============================================================
+    // Tela 1: leitura do plano vigente + premissas + histórico de
+    // versões. Sem projeção e sem gráfico — estes dependem de definir
+    // o papel do ipca_projetado (corrige patrimônio ou só a meta?).
+    //
+    // Schema (pfp_planos): cliente_id bigint, versao, ativo,
+    // data_inicio_vigencia, data_fim_vigencia, motivo_revisao,
+    // data_nascimento, idade_aposentadoria, expectativa_vida,
+    // patrimonio_inicio_plano, data_inicio_plano, aporte_mensal,
+    // rentabilidade_real_acumulacao, rentabilidade_real_renda,
+    // ipca_projetado, meta_renda_mensal, fechamento_base_id.
+    //
+    // ATENÇÃO: taxas gravadas em PONTO PERCENTUAL (5 = 5% a.a.),
+    // não em fração. A divisão por 100 acontece só em pfpFmtPct e,
+    // quando a projeção existir, em um ponto único e marcado.
+
+    let pfpState = { planos: [], atual: null, aportes: [], carregado: false, erro: null };
+
+    function pfpPodeEditar() {
+      return !!window.patIsAdmin && !!window.patClientId;
+    }
+
+    function pfpFmtPct(v) {
+      if (v == null || v === '') return '—';
+      var n = parseFloat(v);
+      if (isNaN(n)) return '—';
+      return n.toFixed(2).replace('.', ',') + '% a.a.';
+    }
+
+    function pfpIdadeEm(nascimento, dataRef) {
+      if (!nascimento) return null;
+      var n = new Date(String(nascimento).substring(0, 10) + 'T12:00:00');
+      var r = dataRef ? new Date(String(dataRef).substring(0, 10) + 'T12:00:00') : new Date();
+      if (isNaN(n.getTime()) || isNaN(r.getTime())) return null;
+      var a = r.getFullYear() - n.getFullYear();
+      var m = r.getMonth() - n.getMonth();
+      if (m < 0 || (m === 0 && r.getDate() < n.getDate())) a--;
+      return a;
+    }
+
+    async function pfpCarregar() {
+      pfpState = { planos: [], aportes: [], atual: null, carregado: false, erro: null };
+      if (!window.patClientId) { pfpState.carregado = true; return pfpState; }
+      try {
+        var res = await db.from('pfp_planos').select('*')
+                    .eq('cliente_id', window.patClientId)
+                    .order('versao', { ascending: false });
+        if (res.error) throw res.error;
+        pfpState.planos = res.data || [];
+
+        var alvo = pfpState.planos.find(function (p) { return p.ativo; }) || pfpState.planos[0];
+        if (window._pfpSelId) {
+          var sel = pfpState.planos.find(function (p) { return p.id === window._pfpSelId; });
+          if (sel) alvo = sel;
+        }
+        pfpState.atual = alvo || null;
+
+        if (pfpState.atual) {
+          var ra = await db.from('pfp_aportes_planejados').select('*')
+                     .eq('plano_id', pfpState.atual.id)
+                     .order('competencia', { ascending: true });
+          if (ra.error) throw ra.error;
+          pfpState.aportes = ra.data || [];
+        }
+      } catch (e) {
+        console.error('PFP carregar:', e);
+        pfpState.erro = e.message || String(e);
+      }
+      pfpState.carregado = true;
+      return pfpState;
+    }
+
+    async function pfpSelecionar(id) {
+      window._pfpSelId = id || null;
+      await loadPFP();
+    }
+
+    function _pfpStyleHTML() {
+      return '<style>'
+        + '.pfp-wrap{font-family:var(--font-body,Urbanist,sans-serif);}'
+        + '.pfp-eyebrow{font-size:11px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--praxes-teal);}'
+        + '.pfp-sub{font-size:13px;color:var(--fg-3);margin-top:3px;}'
+        + '.pfp-hd{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:18px;}'
+        + '.pfp-title{font-family:Urbanist,serif;font-size:21px;font-weight:600;color:var(--fg-1);letter-spacing:-0.02em;margin:0;}'
+        + '.pfp-badge{font-size:9px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:3px 9px;border-radius:999px;white-space:nowrap;}'
+        + '.pfp-badge-ativo{background:rgba(42,90,102,.16);color:var(--praxes-deep);}'
+        + '.pfp-badge-encerrado{background:rgba(4,25,36,.08);color:var(--fg-3);}'
+        + 'html[data-theme="dark"] .pfp-badge-ativo{background:rgba(242,221,198,.16);color:var(--praxes-sand);}'
+        + 'html[data-theme="dark"] .pfp-badge-encerrado{background:rgba(242,221,198,.07);color:var(--fg-3);}'
+        + '.pfp-select{font-family:inherit;font-size:12.5px;color:var(--fg-1);background:var(--surface);'
+        +   'border:none;box-shadow:inset 0 0 0 1px var(--line-strong);border-radius:999px;padding:9px 16px;cursor:pointer;}'
+        + '.pfp-kpigrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px;}'
+        + '.pfp-card{background:var(--surface);border-radius:14px;padding:18px 20px;'
+        +   'box-shadow:0 6px 16px -8px rgba(4,25,36,.14),0 2px 4px rgba(4,25,36,.04);}'
+        + '.pfp-kpi-lbl{font-size:10.5px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--praxes-teal);}'
+        + 'html[data-theme="dark"] .pfp-kpi-lbl,html[data-theme="dark"] .pfp-eyebrow{color:var(--praxes-teal-20);}'
+        + '.pfp-kpi-val{font-family:Urbanist,serif;font-weight:600;font-size:26px;letter-spacing:-0.02em;color:var(--fg-1);'
+        +   'margin-top:8px;font-variant-numeric:tabular-nums;font-feature-settings:"tnum";}'
+        + '.pfp-kpi-sub{font-size:12px;color:var(--fg-3);margin-top:4px;}'
+        + '.pfp-cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;}'
+        + '.pfp-sec-hd{font-size:10.5px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;'
+        +   'color:var(--praxes-teal);margin-bottom:14px;}'
+        + 'html[data-theme="dark"] .pfp-sec-hd{color:var(--praxes-teal-20);}'
+        + '.pfp-row{display:flex;justify-content:space-between;align-items:baseline;gap:14px;'
+        +   'padding:9px 0;border-bottom:1px solid var(--line);}'
+        + '.pfp-row:last-child{border-bottom:none;}'
+        + '.pfp-row-lbl{font-size:13px;color:var(--fg-2);}'
+        + '.pfp-row-val{font-size:13px;font-weight:500;color:var(--fg-1);'
+        +   'font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right;}'
+        + '.pfp-row-note{font-size:11px;color:var(--fg-3);display:block;font-weight:400;}'
+        + '.pfp-hist{width:100%;border-collapse:collapse;}'
+        + '.pfp-hist th{font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;'
+        +   'color:var(--fg-3);text-align:left;padding:0 10px 8px 0;border-bottom:1px solid var(--line);}'
+        + '.pfp-hist td{font-size:12.5px;color:var(--fg-1);padding:10px 10px 10px 0;border-bottom:1px solid var(--line);}'
+        + '.pfp-hist tr:last-child td{border-bottom:none;}'
+        + '.pfp-hist tr.sel td{font-weight:600;}'
+        + '.pfp-link{background:none;border:none;padding:0;font:inherit;color:var(--praxes-teal);'
+        +   'cursor:pointer;text-decoration:underline;text-underline-offset:2px;}'
+        + 'html[data-theme="dark"] .pfp-link{color:var(--praxes-teal-20);}'
+        + '.pfp-empty{background:var(--surface);border-radius:14px;padding:56px 28px;text-align:center;}'
+        + '.pfp-errbox{background:var(--danger-bg,rgba(255,0,0,.06));border-radius:12px;padding:18px 20px;'
+        +   'font-size:13px;color:var(--danger,#A32D2D);}'
+        + '.pfp-aviso{background:rgba(242,221,198,.5);border-radius:10px;padding:12px 16px;font-size:12px;'
+        +   'color:var(--praxes-abyss);margin-top:14px;}'
+        + 'html[data-theme="dark"] .pfp-aviso{background:rgba(242,221,198,.1);color:var(--praxes-sand);}'
+        + '@media(max-width:900px){.pfp-kpigrid{grid-template-columns:repeat(2,1fr);}.pfp-cols{grid-template-columns:1fr;}}'
+        + '</style>';
+    }
+
+    function _pfpLinha(lbl, val, nota) {
+      return '<div class="pfp-row"><span class="pfp-row-lbl">' + esc(lbl) + '</span>'
+        + '<span class="pfp-row-val">' + val
+        + (nota ? '<span class="pfp-row-note">' + esc(nota) + '</span>' : '')
+        + '</span></div>';
+    }
+
+    function _pfpHistoricoHTML() {
+      if (pfpState.planos.length < 2) return '';
+      var linhas = pfpState.planos.map(function (p) {
+        var sel = pfpState.atual && pfpState.atual.id === p.id;
+        return '<tr class="' + (sel ? 'sel' : '') + '">'
+          + '<td>v' + (p.versao || '?') + '</td>'
+          + '<td>' + (p.ativo
+              ? '<span class="pfp-badge pfp-badge-ativo">Vigente</span>'
+              : '<span class="pfp-badge pfp-badge-encerrado">Encerrado</span>') + '</td>'
+          + '<td>' + patFmtData(p.data_inicio_vigencia) + '</td>'
+          + '<td>' + (p.data_fim_vigencia ? patFmtData(p.data_fim_vigencia) : '—') + '</td>'
+          + '<td>' + esc(p.motivo_revisao || '—') + '</td>'
+          + '<td style="text-align:right;">' + (sel ? '<span style="color:var(--fg-3);">em tela</span>'
+              : '<button class="pfp-link" onclick="pfpSelecionar(\'' + p.id + '\')">abrir</button>') + '</td>'
+          + '</tr>';
+      }).join('');
+
+      return '<div class="pfp-card" style="margin-top:16px;">'
+        + '<div class="pfp-sec-hd">Histórico de versões</div>'
+        + '<table class="pfp-hist"><thead><tr>'
+        + '<th>Versão</th><th>Situação</th><th>Início</th><th>Fim</th><th>Motivo da revisão</th><th></th>'
+        + '</tr></thead><tbody>' + linhas + '</tbody></table></div>';
+    }
+
+    function pfpRenderHTML() {
+      var style = _pfpStyleHTML();
+
+      if (pfpState.erro) {
+        return style + '<div class="pfp-wrap"><div class="pfp-errbox">'
+          + 'Não foi possível carregar o plano financeiro: ' + esc(pfpState.erro) + '</div></div>';
+      }
+
+      var admin = pfpPodeEditar();
+
+      if (!pfpState.atual) {
+        return style + '<div class="pfp-wrap"><div class="pfp-empty">'
+          + '<div style="font-family:Urbanist,serif;font-size:17px;font-weight:600;color:var(--fg-1);margin-bottom:8px;">'
+          + 'Nenhum plano registrado</div>'
+          + '<div class="pfp-sub" style="max-width:460px;margin:0 auto;">'
+          + (admin
+              ? 'Este cliente ainda não tem plano financeiro. O plano define as premissas — idade de aposentadoria, expectativa de vida, aporte e meta de renda — sobre as quais a projeção e o acompanhamento de aderência se apoiam.'
+              : 'Seu plano financeiro será disponibilizado aqui assim que for elaborado pela Praxes.')
+          + '</div></div></div>';
+      }
+
+      var p = pfpState.atual;
+      var idadeHoje  = pfpIdadeEm(p.data_nascimento);
+      var idadeIni   = pfpIdadeEm(p.data_nascimento, p.data_inicio_plano);
+      var anosAcum   = (idadeHoje != null && p.idade_aposentadoria != null)
+                        ? (p.idade_aposentadoria - idadeHoje) : null;
+      var anosRenda  = (p.expectativa_vida != null && p.idade_aposentadoria != null)
+                        ? (p.expectativa_vida - p.idade_aposentadoria) : null;
+
+      var seletor = pfpState.planos.length > 1
+        ? '<select class="pfp-select" onchange="pfpSelecionar(this.value)">'
+          + pfpState.planos.map(function (x) {
+              return '<option value="' + x.id + '"' + (x.id === p.id ? ' selected' : '') + '>'
+                + 'v' + (x.versao || '?') + ' — ' + (x.ativo ? 'vigente' : 'encerrado') + '</option>';
+            }).join('') + '</select>'
+        : '';
+
+      var badge = p.ativo
+        ? '<span class="pfp-badge pfp-badge-ativo" style="margin-left:10px;">Vigente</span>'
+        : '<span class="pfp-badge pfp-badge-encerrado" style="margin-left:10px;">Encerrado</span>';
+
+      var cab = '<div class="pfp-hd"><div>'
+        + '<div class="pfp-eyebrow">Planejamento financeiro pessoal</div>'
+        + '<h3 class="pfp-title" style="margin-top:6px;">Plano v' + (p.versao || '?') + badge + '</h3>'
+        + '<div class="pfp-sub">Vigente desde ' + patFmtData(p.data_inicio_vigencia)
+        + (p.data_fim_vigencia ? ' · encerrado em ' + patFmtData(p.data_fim_vigencia) : '')
+        + (p.motivo_revisao ? ' · ' + esc(p.motivo_revisao) : '') + '</div>'
+        + '</div><div style="display:flex;gap:8px;align-items:center;">' + seletor + '</div></div>';
+
+      // Origem do patrimônio inicial: fechamento do Balanço ou valor digitado.
+      var origemPat = p.fechamento_base_id
+        ? 'Vinculado a um fechamento do Balanço'
+        : 'Valor informado manualmente';
+
+      var kpis = '<div class="pfp-kpigrid">'
+        + '<div class="pfp-card"><div class="pfp-kpi-lbl">Meta de renda mensal</div>'
+        + '<div class="pfp-kpi-val">' + fmt(p.meta_renda_mensal || 0) + '</div>'
+        + '<div class="pfp-kpi-sub">A partir dos ' + (p.idade_aposentadoria != null ? p.idade_aposentadoria : '—') + ' anos</div></div>'
+
+        + '<div class="pfp-card"><div class="pfp-kpi-lbl">Aporte mensal</div>'
+        + '<div class="pfp-kpi-val">' + fmt(p.aporte_mensal || 0) + '</div>'
+        + '<div class="pfp-kpi-sub">Planejado no plano</div></div>'
+
+        + '<div class="pfp-card"><div class="pfp-kpi-lbl">Patrimônio no início</div>'
+        + '<div class="pfp-kpi-val">' + fmt(p.patrimonio_inicio_plano || 0) + '</div>'
+        + '<div class="pfp-kpi-sub">' + esc(origemPat) + '</div></div>'
+
+        + '<div class="pfp-card"><div class="pfp-kpi-lbl">Horizonte de acumulação</div>'
+        + '<div class="pfp-kpi-val">' + (anosAcum != null ? anosAcum + ' anos' : '—') + '</div>'
+        + '<div class="pfp-kpi-sub">' + (anosRenda != null ? anosRenda + ' anos de usufruto' : 'Usufruto não definido')
+        + '</div></div></div>';
+
+      var colTitular = '<div class="pfp-card"><div class="pfp-sec-hd">Titular e horizonte</div>'
+        + _pfpLinha('Data de nascimento', patFmtData(p.data_nascimento))
+        + _pfpLinha('Idade hoje', idadeHoje != null ? idadeHoje + ' anos' : '—')
+        + _pfpLinha('Idade no início do plano', idadeIni != null ? idadeIni + ' anos' : '—')
+        + _pfpLinha('Idade de aposentadoria', p.idade_aposentadoria != null ? p.idade_aposentadoria + ' anos' : '—')
+        + _pfpLinha('Expectativa de vida', p.expectativa_vida != null ? p.expectativa_vida + ' anos' : '—')
+        + _pfpLinha('Início do plano', patFmtData(p.data_inicio_plano))
+        + '</div>';
+
+      var colPremissas = '<div class="pfp-card"><div class="pfp-sec-hd">Premissas financeiras</div>'
+        + _pfpLinha('Rentabilidade real — acumulação', pfpFmtPct(p.rentabilidade_real_acumulacao))
+        + _pfpLinha('Rentabilidade real — renda', pfpFmtPct(p.rentabilidade_real_renda))
+        + _pfpLinha('IPCA projetado', pfpFmtPct(p.ipca_projetado))
+        + _pfpLinha('Meta de renda mensal', fmt(p.meta_renda_mensal || 0))
+        + _pfpLinha('Aporte mensal base', fmt(p.aporte_mensal || 0))
+        + _pfpLinha('Aportes no cronograma',
+            pfpState.aportes.length ? pfpState.aportes.length + ' lançamento(s)' : 'Nenhum')
+        + '</div>';
+
+      // Sinalizado, não corrigido: as duas taxas dizem-se reais e ainda
+      // assim há um IPCA projetado ao lado. São contas diferentes com
+      // resultados diferentes — decidir antes de escrever a projeção.
+      var aviso = (p.ipca_projetado != null && p.rentabilidade_real_acumulacao != null)
+        ? '<div class="pfp-aviso">As rentabilidades estão registradas como <strong>reais</strong> '
+          + '(já líquidas de inflação) e há um IPCA projetado ao lado. Confirmar se o IPCA corrige o '
+          + 'patrimônio projetado ou apenas a meta de renda ao longo do tempo — a projeção ainda não '
+          + 'foi construída por depender dessa definição.</div>'
+        : '';
+
+      return style + '<div class="pfp-wrap">' + cab + kpis
+        + '<div class="pfp-cols">' + colTitular + colPremissas + '</div>'
+        + aviso + _pfpHistoricoHTML() + '</div>';
+    }
+
+    async function loadPFP() {
+      var root = document.getElementById('pfp-root');
+      if (!root) return;
+      try {
+        await pfpCarregar();
+        root.innerHTML = pfpRenderHTML();
+      } catch (e) {
+        console.error('PFP:', e);
+        root.innerHTML = '<p style="padding:40px;text-align:center;color:var(--fg-3,#999);">'
+          + 'Erro ao carregar o plano financeiro.<br><small>' + esc(e.message || String(e)) + '</small></p>';
+      }
     }
 
     function _dashRender(d) {
