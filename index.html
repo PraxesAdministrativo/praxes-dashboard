@@ -4905,6 +4905,47 @@
       driveScopes: 'https://www.googleapis.com/auth/drive.file',
     };
     
+
+    // ========== NOTION — CONFIG CENTRAL DE BASES ==========
+    // Alterne MODO_TESTE para trocar TODAS as bases do Notion de uma vez.
+    // true  = bases duplicadas de TESTE
+    // false = bases de PRODUCAO
+    const NOTION_MODO_TESTE = true;
+
+    const NOTION_DBS = {
+      producao: {
+        clientes:    '1ec701b863e68056bb30f8d6b32617d8', // Clientes Praxes / Funil
+        tarefas:     '1ec701b863e680f381d8d07cc4dacab4', // Tarefas
+        atas:        '1ec701b863e680dca7e0f3b31c65d035', // Atas de Reuniao
+        objetivos:   '387701b863e6806194f3c04af9069c09', // Objetivos de Clientes
+        templateAta: '1ec701b863e68053842bc7b54b597e91'  // Pagina-modelo de ata
+      },
+      teste: {
+        clientes:    'ef2701b863e683d093b381705a9e4483', // Base de Clientes (TESTE)
+        tarefas:     '972701b863e68368954c01219a0543f7', // Costumer Tasks (TESTE)
+        atas:        '7b8701b863e68233933a01704dcf6290', // Atas de Reuniao (TESTE)
+        objetivos:   'a5c701b863e6839aa0c28143074ee07a', // Objetivos de Cliente (TESTE)
+        templateAta: '152701b863e68377a0f481932b0ac18c'  // Pagina-modelo de ata (TESTE)
+      }
+    };
+
+    const NOTION_DB = NOTION_MODO_TESTE ? NOTION_DBS.teste : NOTION_DBS.producao;
+    const NOTION_PROXY = 'https://urckolcywijllkdyjcgc.supabase.co/functions/v1/notion-proxy/v1/';
+
+    if (NOTION_MODO_TESTE) {
+      console.warn('[PRAXES] NOTION EM MODO TESTE — bases duplicadas. Nenhum dado de producao sera alterado.');
+      document.addEventListener('DOMContentLoaded', function () {
+        var b = document.createElement('div');
+        b.id = 'praxes-badge-teste';
+        b.textContent = 'NOTION: BASE DE TESTE';
+        b.style.cssText = 'position:fixed;right:12px;bottom:12px;z-index:99999;background:#b24a2e;color:#fff;'
+          + 'font:600 11px/1 Urbanist,system-ui,sans-serif;letter-spacing:.08em;padding:7px 11px;'
+          + 'border-radius:6px;box-shadow:0 2px 10px rgba(0,0,0,.28);pointer-events:none;opacity:.92;';
+        document.body.appendChild(b);
+      });
+    }
+    // ========== FIM CONFIG NOTION ==========
+
     const db = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey, {
       auth: {
         persistSession: true,       // mantém sessão no localStorage entre F5s
@@ -15487,7 +15528,7 @@ Esta ação não pode ser desfeita.`)) return;
     }
 
     // ── BOARD DO FUNIL ───────────────────────────────────────────
-    const FUNIL_DB    = '1ec701b863e68056bb30f8d6b32617d8';
+    const FUNIL_DB    = NOTION_DB.clientes;
     const FUNIL_ETAPAS = ['Lead','Em negociação','Em onboarding','Ativo','Perdido/Desistiu'];
 
     // Matriz de entregas por serviço (somente exibição — não gera nada ainda)
@@ -16192,14 +16233,14 @@ Esta ação não pode ser desfeita.`)) return;
       const fimISO = fim.toISOString().split('T')[0];
       try {
         const [tarResp, reuResp] = await Promise.all([
-          fetch('https://urckolcywijllkdyjcgc.supabase.co/functions/v1/notion-proxy/v1/databases/1ec701b863e680f381d8d07cc4dacab4/query', {
+          fetch(NOTION_PROXY + 'databases/' + NOTION_DB.tarefas + '/query', {
             method:'POST', headers:{'Content-Type':'application/json'},
             body:JSON.stringify({page_size:100,sorts:[{property:'Data de Vencimento',direction:'ascending'}],filter:{and:[
               {property:'Data de Vencimento',date:{on_or_after:iniISO}},
               {property:'Data de Vencimento',date:{on_or_before:fimISO}}
             ]}})
           }),
-          fetch('https://urckolcywijllkdyjcgc.supabase.co/functions/v1/notion-proxy/v1/databases/1ec701b863e680dca7e0f3b31c65d035/query', {
+          fetch(NOTION_PROXY + 'databases/' + NOTION_DB.atas + '/query', {
             method:'POST', headers:{'Content-Type':'application/json'},
             body:JSON.stringify({page_size:100,sorts:[{property:'Data da Reuniao',direction:'ascending'}],filter:{and:[
               {property:'Data da Reuniao',date:{on_or_after:iniISO}},
@@ -16419,7 +16460,7 @@ Esta ação não pode ser desfeita.`)) return;
             }
           };
           if (cursor) body.start_cursor = cursor;
-          const resp = await fetch('https://urckolcywijllkdyjcgc.supabase.co/functions/v1/notion-proxy/v1/databases/1ec701b863e680f381d8d07cc4dacab4/query', {
+          const resp = await fetch(NOTION_PROXY + 'databases/' + NOTION_DB.tarefas + '/query', {
             method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
           });
           if (!resp.ok) throw new Error('HTTP ' + resp.status);
@@ -17723,8 +17764,8 @@ Esta ação não pode ser desfeita.`)) return;
   // Token configurado via modal de setup na primeira visita.
   // ============================================================
 
-  const TAR_NOTION_DB         = '1ec701b863e680f381d8d07cc4dacab4';
-  const TAR_NOTION_CLIENTS_DB = '1ec701b863e68056bb30f8d6b32617d8';
+  const TAR_NOTION_DB         = NOTION_DB.tarefas;
+  const TAR_NOTION_CLIENTS_DB = NOTION_DB.clientes;
   const TAR_NOTION_VERSION    = '2022-06-28';
   const TAR_PROXY_BASE        = 'https://urckolcywijllkdyjcgc.supabase.co/functions/v1/notion-proxy';
 
@@ -18151,8 +18192,8 @@ Esta ação não pode ser desfeita.`)) return;
   // ========== MÓDULO REUNIÕES (Notion REST API) ================
   // ============================================================
 
-  const REU_NOTION_DB      = '1ec701b863e680dca7e0f3b31c65d035';
-  const REU_NOTION_CLIENTS_DB = '1ec701b863e68056bb30f8d6b32617d8';
+  const REU_NOTION_DB      = NOTION_DB.atas;
+  const REU_NOTION_CLIENTS_DB = NOTION_DB.clientes;
   const REU_PROXY_BASE     = 'https://urckolcywijllkdyjcgc.supabase.co/functions/v1/notion-proxy';
 
   let _reuReunioes  = [];
@@ -18654,7 +18695,7 @@ Esta ação não pode ser desfeita.`)) return;
         if (clientNId) props['Cliente'] = { relation: [{ id: clientNId }] };
 
         // 2. Busca blocks do template
-        const REU_TEMPLATE_ID = '1ec701b863e68053842bc7b54b597e91';
+        const REU_TEMPLATE_ID = NOTION_DB.templateAta;
         const tmplResp = await fetch(reuUrl(`/v1/blocks/${REU_TEMPLATE_ID}/children?page_size=100`), {
           headers: reuHeaders()
         });
@@ -18790,8 +18831,8 @@ Esta ação não pode ser desfeita.`)) return;
   // ========== MÓDULO OBJETIVOS (Notion REST API) ===============
   // ============================================================
 
-  const OBJ_NOTION_DB      = '387701b863e6806194f3c04af9069c09';
-  const OBJ_NOTION_CLIENTS_DB = '1ec701b863e68056bb30f8d6b32617d8';
+  const OBJ_NOTION_DB      = NOTION_DB.objetivos;
+  const OBJ_NOTION_CLIENTS_DB = NOTION_DB.clientes;
   const OBJ_PROXY_BASE     = 'https://urckolcywijllkdyjcgc.supabase.co/functions/v1/notion-proxy';
 
   let _objObjetivos  = [];
