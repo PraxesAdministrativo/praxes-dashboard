@@ -4918,13 +4918,16 @@
         tarefas:     '1ec701b863e680f381d8d07cc4dacab4', // Tarefas
         atas:        '1ec701b863e680dca7e0f3b31c65d035', // Atas de Reuniao
         objetivos:   '387701b863e6806194f3c04af9069c09', // Objetivos de Clientes
-        templateAta: '1ec701b863e68053842bc7b54b597e91'  // Pagina-modelo de ata
+        templateAta: '1ec701b863e68053842bc7b54b597e91'  // Pagina-modelo de ata (ID de PAGINA)
       },
       teste: {
-        clientes:    'ef2701b863e683d093b381705a9e4483', // Base de Clientes (TESTE)
-        tarefas:     '972701b863e68368954c01219a0543f7', // Costumer Tasks (TESTE)
-        atas:        '7b8701b863e68233933a01704dcf6290', // Atas de Reuniao (TESTE)
-        objetivos:   'a5c701b863e6839aa0c28143074ee07a', // Objetivos de Cliente (TESTE)
+        // IDs de DATABASE (extraidos via blocks/children das paginas duplicadas)
+        clientes:    'cf6701b863e6820aa8d101e2b9960a95', // Clientes Praxes (TESTE)
+        tarefas:     '67b701b863e6838b9e8f0105b9b13a9a', // Tarefas (TESTE)
+        atas:        'f62701b863e682d2aed381dbb19cab91', // Atas de Reuniao - Clientes (TESTE)
+        objetivos:   '3c4701b863e68296964681ae174ac4d3', // Objetivos de Cliente (TESTE)
+        // ATENCAO: templateAta e ID de PAGINA, nao de database.
+        // O codigo le os blocos filhos dessa pagina para montar a ata nova.
         templateAta: '152701b863e68377a0f481932b0ac18c'  // Pagina-modelo de ata (TESTE)
       }
     };
