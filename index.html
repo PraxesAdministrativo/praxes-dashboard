@@ -4969,6 +4969,22 @@
     }
     // ========== FIM CONFIG NOTION ==========
 
+    // Titulo de qualquer base do Notion: a propriedade do tipo 'title' muda de
+    // nome por base (Nome nos clientes, Tarefa nas tarefas, Conta, Contrato...).
+    // Procurar pelo TIPO evita assumir o nome errado.
+    function notionTitulo(props) {
+      if (!props) return '';
+      if (props['Nome'] && props['Nome'].type === 'title') {
+        return (props['Nome'].title || []).map(function (t) { return t.plain_text; }).join('');
+      }
+      for (var k in props) {
+        if (props[k] && props[k].type === 'title') {
+          return (props[k].title || []).map(function (t) { return t.plain_text; }).join('');
+        }
+      }
+      return '';
+    }
+
     const db = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey, {
       auth: {
         persistSession: true,       // mantém sessão no localStorage entre F5s
@@ -15637,7 +15653,7 @@ Esta ação não pode ser desfeita.`)) return;
           return {
             id:       page.id,
             url:      page.url || ('https://www.notion.so/' + page.id.replace(/-/g,'')),
-            nome:     p['Nome']?.title?.map(t => t.plain_text).join('') || '(sem nome)',
+            nome:     notionTitulo(p) || '(sem nome)',
             etapa:    p['Etapa do Funil']?.select?.name || '',
             px:       p['ID Praxes']?.rich_text?.map(t => t.plain_text).join('') || '',
             driveFolderId: p['Drive Folder ID']?.rich_text?.map(t => t.plain_text).join('') || '',
@@ -16308,7 +16324,7 @@ Esta ação não pode ser desfeita.`)) return;
 
         _adminSemanaTarefas = (tarData.results||[]).map(p => {
           const pr = p.properties||{};
-          const titulo     = pr['Nome']?.title?.map(t=>t.plain_text).join('')||'—';
+          const titulo     = notionTitulo(pr)||'—';
           const status     = pr['Status da Tarefa']?.status?.name||'';
           const prioridade = pr['Prioridade']?.select?.name||'';
           const prazo      = pr['Data de Vencimento']?.date?.start||null;
@@ -16322,7 +16338,7 @@ Esta ação não pode ser desfeita.`)) return;
 
         _adminSemanaReunioes = (reuData.results||[]).map(p => {
           const pr = p.properties||{};
-          const titulo = pr['Nome']?.title?.map(t=>t.plain_text).join('')||'—';
+          const titulo = notionTitulo(pr)||'—';
           const data   = pr['Data da Reuniao']?.date?.start||null;
           const partic = pr['Participantes']?.multi_select?.map(s=>s.name).join(', ')||'';
           const respIds = (pr['Participantes']?.multi_select||[]).map(s => {
@@ -16527,7 +16543,7 @@ Esta ação não pode ser desfeita.`)) return;
         // Parse das tarefas
         _adminKanbanTarefas = await Promise.all(all.map(async page => {
           const p = page.properties || {};
-          const titulo    = p['Nome']?.title?.map(t=>t.plain_text).join('') || '—';
+          const titulo    = notionTitulo(p) || '—';
           const status    = p['Status da Tarefa']?.status?.name || '';
           const prioridade = p['Prioridade']?.select?.name || '';
           const prazo     = p['Data de Vencimento']?.date?.start || null;
@@ -16546,7 +16562,7 @@ Esta ação não pode ser desfeita.`)) return;
                 const cr = await fetch('https://urckolcywijllkdyjcgc.supabase.co/functions/v1/notion-proxy/v1/pages/' + clienteRel.replace(/-/g,''), { headers: { 'Content-Type': 'application/json' } });
                 if (cr.ok) {
                   const cd = await cr.json();
-                  clienteNome = cd.properties?.['Nome']?.title?.map(t=>t.plain_text).join('') || '';
+                  clienteNome = notionTitulo(cd.properties) || '';
                   _adminClienteNomes[clienteRel] = clienteNome;
                 }
               } catch(e) {}
@@ -17783,14 +17799,14 @@ Esta ação não pode ser desfeita.`)) return;
 
       // 1. Match exato
       let found = allClients.find(c => {
-        const nome = c.properties?.['Nome']?.title?.map(t => t.plain_text).join('') || '';
+        const nome = notionTitulo(c.properties) || '';
         return norm(nome) === nNorm;
       });
 
       // 2. Primeira + última palavra iguais
       if (!found && palavras.length >= 2) {
         found = allClients.find(c => {
-          const nome = norm(c.properties?.['Nome']?.title?.map(t => t.plain_text).join('') || '');
+          const nome = norm(notionTitulo(c.properties) || '');
           const p = nome.split(' ').filter(Boolean);
           return p[0] === palavras[0] && p[p.length-1] === palavras[palavras.length-1];
         });
@@ -17799,7 +17815,7 @@ Esta ação não pode ser desfeita.`)) return;
       // 3. Primeira palavra + qualquer outra palavra em comum
       if (!found) {
         found = allClients.find(c => {
-          const nome = norm(c.properties?.['Nome']?.title?.map(t => t.plain_text).join('') || '');
+          const nome = norm(notionTitulo(c.properties) || '');
           const p = nome.split(' ').filter(Boolean);
           return p[0] === palavras[0] && palavras.some(w => w.length > 3 && p.includes(w));
         });
@@ -18328,7 +18344,7 @@ Esta ação não pode ser desfeita.`)) return;
   function reuPageToObj(page) {
     const p = page.properties || {};
 
-    const titulo = p['Nome']?.title?.map(t => t.plain_text).join('') || 'Sem título';
+    const titulo = notionTitulo(p) || 'Sem título';
     const data   = p['Data da Reunião']?.date?.start || null;
 
     const partic = p['Participantes']?.multi_select?.map(s => s.name).join(', ') || '';
@@ -18462,7 +18478,7 @@ Esta ação não pode ser desfeita.`)) return;
           const tarData = await tarResp.json();
           tarefasDaAta = (tarData.results || []).map(p => ({
             id:         p.id,
-            titulo:     p.properties?.['Nome']?.title?.map(t=>t.plain_text).join('') || 'Tarefa',
+            titulo:     notionTitulo(p.properties) || 'Tarefa',
             status:     p.properties?.['Status da Tarefa']?.status?.name || '',
             prioridade: p.properties?.['Prioridade']?.select?.name || ''
           }));
@@ -18956,7 +18972,7 @@ Esta ação não pode ser desfeita.`)) return;
   // ──────────────── PARSE ────────────────
   function objPageToObj(page) {
     const p = page.properties || {};
-    const nome      = p['Nome']?.title?.map(t => t.plain_text).join('') || 'Sem título';
+    const nome      = notionTitulo(p) || 'Sem título';
     const status    = p['Status']?.status?.name || '';
     const categoria = p['Selecionar']?.select?.name || '';
     const prazo     = p['Prazo de Conclusão']?.date?.start || null;
@@ -19138,7 +19154,7 @@ Esta ação não pode ser desfeita.`)) return;
         const pages = await Promise.all(fetches);
         tarefas = pages.filter(Boolean).map(p => ({
           id:         p.id,
-          titulo:     p.properties?.['Nome']?.title?.map(t=>t.plain_text).join('') || '—',
+          titulo:     notionTitulo(p.properties) || '—',
           status:     p.properties?.['Status da Tarefa']?.status?.name || '',
           prioridade: p.properties?.['Prioridade']?.select?.name || '',
           prazo:      p.properties?.['Data de Vencimento']?.date?.start || null
@@ -19153,7 +19169,7 @@ Esta ação não pode ser desfeita.`)) return;
           const data = await resp.json();
           tarefas = (data.results || []).map(p => ({
             id:         p.id,
-            titulo:     p.properties?.['Nome']?.title?.map(t=>t.plain_text).join('') || '—',
+            titulo:     notionTitulo(p.properties) || '—',
             status:     p.properties?.['Status da Tarefa']?.status?.name || '',
             prioridade: p.properties?.['Prioridade']?.select?.name || '',
             prazo:      p.properties?.['Data de Vencimento']?.date?.start || null
