@@ -4959,6 +4959,36 @@
         storage: window.localStorage
       }
     });
+
+    // ===== PROXY NOTION: anexa o token de sessao em TODA chamada =====
+    // Envolve window.fetch e injeta Authorization apenas nas URLs do notion-proxy.
+    // Feito assim, e nao nos ~15 pontos de chamada, para nao escapar nenhum.
+    // Inofensivo enquanto verify_jwt estiver DESLIGADO na Edge Function;
+    // obrigatorio depois que for LIGADO. Publicar esta versao ANTES de ligar.
+    (function () {
+      var _fetchOriginal = window.fetch.bind(window);
+      var PREFIXO_PROXY = 'https://urckolcywijllkdyjcgc.supabase.co/functions/v1/notion-proxy';
+      window.fetch = async function (entrada, init) {
+        var url = (typeof entrada === 'string') ? entrada : (entrada && entrada.url) || '';
+        if (url.indexOf(PREFIXO_PROXY) !== 0) return _fetchOriginal(entrada, init);
+        var opcoes = Object.assign({}, init || {});
+        var cabecalhos = new Headers((init && init.headers) || {});
+        if (!cabecalhos.has('Authorization')) {
+          try {
+            var r = await db.auth.getSession();
+            var token = r && r.data && r.data.session && r.data.session.access_token;
+            if (token) cabecalhos.set('Authorization', 'Bearer ' + token);
+            else console.warn('[PRAXES] proxy Notion chamado sem sessao ativa.');
+          } catch (e) {
+            console.warn('[PRAXES] falha ao obter sessao para o proxy Notion:', e);
+          }
+        }
+        opcoes.headers = cabecalhos;
+        return _fetchOriginal(url, opcoes);
+      };
+    })();
+    // ===== FIM PROXY NOTION =====
+
     let resumoSheetId = null;
     let imoveisSheetId = null;
     let imoveisFolderId = null;
