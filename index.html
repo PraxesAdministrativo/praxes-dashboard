@@ -4426,6 +4426,10 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
         Tarefas
       </div>
+      <div class="admin-nav-item" id="admin-nav-pendencias" onclick="adminSetView('pendencias')">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 9v4"/><path d="M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>
+        Pendências
+      </div>
       <div class="admin-nav-item" id="admin-nav-semana" onclick="adminSetView('semana')">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
         Semana
@@ -4506,6 +4510,14 @@
         </div>
 
         <!-- VIEW: Semana -->
+        <!-- VIEW: Pendencias -->
+        <div class="admin-view" id="admin-view-pendencias">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;">
+            <button onclick="adminPendRecarregar()" style="padding:7px 14px;font-size:12px;font-family:inherit;background:transparent;border:1px solid rgba(242,221,198,0.3);border-radius:20px;color:var(--praxes-sand);cursor:pointer;">Atualizar</button>
+          </div>
+          <div id="pend-root"></div>
+        </div>
+
         <div class="admin-view" id="admin-view-semana">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;flex-wrap:wrap;">
             <div style="font-size:11px;color:rgba(242,221,198,0.4);" id="admin-sem-periodo"></div>
@@ -15107,11 +15119,12 @@ Esta ação não pode ser desfeita.`)) return;
       document.querySelectorAll('.admin-view').forEach(el => el.classList.remove('active'));
       document.getElementById('admin-nav-' + view).classList.add('active');
       document.getElementById('admin-view-' + view).classList.add('active');
-      const titles = { clientes:'Clientes', funil:'Funil de Vendas', tarefas:'Tarefas', semana:'Relatório da Semana' };
+      const titles = { clientes:'Clientes', funil:'Funil de Vendas', tarefas:'Tarefas', pendencias:'Pendências de Cadastro', semana:'Relatório da Semana' };
       document.getElementById('admin-topbar-title').textContent = titles[view] || view;
       document.getElementById('admin-search').style.display = view === 'clientes' ? '' : 'none';
       if (view === 'funil'   && !_adminFunilLoaded)  adminFunilLoad();
       if (view === 'tarefas' && !_adminKanbanLoaded) adminKanbanLoad();
+      if (view === 'pendencias') adminPendLoad();
       if (view === 'semana'  && !_adminSemanaLoaded) adminSemanaLoad();
     }
 
@@ -20160,6 +20173,263 @@ Esta ação não pode ser desfeita.`)) return;
 
   })();
   // ==================== FIM MODULO CADASTRO ====================
+
+
+  // ==================== MODULO PENDENCIAS DE CADASTRO ====================
+  // Varre a base de clientes e lista quem nao tem o necessario para avancar
+  // de etapa. Mesmas regras de portao da aba de Cadastro, aplicadas em lote.
+  (function () {
+
+  var PEND_PROXY = 'https://urckolcywijllkdyjcgc.supabase.co/functions/v1/notion-proxy';
+  function pendHeaders() { return { 'Content-Type': 'application/json' }; }
+
+  var PEND_CIVIL = ['SOLTEIRO (A)', 'CASADO (A)', 'DIVORCIADO (A)', 'VIÚVO (A)', 'UNIÃO ESTÁVEL', 'COMUNHÃO PARCIAL DE BENS'];
+
+  var pendEstado = { carregando: false, carregado: false, linhas: [], filtro: 'todos' };
+
+  function pendEsc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+  function pendTxt(p) {
+    if (!p) return '';
+    if (p.type === 'rich_text') return (p.rich_text || []).map(function (t) { return t.plain_text; }).join('');
+    if (p.type === 'select')    return p.select ? p.select.name : '';
+    if (p.type === 'date')      return p.date ? p.date.start : '';
+    if (p.type === 'email')     return p.email || '';
+    if (p.type === 'phone_number') return p.phone_number || '';
+    return '';
+  }
+  function pendChave(props, a, b) { return props[a] ? a : b; }
+
+  // Regras de portao, iguais as da aba de Cadastro
+  function pendAvaliar(props, temContrato) {
+    var faltaOnb = [], faltaAtv = [];
+    if (!pendTxt(props['CPF'])) faltaOnb.push({ campo: 'CPF', tipo: 'texto', chave: 'CPF' });
+    if (!pendTxt(props['Data de Nascimento'])) faltaOnb.push({ campo: 'data de nascimento', tipo: 'data', chave: 'Data de Nascimento' });
+    if (!pendTxt(props['Estado Civil'])) faltaAtv.push({ campo: 'estado civil', tipo: 'select', chave: 'Estado Civil', opcoes: PEND_CIVIL });
+    var kEnd = pendChave(props, 'Endereço', 'Endereco');
+    if (!pendTxt(props[kEnd])) faltaAtv.push({ campo: 'endereço', tipo: 'texto', chave: kEnd });
+    if (!temContrato) faltaAtv.push({ campo: 'contrato vigente', tipo: 'externo' });
+    return { onboarding: faltaOnb, ativo: faltaAtv };
+  }
+
+  // O que importa depende da etapa atual: cobrar de um Lead o que so e exigido
+  // em Ativo gera ruido e faz a lista ser ignorada.
+  function pendAlvo(etapa, falta) {
+    if (etapa === 'Perdido/Desistiu') return null;
+    if (etapa === 'Lead' || etapa === 'Em negociação') {
+      return falta.onboarding.length ? { rotulo: 'Para Em onboarding', itens: falta.onboarding } : null;
+    }
+    if (etapa === 'Em onboarding') {
+      var itens = falta.onboarding.concat(falta.ativo);
+      return itens.length ? { rotulo: 'Para Ativo', itens: itens } : null;
+    }
+    if (etapa === 'Ativo') {
+      var todos = falta.onboarding.concat(falta.ativo);
+      return todos.length ? { rotulo: 'Cadastro incompleto (ja esta Ativo)', itens: todos } : null;
+    }
+    var outros = falta.onboarding.concat(falta.ativo);
+    return outros.length ? { rotulo: 'Pendente', itens: outros } : null;
+  }
+
+  async function pendQueryTudo(dbId, filtro) {
+    var tudo = [], cursor;
+    do {
+      var corpo = { page_size: 100 };
+      if (cursor) corpo.start_cursor = cursor;
+      if (filtro) corpo.filter = filtro;
+      var r = await fetch(PEND_PROXY + '/v1/databases/' + dbId + '/query', {
+        method: 'POST', headers: pendHeaders(), body: JSON.stringify(corpo)
+      });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      var j = await r.json();
+      tudo = tudo.concat(j.results || []);
+      cursor = j.has_more ? j.next_cursor : null;
+    } while (cursor);
+    return tudo;
+  }
+
+  async function pendCarregar() {
+    if (pendEstado.carregando) return;
+    pendEstado.carregando = true;
+    var raiz = document.getElementById('pend-root');
+    if (raiz) {
+      raiz.innerHTML = '<div style="display:flex;align-items:center;padding:50px 0;color:rgba(242,221,198,.6);font-size:13px;">'
+        + '<div class="spinner" style="margin-right:12px;"></div> Varrendo cadastros...</div>';
+    }
+    try {
+      var res = await Promise.all([
+        pendQueryTudo(NOTION_DB.clientes),
+        pendQueryTudo(NOTION_DB.contratos).catch(function (e) { console.warn('[PEND] contratos:', e); return null; })
+      ]);
+      var clientes = res[0];
+      var contratos = res[1];
+
+      // Clientes com contrato vigente
+      var comVigente = {};
+      if (contratos) {
+        contratos.forEach(function (c) {
+          var sit = pendTxt(c.properties['Situação'] || c.properties['Situacao']);
+          if (sit !== 'Vigente') return;
+          (c.properties['Cliente'] && c.properties['Cliente'].relation || []).forEach(function (r) {
+            comVigente[r.id.replace(/-/g, '')] = true;
+          });
+        });
+      }
+
+      var linhas = [];
+      clientes.forEach(function (c) {
+        var props = c.properties;
+        var etapa = pendTxt(props['Etapa do Funil']);
+        var id = c.id.replace(/-/g, '');
+        // Sem a base de contratos, nao da para afirmar que falta contrato.
+        var temContrato = contratos ? !!comVigente[id] : true;
+        var alvo = pendAlvo(etapa, pendAvaliar(props, temContrato));
+        if (!alvo) return;
+        linhas.push({
+          id: c.id,
+          nome: notionTitulo(props) || '(sem nome)',
+          px: pendTxt(props['ID Praxes']),
+          etapa: etapa || '(sem etapa)',
+          rotulo: alvo.rotulo,
+          itens: alvo.itens
+        });
+      });
+
+      // Quem esta mais perto de ficar completo aparece primeiro
+      linhas.sort(function (a, b) {
+        if (a.itens.length !== b.itens.length) return a.itens.length - b.itens.length;
+        return a.nome.localeCompare(b.nome);
+      });
+
+      pendEstado.linhas = linhas;
+      pendEstado.carregado = true;
+      pendEstado.semContratos = !contratos;
+      pendRender();
+    } catch (e) {
+      console.error('[PEND] falha:', e);
+      if (raiz) {
+        raiz.innerHTML = '<div style="background:rgba(178,74,46,.12);border:1px solid rgba(178,74,46,.4);border-radius:8px;padding:16px 18px;font-size:13px;color:#e8b9a5;">'
+          + '<div style="font-weight:600;margin-bottom:6px;">Nao foi possivel varrer os cadastros.</div>'
+          + '<div style="font-size:12px;margin-bottom:10px;">' + pendEsc(e.message) + '</div>'
+          + '<button id="pend-retry" style="padding:7px 14px;border:1px solid rgba(242,221,198,.3);border-radius:6px;background:transparent;color:var(--praxes-sand,#f2ddc6);font-size:12px;cursor:pointer;">Tentar novamente</button></div>';
+        var b = document.getElementById('pend-retry');
+        if (b) b.onclick = function () { pendEstado.carregando = false; pendCarregar(); };
+      }
+    } finally {
+      pendEstado.carregando = false;
+    }
+  }
+
+  function pendCampoEditor(linha, item, idx) {
+    var base = 'pend-' + linha.id.replace(/-/g, '') + '-' + idx;
+    if (item.tipo === 'externo') {
+      return '<div style="font-size:12px;color:rgba(242,221,198,.55);padding:6px 0;">'
+        + pendEsc(item.campo) + ' — registrar na aba Cadastro do cliente</div>';
+    }
+    var entrada;
+    if (item.tipo === 'select') {
+      entrada = '<select id="' + base + '" style="padding:6px 9px;border:1px solid rgba(242,221,198,.22);border-radius:5px;background:rgba(0,0,0,.25);color:var(--praxes-sand,#f2ddc6);font-size:12px;font-family:inherit;">'
+        + '<option value="">' + pendEsc(item.campo) + '...</option>'
+        + item.opcoes.map(function (o) { return '<option value="' + pendEsc(o) + '">' + pendEsc(o) + '</option>'; }).join('')
+        + '</select>';
+    } else {
+      entrada = '<input id="' + base + '" type="' + (item.tipo === 'data' ? 'date' : 'text') + '" placeholder="' + pendEsc(item.campo) + '" '
+        + 'style="padding:6px 9px;border:1px solid rgba(242,221,198,.22);border-radius:5px;background:rgba(0,0,0,.25);color:var(--praxes-sand,#f2ddc6);font-size:12px;font-family:inherit;min-width:200px;">';
+    }
+    return '<div style="display:flex;align-items:center;gap:8px;margin:5px 0;">'
+      + '<span style="font-size:12px;color:rgba(242,221,198,.6);min-width:150px;">' + pendEsc(item.campo) + '</span>'
+      + entrada
+      + '<button data-pagina="' + linha.id + '" data-campo="' + pendEsc(item.chave) + '" data-tipo="' + item.tipo + '" data-alvo="' + base + '" '
+      + 'class="pend-salvar" style="padding:6px 12px;border:none;border-radius:5px;background:rgba(242,221,198,.16);color:var(--praxes-sand,#f2ddc6);font-size:12px;cursor:pointer;font-family:inherit;">Salvar</button>'
+      + '<span id="' + base + '-st" style="font-size:11px;color:rgba(242,221,198,.5);"></span></div>';
+  }
+
+  function pendRender() {
+    var raiz = document.getElementById('pend-root');
+    if (!raiz) return;
+    var linhas = pendEstado.linhas;
+    if (!linhas.length) {
+      raiz.innerHTML = '<div style="padding:40px 0;text-align:center;color:rgba(242,221,198,.55);font-size:13px;">Nenhuma pendencia de cadastro.</div>';
+      return;
+    }
+    var aviso = pendEstado.semContratos
+      ? '<div style="background:rgba(178,74,46,.12);border:1px solid rgba(178,74,46,.35);border-radius:7px;padding:10px 13px;font-size:12px;color:#e8b9a5;margin-bottom:14px;">'
+        + 'A base de contratos nao carregou. A exigencia de contrato vigente foi ignorada nesta lista.</div>'
+      : '';
+
+    var html = aviso
+      + '<div style="font-size:12px;color:rgba(242,221,198,.55);margin-bottom:4px;">'
+      + 'Quem esta mais perto de ficar completo aparece primeiro.</div>'
+      + '<div style="font-size:12px;color:rgba(242,221,198,.75);margin-bottom:16px;">'
+      + linhas.length + ' cadastro(s) com pendencia</div>';
+
+    linhas.forEach(function (l) {
+      html += '<div style="border:1px solid rgba(242,221,198,.14);border-radius:9px;padding:14px 16px;margin-bottom:12px;background:rgba(242,221,198,.025);">'
+        + '<div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:9px;">'
+        + '<span style="font-size:14px;font-weight:600;color:var(--praxes-sand,#f2ddc6);">' + pendEsc(l.nome) + '</span>'
+        + (l.px ? '<span style="font-size:11px;color:rgba(242,221,198,.5);">' + pendEsc(l.px) + '</span>' : '')
+        + '<span style="font-size:11px;border:1px solid rgba(242,221,198,.25);border-radius:11px;padding:2px 9px;color:rgba(242,221,198,.7);">' + pendEsc(l.etapa) + '</span>'
+        + '</div>'
+        + '<div style="font-size:11px;letter-spacing:.07em;color:rgba(242,221,198,.45);margin-bottom:4px;">' + pendEsc(l.rotulo.toUpperCase()) + '</div>';
+      l.itens.forEach(function (it, i) { html += pendCampoEditor(l, it, i); });
+      html += '</div>';
+    });
+
+    raiz.innerHTML = html;
+    Array.prototype.forEach.call(raiz.querySelectorAll('.pend-salvar'), function (b) {
+      b.onclick = function () { pendSalvarCampo(b); };
+    });
+  }
+
+  async function pendSalvarCampo(botao) {
+    var paginaId = botao.getAttribute('data-pagina');
+    var campo    = botao.getAttribute('data-campo');
+    var tipo     = botao.getAttribute('data-tipo');
+    var alvo     = botao.getAttribute('data-alvo');
+    var el = document.getElementById(alvo);
+    var st = document.getElementById(alvo + '-st');
+    var valor = el ? el.value.trim() : '';
+    if (!valor) { if (st) st.textContent = 'Preencha antes.'; return; }
+
+    var props = {};
+    if (tipo === 'select')      props[campo] = { select: { name: valor } };
+    else if (tipo === 'data')   props[campo] = { date: { start: valor } };
+    else                        props[campo] = { rich_text: [{ text: { content: valor } }] };
+
+    if (st) st.textContent = 'Salvando...';
+    botao.disabled = true;
+    try {
+      var r = await fetch(PEND_PROXY + '/v1/pages/' + paginaId.replace(/-/g, ''), {
+        method: 'PATCH', headers: pendHeaders(), body: JSON.stringify({ properties: props })
+      });
+      if (!r.ok) {
+        var t = await r.text();
+        throw new Error('HTTP ' + r.status + ' ' + t.slice(0, 160));
+      }
+      if (st) { st.textContent = 'Salvo.'; st.style.color = '#8fc8a0'; }
+      botao.style.display = 'none';
+      if (el) el.disabled = true;
+    } catch (e) {
+      console.error('[PEND] salvar:', e);
+      if (st) { st.textContent = 'Falhou: ' + e.message; st.style.color = '#e8a5a5'; }
+      botao.disabled = false;
+    }
+  }
+
+  window.adminPendLoad = function () {
+    pendEstado.carregando = false;
+    pendCarregar();
+  };
+  window.adminPendRecarregar = function () {
+    pendEstado.carregado = false;
+    window.adminPendLoad();
+  };
+
+  })();
+  // ==================== FIM MODULO PENDENCIAS ====================
 
   </script>
   <!-- ========== MODAL FINANCIAMENTO ========== -->
