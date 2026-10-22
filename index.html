@@ -2193,6 +2193,13 @@
           </div>
         </div>
 
+        <div class="nav-item" data-page="cadastro">
+          <div class="nav-item-main">
+            <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 9h8M8 13h5"/></svg></span>
+            Cadastro
+          </div>
+        </div>
+
         <div class="nav-item" data-page="perfil">
           <div class="nav-item-main">
             <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></span>
@@ -3224,6 +3231,15 @@
         </div>
 
         <!-- PERFIL PAGE -->
+        <!-- CADASTRO PAGE -->
+        <div class="page praxes-ilha-clara" id="page-cadastro">
+          <div id="cad-root">
+            <div style="display:flex;align-items:center;justify-content:center;padding:60px 0;color:var(--fg-3,#999);font-size:14px;">
+              <div class="spinner" style="margin-right:12px;"></div> Carregando cadastro...
+            </div>
+          </div>
+        </div>
+
         <div class="page praxes-ilha-clara" id="page-perfil">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;" id="perfil-grid">
             <div class="loading"><div class="spinner"></div><p>Carregando...</p></div>
@@ -4919,6 +4935,7 @@
         atas:        '1ec701b863e680dca7e0f3b31c65d035', // Atas de Reuniao
         objetivos:   '387701b863e6806194f3c04af9069c09', // Objetivos de Clientes
         contas:      '3cf701b863e680529f26f950bb5fca94', // Base de Contas
+        contratos:   '155a087c6d2e4eefb5f5d6881a698f2c', // Contratos Praxes
         templateAta: '1ec701b863e68053842bc7b54b597e91'  // Pagina-modelo de ata (ID de PAGINA)
       },
       teste: {
@@ -4928,6 +4945,7 @@
         atas:        'f62701b863e682d2aed381dbb19cab91', // Atas de Reuniao - Clientes (TESTE)
         objetivos:   '3c4701b863e68296964681ae174ac4d3', // Objetivos de Cliente (TESTE)
         contas:      '879701b863e683a890700106085f5805', // Base de Contas (TESTE)
+        contratos:   '27c701b863e682d5aa2781efbe512163', // Contratos Praxes (TESTE)
         // ATENCAO: templateAta e ID de PAGINA, nao de database.
         // O codigo le os blocos filhos dessa pagina para montar a ata nova.
         templateAta: '152701b863e68377a0f481932b0ac18c'  // Pagina-modelo de ata (TESTE)
@@ -5027,6 +5045,7 @@
         reunioes:         'Reuniões',
         'reuniao-detalhe': 'Ata de Reunião',
         objetivos:        'Objetivos',
+        cadastro:         'Cadastro do Cliente',
         perfil:           'Perfil & Família'
       };
       document.getElementById('top-title').textContent = titles[pageName] || 'Praxes';
@@ -5043,6 +5062,7 @@
       if (pageName === 'tarefas')    { _tarLoaded = false; tarefasInit(); }
       if (pageName === 'reunioes')   { _reuLoaded = false; reunioesInit(); }
       if (pageName === 'objetivos')  { _objLoaded = false; objetivosInit(); }
+      if (pageName === 'cadastro')   { cadInit(); }
       if (pageName === 'perfil')     { perfilInit(); }
     }
 
@@ -19506,6 +19526,624 @@ Esta ação não pode ser desfeita.`)) return;
   // ============================================================
   // ========== FIM PDF ATA =====================================
   // ============================================================
+
+
+  // ==================== MODULO CADASTRO ====================
+  // Aba de Cadastro do cliente: dados pessoais, contratos e contas.
+  // Grava direto no Notion com ENVIO SELETIVO: so vai para a API o campo que
+  // o usuario alterou de fato. Campo nao tocado nunca e enviado, entao salvar
+  // jamais apaga dado existente.
+  (function () {
+
+  var CAD_PROXY = 'https://urckolcywijllkdyjcgc.supabase.co/functions/v1/notion-proxy';
+  function cadUrl(path) { return CAD_PROXY + path; }
+  function cadHeaders() { return { 'Content-Type': 'application/json' }; }
+
+  // Consultores do Notion (campo people exige UUID, nao nome)
+  var CAD_PESSOAS = [
+    { id: '1f2d872b-594c-817b-bb7d-00026db7ced4', nome: 'Luiz Beck',              email: 'luiz@praxes.com.br' },
+    { id: '1f2d872b-594c-8115-9dd0-000256f46389', nome: 'Alexandre Amorim',       email: 'amorim@praxes.com.br' },
+    { id: '1e7d872b-594c-813b-8865-0002b484a81e', nome: 'Caio H. Alberconi',      email: 'caio@praxes.com.br' },
+    { id: '3c3d872b-594c-8173-b4eb-000223883306', nome: 'Henrique L. Pereira',    email: 'henrique.pereira@praxes.com.br' },
+    { id: '3c3d872b-594c-8132-8bb0-000220c007b9', nome: 'Joao Henrique Oliveira', email: 'joao.oliveira@praxes.com.br' },
+    { id: '3dbd872b-594c-8114-8eec-0002da7a3218', nome: 'Renata Amaral',          email: 'renata.amaral@praxes.com.br' },
+    { id: '1a7d872b-594c-8187-93b9-0002690009a5', nome: 'Administrativo Praxes',  email: 'administrativo@praxes.com.br' }
+  ];
+
+  var CAD_ESTADO_CIVIL = ['SOLTEIRO (A)', 'CASADO (A)', 'DIVORCIADO (A)', 'VIUVO (A)', 'UNIAO ESTAVEL', 'COMUNHAO PARCIAL DE BENS'];
+  var CAD_ORIGEM       = ['Indicacao', 'Inbound', 'Evento', 'Prospeccao ativa', 'Outro'];
+  var CAD_ETAPAS       = ['Lead', 'Em negociacao', 'Em onboarding', 'Ativo', 'Perdido/Desistiu'];
+  var CAD_SERVICOS     = ['Consultoria', 'PFP'];
+
+  // As opcoes acima sao exibidas; os valores REAIS do Notion tem acento.
+  // Este mapa traduz na hora de gravar, para nao criar opcao nova por engano.
+  var CAD_MAPA_VALOR = {
+    'VIUVO (A)': 'VIÚVO (A)',
+    'UNIAO ESTAVEL': 'UNIÃO ESTÁVEL',
+    'COMUNHAO PARCIAL DE BENS': 'COMUNHÃO PARCIAL DE BENS',
+    'Indicacao': 'Indicação',
+    'Prospeccao ativa': 'Prospecção ativa',
+    'Em negociacao': 'Em negociação'
+  };
+  function cadValorNotion(v) { return CAD_MAPA_VALOR[v] || v; }
+  function cadValorTela(v) {
+    for (var k in CAD_MAPA_VALOR) { if (CAD_MAPA_VALOR[k] === v) return k; }
+    return v;
+  }
+
+  var cadEstado = {
+    carregando: false,
+    paginaId: null,
+    props: null,
+    contratos: [],
+    contas: [],
+    inicial: {},      // valores como vieram do Notion
+    editando: false
+  };
+
+  // ---------- utilitarios ----------
+  function cadEsc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+  function cadTexto(p) {
+    if (!p) return '';
+    if (p.type === 'title')     return (p.title || []).map(function (t) { return t.plain_text; }).join('');
+    if (p.type === 'rich_text') return (p.rich_text || []).map(function (t) { return t.plain_text; }).join('');
+    if (p.type === 'email')     return p.email || '';
+    if (p.type === 'phone_number') return p.phone_number || '';
+    if (p.type === 'select')    return p.select ? p.select.name : '';
+    if (p.type === 'status')    return p.status ? p.status.name : '';
+    if (p.type === 'date')      return p.date ? p.date.start : '';
+    if (p.type === 'number')    return p.number == null ? '' : String(p.number);
+    if (p.type === 'checkbox')  return p.checkbox ? 'Sim' : 'Nao';
+    if (p.type === 'multi_select') return (p.multi_select || []).map(function (o) { return o.name; }).join(', ');
+    if (p.type === 'people')    return (p.people || []).map(function (u) { return u.name || u.id; }).join(', ');
+    return '';
+  }
+  function cadData(iso) {
+    if (!iso) return '';
+    var d = String(iso).slice(0, 10).split('-');
+    if (d.length !== 3) return iso;
+    return d[2] + '/' + d[1] + '/' + d[0];
+  }
+  function cadMoeda(n) {
+    if (n == null || n === '') return '';
+    return 'R$ ' + Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  // Taxa no Notion e fracao decimal (0,005 = 0,5%) nas tres bases.
+  function cadTaxa(n) {
+    if (n == null || n === '') return '';
+    return (Number(n) * 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 3 }) + '%';
+  }
+  function cadHoje() { return new Date().toISOString().slice(0, 10); }
+  function cadDiaAnterior(iso) {
+    var d = new Date(iso + 'T12:00:00');
+    d.setDate(d.getDate() - 1);
+    return d.toISOString().slice(0, 10);
+  }
+  function cadMesesEntre(ini, fim) {
+    if (!ini || !fim) return null;
+    var a = new Date(ini + 'T12:00:00'), b = new Date(fim + 'T12:00:00');
+    var m = (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth());
+    if (b.getDate() < a.getDate()) m--;
+    return m < 0 ? 0 : m;
+  }
+
+  // ---------- portao do funil ----------
+  // Regra: campo obrigatorio para o cadastro avancar de etapa.
+  function cadPendencias(props, contratos) {
+    var falta = { onboarding: [], ativo: [] };
+    if (!cadTexto(props['CPF'])) falta.onboarding.push('CPF');
+    if (!cadTexto(props['Data de Nascimento'])) falta.onboarding.push('data de nascimento');
+    if (!cadTexto(props['Estado Civil'])) falta.ativo.push('estado civil');
+    if (!cadTexto(props['Endereco'] || props['Endereço'])) falta.ativo.push('endereco');
+    var temVigente = (contratos || []).some(function (c) {
+      return cadTexto(c.properties['Situacao'] || c.properties['Situação']) === 'Vigente';
+    });
+    if (!temVigente) falta.ativo.push('contrato vigente');
+    return falta;
+  }
+
+  // ---------- leitura ----------
+  async function cadBuscarContratos(paginaId) {
+    var r = await fetch(cadUrl('/v1/databases/' + NOTION_DB.contratos + '/query'), {
+      method: 'POST', headers: cadHeaders(),
+      body: JSON.stringify({ filter: { property: 'Cliente', relation: { contains: paginaId } } })
+    });
+    if (!r.ok) throw new Error('contratos HTTP ' + r.status);
+    var j = await r.json();
+    return (j.results || []).sort(function (a, b) {
+      var da = cadTexto(a.properties['Data de inicio'] || a.properties['Data de início']) || '';
+      var dbb = cadTexto(b.properties['Data de inicio'] || b.properties['Data de início']) || '';
+      return dbb.localeCompare(da);
+    });
+  }
+
+  async function cadBuscarContas(paginaId) {
+    var r = await fetch(cadUrl('/v1/databases/' + NOTION_DB.contas + '/query'), {
+      method: 'POST', headers: cadHeaders(),
+      body: JSON.stringify({ filter: { property: 'Cliente', relation: { contains: paginaId } } })
+    });
+    if (!r.ok) throw new Error('contas HTTP ' + r.status);
+    var j = await r.json();
+    return j.results || [];
+  }
+
+  // ---------- render ----------
+  function cadLinha(rotulo, valor, dica) {
+    return '<div style="display:flex;gap:16px;padding:7px 0;border-bottom:1px solid var(--border-1,#eee);">'
+      + '<div style="min-width:180px;color:var(--fg-3,#888);font-size:13px;">' + cadEsc(rotulo) + '</div>'
+      + '<div style="flex:1;font-size:13px;color:var(--fg-1,#222);">' + (valor ? cadEsc(valor) : '<span style="color:#bbb;">—</span>')
+      + (dica ? '<span style="color:#b24a2e;font-size:11px;margin-left:8px;">' + cadEsc(dica) + '</span>' : '')
+      + '</div></div>';
+  }
+
+  function cadCard(titulo, conteudo, acao) {
+    return '<div style="background:var(--bg-1,#fff);border:1px solid var(--border-1,#e7e2d9);border-radius:10px;padding:18px 20px;margin-bottom:16px;">'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">'
+      + '<div style="font-family:Syne,sans-serif;font-size:15px;font-weight:600;">' + cadEsc(titulo) + '</div>'
+      + (acao || '') + '</div>' + conteudo + '</div>';
+  }
+
+  function cadRenderPendencias(falta) {
+    var itens = [];
+    if (falta.onboarding.length) itens.push('<div style="margin-bottom:6px;"><b>Para Em onboarding:</b> ' + cadEsc(falta.onboarding.join(', ')) + '</div>');
+    if (falta.ativo.length)      itens.push('<div><b>Para Ativo:</b> ' + cadEsc(falta.ativo.join(', ')) + '</div>');
+    if (!itens.length) {
+      return '<div style="background:#eaf3ec;border:1px solid #cfe3d4;border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:13px;color:#2c5c3c;">'
+        + 'Cadastro completo. Nada impede a mudanca de etapa.</div>';
+    }
+    return '<div style="background:#f6ece4;border:1px solid #e4cdb9;border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:13px;color:#7a4320;">'
+      + '<div style="font-weight:600;margin-bottom:6px;">Pendencias de cadastro</div>' + itens.join('') + '</div>';
+  }
+
+  function cadRenderContratos(lista) {
+    if (!lista.length) {
+      return '<div style="font-size:13px;color:#999;padding:8px 0;">Nenhum contrato registrado.</div>';
+    }
+    var html = '<table style="width:100%;border-collapse:collapse;font-size:13px;">'
+      + '<tr style="text-align:left;color:var(--fg-3,#888);font-size:12px;">'
+      + '<th style="padding:6px 8px 6px 0;">Servico</th><th style="padding:6px 8px;">Inicio</th>'
+      + '<th style="padding:6px 8px;">Termino</th><th style="padding:6px 8px;">Taxa</th>'
+      + '<th style="padding:6px 8px;">Origem</th><th style="padding:6px 8px;">Situacao</th></tr>';
+    lista.forEach(function (c) {
+      var p = c.properties;
+      var sit = cadTexto(p['Situacao'] || p['Situação']);
+      var cor = sit === 'Vigente' ? '#2c5c3c' : (sit === 'Encerrado' ? '#888' : '#7a4320');
+      html += '<tr style="border-top:1px solid var(--border-1,#eee);">'
+        + '<td style="padding:7px 8px 7px 0;">' + cadEsc(cadTexto(p['Servico'] || p['Serviço'])) + '</td>'
+        + '<td style="padding:7px 8px;">' + cadEsc(cadData(cadTexto(p['Data de inicio'] || p['Data de início']))) + '</td>'
+        + '<td style="padding:7px 8px;">' + cadEsc(cadData(cadTexto(p['Data de termino'] || p['Data de término'])) || '—') + '</td>'
+        + '<td style="padding:7px 8px;">' + cadEsc(cadTaxa(p['Taxa'] ? p['Taxa'].number : null)) + '</td>'
+        + '<td style="padding:7px 8px;">' + cadEsc(cadTexto(p['Origem do contrato'])) + '</td>'
+        + '<td style="padding:7px 8px;color:' + cor + ';font-weight:600;">' + cadEsc(sit || '—') + '</td></tr>';
+    });
+    return html + '</table>';
+  }
+
+  function cadRenderContas(lista) {
+    if (!lista.length) {
+      return '<div style="font-size:13px;color:#999;padding:8px 0;">Nenhuma conta cadastrada.</div>';
+    }
+    var html = '<table style="width:100%;border-collapse:collapse;font-size:13px;">'
+      + '<tr style="text-align:left;color:var(--fg-3,#888);font-size:12px;">'
+      + '<th style="padding:6px 8px 6px 0;">Instituicao</th><th style="padding:6px 8px;">Conta</th>'
+      + '<th style="padding:6px 8px;">Local</th><th style="padding:6px 8px;">Taxa</th>'
+      + '<th style="padding:6px 8px;">Cobranca</th><th style="padding:6px 8px;">Status</th></tr>';
+    lista.forEach(function (c) {
+      var p = c.properties;
+      var st = cadTexto(p['Status da Conta']);
+      var cor = st === 'ATIVO' ? '#2c5c3c' : '#888';
+      html += '<tr style="border-top:1px solid var(--border-1,#eee);">'
+        + '<td style="padding:7px 8px 7px 0;">' + cadEsc(cadTexto(p['Instituicao'] || p['Instituição'])) + '</td>'
+        + '<td style="padding:7px 8px;">' + cadEsc(cadTexto(p['Conta'])) + '</td>'
+        + '<td style="padding:7px 8px;">' + cadEsc(cadTexto(p['Local da Conta'])) + '</td>'
+        + '<td style="padding:7px 8px;">' + cadEsc(cadTaxa(p['Taxa de Consultoria (%)'] ? p['Taxa de Consultoria (%)'].number : null)) + '</td>'
+        + '<td style="padding:7px 8px;">' + cadEsc(cadTexto(p['Local de Cobranca'] || p['Local de Cobrança'])) + '</td>'
+        + '<td style="padding:7px 8px;color:' + cor + ';font-weight:600;">' + cadEsc(st || '—') + '</td></tr>';
+    });
+    return html + '</table>';
+  }
+
+  function cadCampoTexto(id, rotulo, valor, tipo) {
+    return '<div style="flex:1;min-width:190px;">'
+      + '<label style="display:block;font-size:12px;color:var(--fg-3,#888);margin-bottom:4px;">' + cadEsc(rotulo) + '</label>'
+      + '<input id="' + id + '" type="' + (tipo || 'text') + '" value="' + cadEsc(valor) + '" '
+      + 'style="width:100%;padding:8px 10px;border:1px solid var(--border-1,#ddd);border-radius:6px;font-size:13px;background:var(--bg-0,#fcfaf6);color:var(--fg-1,#222);"></div>';
+  }
+
+  function cadCampoSelect(id, rotulo, valor, opcoes) {
+    var html = '<div style="flex:1;min-width:190px;">'
+      + '<label style="display:block;font-size:12px;color:var(--fg-3,#888);margin-bottom:4px;">' + cadEsc(rotulo) + '</label>'
+      + '<select id="' + id + '" style="width:100%;padding:8px 10px;border:1px solid var(--border-1,#ddd);border-radius:6px;font-size:13px;background:var(--bg-0,#fcfaf6);color:var(--fg-1,#222);">'
+      + '<option value="">Selecione...</option>';
+    opcoes.forEach(function (o) {
+      var v = (typeof o === 'string') ? o : o.id;
+      var t = (typeof o === 'string') ? o : o.nome;
+      html += '<option value="' + cadEsc(v) + '"' + (String(v) === String(valor) ? ' selected' : '') + '>' + cadEsc(t) + '</option>';
+    });
+    return html + '</select></div>';
+  }
+
+  function cadRenderFormulario(props) {
+    var pessoaAtual = (props['Consultor Responsavel'] || props['Consultor Responsável'] || {}).people || [];
+    var servicos = (props['Servico Prestado'] || props['Serviço Prestado'] || {}).multi_select || [];
+    var servNomes = servicos.map(function (s) { return s.name; });
+
+    var h = '<div style="display:flex;flex-wrap:wrap;gap:14px;margin-bottom:14px;">'
+      + cadCampoTexto('cad-f-cpf', 'CPF / CNPJ', cadTexto(props['CPF']))
+      + cadCampoTexto('cad-f-nasc', 'Data de nascimento', cadTexto(props['Data de Nascimento']), 'date')
+      + cadCampoSelect('cad-f-civil', 'Estado civil', cadValorTela(cadTexto(props['Estado Civil'])), CAD_ESTADO_CIVIL)
+      + '</div>'
+      + '<div style="display:flex;flex-wrap:wrap;gap:14px;margin-bottom:14px;">'
+      + cadCampoTexto('cad-f-email', 'E-mail', cadTexto(props['E-mail']), 'email')
+      + cadCampoTexto('cad-f-tel', 'Telefone', cadTexto(props['Telefone']))
+      + cadCampoSelect('cad-f-origem', 'Origem', cadValorTela(cadTexto(props['Origem'])), CAD_ORIGEM)
+      + '</div>'
+      + '<div style="display:flex;flex-wrap:wrap;gap:14px;margin-bottom:14px;">'
+      + '<div style="flex:1 1 100%;">'
+      + '<label style="display:block;font-size:12px;color:var(--fg-3,#888);margin-bottom:4px;">Endereco completo</label>'
+      + '<input id="cad-f-end" type="text" value="' + cadEsc(cadTexto(props['Endereco'] || props['Endereço'])) + '" '
+      + 'style="width:100%;padding:8px 10px;border:1px solid var(--border-1,#ddd);border-radius:6px;font-size:13px;background:var(--bg-0,#fcfaf6);color:var(--fg-1,#222);">'
+      + '<div style="font-size:11px;color:#999;margin-top:3px;">Linha unica: logradouro, numero, complemento, bairro, cidade, estado, CEP.</div></div>'
+      + '</div>'
+      + '<div style="display:flex;flex-wrap:wrap;gap:14px;margin-bottom:14px;">'
+      + cadCampoSelect('cad-f-etapa', 'Etapa do funil', cadValorTela(cadTexto(props['Etapa do Funil'])), CAD_ETAPAS)
+      + cadCampoSelect('cad-f-consultor', 'Consultor responsavel', pessoaAtual.length ? pessoaAtual[0].id : '', CAD_PESSOAS)
+      + '<div style="flex:1;min-width:190px;">'
+      + '<label style="display:block;font-size:12px;color:var(--fg-3,#888);margin-bottom:4px;">Servico prestado</label>'
+      + '<div style="display:flex;gap:14px;padding-top:7px;">'
+      + CAD_SERVICOS.map(function (sv) {
+          return '<label style="font-size:13px;display:flex;align-items:center;gap:5px;"><input type="checkbox" id="cad-f-sv-' + sv
+            + '"' + (servNomes.indexOf(sv) >= 0 ? ' checked' : '') + '> ' + cadEsc(sv) + '</label>';
+        }).join('')
+      + '</div></div></div>'
+      + '<div style="display:flex;gap:10px;margin-top:6px;">'
+      + '<button id="cad-btn-salvar" style="padding:9px 18px;border:none;border-radius:6px;background:var(--praxes-abyss,#041924);color:#fff;font-size:13px;cursor:pointer;">Salvar alteracoes</button>'
+      + '<button id="cad-btn-cancelar" style="padding:9px 18px;border:1px solid var(--border-1,#ddd);border-radius:6px;background:transparent;color:var(--fg-1,#222);font-size:13px;cursor:pointer;">Cancelar</button>'
+      + '<span id="cad-status" style="align-self:center;font-size:12px;color:#888;"></span></div>';
+    return h;
+  }
+
+  function cadRenderNovoContrato() {
+    return '<div id="cad-novo-contrato" style="display:none;border-top:1px solid var(--border-1,#eee);margin-top:14px;padding-top:14px;">'
+      + '<div style="display:flex;flex-wrap:wrap;gap:14px;margin-bottom:12px;">'
+      + cadCampoTexto('cad-c-inicio', 'Data de inicio', cadHoje(), 'date')
+      + cadCampoSelect('cad-c-servico', 'Servico', 'Consultoria', ['Consultoria', 'Planejamento'])
+      + cadCampoTexto('cad-c-taxa', 'Taxa (% a.a.)', '')
+      + '</div>'
+      + '<div style="display:flex;flex-wrap:wrap;gap:14px;margin-bottom:12px;">'
+      + cadCampoSelect('cad-c-origem', 'Origem do contrato', '', ['Venda direta', 'Conversao de projeto', 'Renovacao', 'Upgrade', 'Indicacao'])
+      + cadCampoTexto('cad-c-valor', 'Valor do projeto (R$)', '')
+      + cadCampoTexto('cad-c-minimo', 'Valor minimo (R$)', '')
+      + '</div>'
+      + '<div style="font-size:12px;color:#7a4320;background:#f6ece4;border:1px solid #e4cdb9;border-radius:6px;padding:9px 12px;margin-bottom:12px;">'
+      + 'Ao salvar, o contrato vigente atual (se houver) sera encerrado na vespera desta data de inicio, '
+      + 'com duracao calculada automaticamente.</div>'
+      + '<div style="display:flex;gap:10px;">'
+      + '<button id="cad-btn-criar-contrato" style="padding:9px 18px;border:none;border-radius:6px;background:var(--praxes-abyss,#041924);color:#fff;font-size:13px;cursor:pointer;">Criar contrato</button>'
+      + '<button id="cad-btn-cancelar-contrato" style="padding:9px 18px;border:1px solid var(--border-1,#ddd);border-radius:6px;background:transparent;font-size:13px;cursor:pointer;">Cancelar</button>'
+      + '<span id="cad-status-contrato" style="align-self:center;font-size:12px;color:#888;"></span></div></div>';
+  }
+
+  function cadRender() {
+    var raiz = document.getElementById('cad-root');
+    if (!raiz) return;
+    var p = cadEstado.props;
+    var falta = cadPendencias(p, cadEstado.contratos);
+
+    var dados;
+    if (cadEstado.editando) {
+      dados = cadRenderFormulario(p);
+    } else {
+      dados = cadLinha('Nome', cadTexto(p['Nome']))
+        + cadLinha('ID Praxes', cadTexto(p['ID Praxes']))
+        + cadLinha('CPF / CNPJ', cadTexto(p['CPF']), falta.onboarding.indexOf('CPF') >= 0 ? 'exigido em Onboarding' : '')
+        + cadLinha('Data de nascimento', cadData(cadTexto(p['Data de Nascimento'])), falta.onboarding.indexOf('data de nascimento') >= 0 ? 'exigido em Onboarding' : '')
+        + cadLinha('Estado civil', cadTexto(p['Estado Civil']), falta.ativo.indexOf('estado civil') >= 0 ? 'exigido em Ativo' : '')
+        + cadLinha('Profissao', cadTexto(p['Profissao'] || p['Profissão']))
+        + cadLinha('E-mail', cadTexto(p['E-mail']))
+        + cadLinha('Telefone', cadTexto(p['Telefone']))
+        + cadLinha('Endereco', cadTexto(p['Endereco'] || p['Endereço']), falta.ativo.indexOf('endereco') >= 0 ? 'exigido em Ativo' : '')
+        + cadLinha('Etapa do funil', cadTexto(p['Etapa do Funil']))
+        + cadLinha('Origem', cadTexto(p['Origem']))
+        + cadLinha('Servico prestado', cadTexto(p['Servico Prestado'] || p['Serviço Prestado']))
+        + cadLinha('Consultor responsavel', cadTexto(p['Consultor Responsavel'] || p['Consultor Responsável']))
+        + cadLinha('Taxa de consultoria', cadTaxa((p['Taxa de Consultoria'] || {}).number))
+        + cadLinha('PL atual (estimado)', cadMoeda((p['PL Atual'] || {}).number))
+        + cadLinha('PL potencial', cadMoeda((p['PL Potencial'] || {}).number));
+    }
+
+    var acaoDados = cadEstado.editando ? ''
+      : '<button id="cad-btn-editar" style="padding:6px 14px;border:1px solid var(--border-1,#ddd);border-radius:6px;background:transparent;color:var(--fg-1,#222);font-size:12px;cursor:pointer;">Editar cadastro</button>';
+    var acaoContratos = '<button id="cad-btn-novo-contrato" style="padding:6px 14px;border:1px solid var(--border-1,#ddd);border-radius:6px;background:transparent;color:var(--fg-1,#222);font-size:12px;cursor:pointer;">Novo contrato</button>';
+
+    raiz.innerHTML = cadRenderPendencias(falta)
+      + cadCard('Dados pessoais', dados, acaoDados)
+      + cadCard('Contratos', cadRenderContratos(cadEstado.contratos) + cadRenderNovoContrato(), acaoContratos)
+      + cadCard('Contas', cadRenderContas(cadEstado.contas), '');
+
+    cadLigarEventos();
+  }
+
+  function cadLigarEventos() {
+    var be = document.getElementById('cad-btn-editar');
+    if (be) be.onclick = function () { cadEstado.editando = true; cadRender(); };
+
+    var bc = document.getElementById('cad-btn-cancelar');
+    if (bc) bc.onclick = function () { cadEstado.editando = false; cadRender(); };
+
+    var bs = document.getElementById('cad-btn-salvar');
+    if (bs) bs.onclick = cadSalvar;
+
+    var bn = document.getElementById('cad-btn-novo-contrato');
+    if (bn) bn.onclick = function () {
+      var el = document.getElementById('cad-novo-contrato');
+      if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+    };
+    var bcc = document.getElementById('cad-btn-cancelar-contrato');
+    if (bcc) bcc.onclick = function () {
+      var el = document.getElementById('cad-novo-contrato');
+      if (el) el.style.display = 'none';
+    };
+    var bcr = document.getElementById('cad-btn-criar-contrato');
+    if (bcr) bcr.onclick = cadCriarContrato;
+  }
+
+  // ---------- gravacao com envio seletivo ----------
+  function cadValor(id) {
+    var el = document.getElementById(id);
+    return el ? el.value.trim() : '';
+  }
+
+  function cadMontarAlteracoes() {
+    var p = cadEstado.props;
+    var props = {};
+    var mudou = [];
+
+    function cmpTexto(id, chave, tipo) {
+      var antes = cadTexto(p[chave]) || '';
+      var agora = cadValor(id);
+      if (agora === antes) return;              // nao tocado -> nao envia
+      if (agora === '' && antes !== '') return; // vazio nao apaga (limpeza exige gesto proprio)
+      if (tipo === 'email')  props[chave] = { email: agora };
+      else if (tipo === 'phone') props[chave] = { phone_number: agora };
+      else props[chave] = { rich_text: [{ text: { content: agora } }] };
+      mudou.push(chave);
+    }
+
+    function cmpSelect(id, chave) {
+      var antes = cadTexto(p[chave]) || '';
+      var agora = cadValorNotion(cadValor(id));
+      if (agora === antes) return;
+      if (agora === '') return;
+      props[chave] = { select: { name: agora } };
+      mudou.push(chave);
+    }
+
+    function cmpData(id, chave) {
+      var antes = (cadTexto(p[chave]) || '').slice(0, 10);
+      var agora = cadValor(id);
+      if (agora === antes) return;
+      if (agora === '') return;
+      props[chave] = { date: { start: agora } };
+      mudou.push(chave);
+    }
+
+    var chaveEnd    = p['Endereço'] ? 'Endereço' : 'Endereco';
+    var chaveServ   = p['Serviço Prestado'] ? 'Serviço Prestado' : 'Servico Prestado';
+    var chaveCons   = p['Consultor Responsável'] ? 'Consultor Responsável' : 'Consultor Responsavel';
+
+    cmpTexto('cad-f-cpf', 'CPF');
+    cmpTexto('cad-f-email', 'E-mail', 'email');
+    cmpTexto('cad-f-tel', 'Telefone', 'phone');
+    cmpTexto('cad-f-end', chaveEnd);
+    cmpData('cad-f-nasc', 'Data de Nascimento');
+    cmpSelect('cad-f-civil', 'Estado Civil');
+    cmpSelect('cad-f-origem', 'Origem');
+    cmpSelect('cad-f-etapa', 'Etapa do Funil');
+
+    // Consultor (people): so envia se mudou de pessoa
+    var pessoasAntes = (p[chaveCons] || {}).people || [];
+    var idAntes = pessoasAntes.length ? pessoasAntes[0].id : '';
+    var idAgora = cadValor('cad-f-consultor');
+    if (idAgora && idAgora !== idAntes) {
+      props[chaveCons] = { people: [{ object: 'user', id: idAgora }] };
+      mudou.push(chaveCons);
+    }
+
+    // Servico prestado (multi_select): envia o conjunto so se o conjunto mudou
+    var antesServ = ((p[chaveServ] || {}).multi_select || []).map(function (s) { return s.name; }).sort().join('|');
+    var agoraArr = [];
+    CAD_SERVICOS.forEach(function (sv) {
+      var el = document.getElementById('cad-f-sv-' + sv);
+      if (el && el.checked) agoraArr.push(sv);
+    });
+    var agoraServ = agoraArr.slice().sort().join('|');
+    if (agoraServ !== antesServ && agoraArr.length) {
+      props[chaveServ] = { multi_select: agoraArr.map(function (s) { return { name: s }; }) };
+      mudou.push(chaveServ);
+    }
+
+    return { props: props, mudou: mudou };
+  }
+
+  async function cadSalvar() {
+    var st = document.getElementById('cad-status');
+    var r = cadMontarAlteracoes();
+    if (!r.mudou.length) {
+      if (st) st.textContent = 'Nada mudou.';
+      return;
+    }
+    if (st) st.textContent = 'Salvando ' + r.mudou.length + ' campo(s)...';
+    try {
+      var resp = await fetch(cadUrl('/v1/pages/' + cadEstado.paginaId.replace(/-/g, '')), {
+        method: 'PATCH', headers: cadHeaders(),
+        body: JSON.stringify({ properties: r.props })
+      });
+      if (!resp.ok) {
+        var t = await resp.text();
+        throw new Error('HTTP ' + resp.status + ' ' + t.slice(0, 200));
+      }
+      if (st) st.textContent = 'Salvo.';
+      cadEstado.editando = false;
+      await cadCarregar(true);
+    } catch (e) {
+      console.error('[CADASTRO] falha ao salvar:', e);
+      if (st) st.textContent = 'Falhou: ' + e.message;
+    }
+  }
+
+  // ---------- contratos ----------
+  async function cadCriarContrato() {
+    var st = document.getElementById('cad-status-contrato');
+    var inicio = cadValor('cad-c-inicio');
+    if (!inicio) { if (st) st.textContent = 'Informe a data de inicio.'; return; }
+    var servico = cadValor('cad-c-servico');
+    if (!servico) { if (st) st.textContent = 'Informe o servico.'; return; }
+
+    var taxaTxt = cadValor('cad-c-taxa').replace(',', '.');
+    var taxa = taxaTxt ? Number(taxaTxt) / 100 : null;   // tela em %, Notion em fracao
+    if (taxaTxt && (isNaN(taxa) || taxa <= 0 || taxa > 0.1)) {
+      if (st) st.textContent = 'Taxa fora do esperado (use pontos percentuais, ex. 0,5).';
+      return;
+    }
+    var valor  = cadValor('cad-c-valor').replace(/\./g, '').replace(',', '.');
+    var minimo = cadValor('cad-c-minimo').replace(/\./g, '').replace(',', '.');
+    var origem = cadValorNotion(cadValor('cad-c-origem'));
+
+    if (st) st.textContent = 'Gravando...';
+    try {
+      // 1) encerra o vigente, se houver
+      var vigente = cadEstado.contratos.find(function (c) {
+        return cadTexto(c.properties['Situacao'] || c.properties['Situação']) === 'Vigente';
+      });
+      if (vigente) {
+        var pv = vigente.properties;
+        var chaveSit = pv['Situação'] ? 'Situação' : 'Situacao';
+        var chaveFim = pv['Data de término'] ? 'Data de término' : 'Data de termino';
+        var chaveIni = pv['Data de início'] ? 'Data de início' : 'Data de inicio';
+        var fim = cadDiaAnterior(inicio);
+        var iniAnterior = (cadTexto(pv[chaveIni]) || '').slice(0, 10);
+        var corpo = {};
+        corpo[chaveFim] = { date: { start: fim } };
+        corpo[chaveSit] = { select: { name: 'Encerrado' } };
+        var meses = cadMesesEntre(iniAnterior, fim);
+        if (meses != null) corpo['Duracao (meses)'] = pv['Duração (meses)'] ? undefined : { number: meses };
+        if (pv['Duração (meses)']) corpo['Duração (meses)'] = { number: meses };
+        Object.keys(corpo).forEach(function (k) { if (corpo[k] === undefined) delete corpo[k]; });
+
+        var r1 = await fetch(cadUrl('/v1/pages/' + vigente.id.replace(/-/g, '')), {
+          method: 'PATCH', headers: cadHeaders(), body: JSON.stringify({ properties: corpo })
+        });
+        if (!r1.ok) throw new Error('encerrar anterior: HTTP ' + r1.status);
+      }
+
+      // 2) cria o novo
+      var modelo = cadEstado.contratos[0] ? cadEstado.contratos[0].properties : {};
+      var kSit = modelo['Situação'] ? 'Situação' : 'Situacao';
+      var kIni = modelo['Data de início'] ? 'Data de início' : 'Data de inicio';
+      var kSrv = modelo['Serviço'] ? 'Serviço' : 'Servico';
+
+      var nome = cadTexto(cadEstado.props['Nome']);
+      var novo = {};
+      novo['Contrato'] = { title: [{ text: { content: nome + ' - ' + servico + ' - ' + inicio.slice(0, 4) } }] };
+      novo['Cliente'] = { relation: [{ id: cadEstado.paginaId }] };
+      novo[kIni] = { date: { start: inicio } };
+      novo[kSrv] = { select: { name: servico } };
+      novo[kSit] = { select: { name: 'Vigente' } };
+      if (taxa != null && !isNaN(taxa)) novo['Taxa'] = { number: taxa };
+      if (valor)  novo['Valor do Projeto (R$)'] = { number: Number(valor) };
+      if (minimo) novo['Valor Mínimo (R$)'] = { number: Number(minimo) };
+      if (origem) novo['Origem do contrato'] = { select: { name: origem } };
+
+      var r2 = await fetch(cadUrl('/v1/pages'), {
+        method: 'POST', headers: cadHeaders(),
+        body: JSON.stringify({ parent: { database_id: NOTION_DB.contratos }, properties: novo })
+      });
+      if (!r2.ok) {
+        var t2 = await r2.text();
+        throw new Error('criar contrato: HTTP ' + r2.status + ' ' + t2.slice(0, 200));
+      }
+      if (st) st.textContent = 'Contrato criado.';
+      await cadCarregar(true);
+    } catch (e) {
+      console.error('[CADASTRO] falha no contrato:', e);
+      if (st) st.textContent = 'Falhou: ' + e.message;
+    }
+  }
+
+  // ---------- carga ----------
+  function cadErro(msg, detalhe) {
+    var raiz = document.getElementById('cad-root');
+    if (!raiz) return;
+    raiz.innerHTML = '<div style="background:#f6e4e4;border:1px solid #e0bcbc;border-radius:8px;padding:16px 18px;font-size:13px;color:#7a2020;">'
+      + '<div style="font-weight:600;margin-bottom:6px;">' + cadEsc(msg) + '</div>'
+      + (detalhe ? '<div style="font-size:12px;margin-bottom:10px;">' + cadEsc(detalhe) + '</div>' : '')
+      + '<button id="cad-btn-retry" style="padding:7px 14px;border:1px solid #c89a9a;border-radius:6px;background:transparent;color:#7a2020;font-size:12px;cursor:pointer;">Tentar novamente</button></div>';
+    var b = document.getElementById('cad-btn-retry');
+    if (b) b.onclick = function () { cadCarregar(true); };
+  }
+
+  async function cadCarregar(forcar) {
+    if (cadEstado.carregando) return;
+    cadEstado.carregando = true;
+    var raiz = document.getElementById('cad-root');
+    try {
+      var nome = document.getElementById('sidebar-name') ? document.getElementById('sidebar-name').textContent.trim() : '';
+      if (!nome) { cadErro('Nenhum cliente selecionado.', 'Abra um cliente e volte a esta aba.'); return; }
+
+      if (!cadEstado.paginaId || forcar) {
+        if (raiz && !cadEstado.props) {
+          raiz.innerHTML = '<div style="display:flex;align-items:center;padding:50px 0;color:#999;font-size:13px;">'
+            + '<div class="spinner" style="margin-right:12px;"></div> Carregando cadastro...</div>';
+        }
+        cadEstado.paginaId = await buscarClienteNotionId(nome, CAD_PROXY, cadHeaders(), NOTION_DB.clientes);
+      }
+      if (!cadEstado.paginaId) {
+        cadErro('Cliente nao encontrado no Notion.', 'Nome usado na busca: "' + nome + '". Verifique se bate com a base de clientes.');
+        return;
+      }
+
+      var rp = await fetch(cadUrl('/v1/pages/' + cadEstado.paginaId.replace(/-/g, '')), { headers: cadHeaders() });
+      if (!rp.ok) throw new Error('cadastro HTTP ' + rp.status);
+      var pag = await rp.json();
+      cadEstado.props = pag.properties;
+
+      var res = await Promise.all([
+        cadBuscarContratos(cadEstado.paginaId).catch(function (e) { console.warn('[CADASTRO] contratos:', e); return null; }),
+        cadBuscarContas(cadEstado.paginaId).catch(function (e) { console.warn('[CADASTRO] contas:', e); return null; })
+      ]);
+      cadEstado.contratos = res[0] || [];
+      cadEstado.contas = res[1] || [];
+      cadRender();
+
+      // Falha parcial grita, em vez de parecer "nao tem nada"
+      if (res[0] === null || res[1] === null) {
+        var aviso = document.createElement('div');
+        aviso.style.cssText = 'background:#f6e4e4;border:1px solid #e0bcbc;border-radius:8px;padding:10px 14px;font-size:12px;color:#7a2020;margin-top:4px;';
+        aviso.textContent = 'Parte dos dados nao carregou ('
+          + (res[0] === null ? 'contratos' : '') + (res[0] === null && res[1] === null ? ' e ' : '')
+          + (res[1] === null ? 'contas' : '') + '). O que aparece acima pode estar incompleto.';
+        if (raiz) raiz.appendChild(aviso);
+      }
+    } catch (e) {
+      console.error('[CADASTRO] falha ao carregar:', e);
+      cadErro('Nao foi possivel carregar o cadastro.', e.message);
+    } finally {
+      cadEstado.carregando = false;
+    }
+  }
+
+  window.cadInit = function () {
+    cadEstado.editando = false;
+    cadCarregar(true);
+  };
+
+  })();
+  // ==================== FIM MODULO CADASTRO ====================
 
   </script>
   <!-- ========== MODAL FINANCIAMENTO ========== -->
