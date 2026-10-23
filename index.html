@@ -2478,13 +2478,14 @@
                       <h3 class="detalhes-section-title" style="margin-bottom:0;">Fluxo de Caixa Mensal</h3>
                       <div style="display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:#777;">
                         <span><span style="display:inline-block;width:10px;height:10px;background:#16a34a;border-radius:2px;margin-right:4px;"></span>Receitas</span>
+                        <span><span style="display:inline-block;width:10px;height:10px;background:#64748b;border-radius:2px;margin-right:4px;"></span>Imobiliária</span>
                         <span><span style="display:inline-block;width:10px;height:10px;background:#2e6b8e;border-radius:2px;margin-right:4px;"></span>Desp. Recorrentes</span>
                         <span><span style="display:inline-block;width:10px;height:10px;background:#f59e0b;border-radius:2px;margin-right:4px;"></span>Desp. Extraordinárias</span>
                         <span><span style="display:inline-block;width:10px;height:10px;background:#8b5cf6;border-radius:2px;margin-right:4px;"></span>Investimentos</span>
                       </div>
                     </div>
                     <div style="height:300px;"><canvas id="chart-fluxo-caixa"></canvas></div>
-                    <div id="fluxo-resumo" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:16px;"></div>
+                    <div id="fluxo-resumo" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:16px;"></div>
                   </div>
                 </div>
 
@@ -6963,19 +6964,25 @@
       caracteristicas: []
     };
     
+    // Faixa lida de cada aba de imóveis. Despesas_Recorrentes vai até J por
+    // causa das colunas de vigência (F–J).
+    const IMV_FAIXAS = {
+      historico:          'Historico_Valores!A2:E5000',
+      despesasRec:        'Despesas_Recorrentes!A2:J2000',
+      despesasExt:        'Despesas_Extraordinarias!A2:F5000',
+      despesasRealizadas: 'Despesas_Realizadas!A2:F20000',
+      ocupacao:           'Ocupacao!A2:M2000',
+      investimentos:      'Investimentos!A2:E5000',
+      receitas:           'Receitas!A2:F10000',
+      caracteristicas:    'Características!A2:Z1000'
+    };
+
     // Recarrega apenas uma aba específica do cache
     async function reloadCacheTab(tabName) {
       try {
-        const ranges = {
-          'historico': 'Historico_Valores!A2:E100',
-          'despesasRec': 'Despesas_Recorrentes!A2:E100',
-          'despesasExt': 'Despesas_Extraordinarias!A2:F100',
-          'despesasRealizadas': 'Despesas_Realizadas!A2:F500',
-          'ocupacao': 'Ocupacao!A2:M100',
-          'investimentos': 'Investimentos!A2:E100',
-          'receitas': 'Receitas!A2:F100',
-          'caracteristicas': 'Características!A2:Z10'
-        };
+        // Faixas antes paravam na linha 100 (e Características na 10): o que
+        // passava disso sumia da conta sem aviso.
+        const ranges = IMV_FAIXAS;
         
         if (!ranges[tabName]) return;
         
@@ -6998,11 +7005,11 @@
         const response = await gapi.client.sheets.spreadsheets.values.batchGet({
           spreadsheetId: imoveisSheetId,
           ranges: [
-            'Lista!A2:X100',
-            'Historico_Valores!A2:E100',
-            'Despesas_Recorrentes!A2:E100',
-            'Despesas_Extraordinarias!A2:F100',
-            'Ocupacao!A2:M100'
+            'Lista!A2:X1000',
+            IMV_FAIXAS.historico,
+            IMV_FAIXAS.despesasRec,
+            IMV_FAIXAS.despesasExt,
+            IMV_FAIXAS.ocupacao
           ]
         });
         const [lista, historico, despRec, despExt, ocupacao] = response.result.valueRanges;
@@ -7014,10 +7021,10 @@
 
         // Abas opcionais — carregadas individualmente para não quebrar se não existirem
         const opcionais = [
-          { key: 'investimentos',      range: 'Investimentos!A2:E100' },
-          { key: 'receitas',           range: 'Receitas!A2:F100' },
-          { key: 'caracteristicas',    range: 'Características!A2:Z10' },
-          { key: 'despesasRealizadas', range: 'Despesas_Realizadas!A2:F500' }
+          { key: 'investimentos',      range: IMV_FAIXAS.investimentos },
+          { key: 'receitas',           range: IMV_FAIXAS.receitas },
+          { key: 'caracteristicas',    range: IMV_FAIXAS.caracteristicas },
+          { key: 'despesasRealizadas', range: IMV_FAIXAS.despesasRealizadas }
         ];
         for (const op of opcionais) {
           try {
@@ -7148,61 +7155,49 @@
       
       document.getElementById('carteira-resumo').style.display = 'block';
       
-      // Calcula métricas agregadas
-      let totalValorAtual = 0;
-      let totalValorCompra = 0;
-      let totalInvestido = 0;
-      let totalAluguel = 0;
-      let countOcupados = 0;
-      let somaYield = 0;
-      let countComYield = 0;
-      
-      // Busca dados de despesas e ocupação para cada imóvel
+      // Soma o motor de cada imóvel. Antes o cash flow era "aluguel × 75%"
+      // (despesa estimada fixa em 25%) e o Total Return repetia a valorização.
+      let totalValorAtual = 0, totalValorCompra = 0, totalInvestido = 0;
+      let totalAluguel = 0, totalResultadoMes = 0, totalResultadoAcum = 0;
+      let totalImob12 = 0;
+      // Yield e ocupação só fazem sentido para imóvel de investimento
+      let invValorAtual = 0, invResultado12Anual = 0, invComJanela = 0;
+      let nInvest = 0, countOcupados = 0;
+      const avisosCarteira = [];
+
       for (const row of imoveis) {
         if (!row[0]) continue;
-        
         const nome = row[0];
-        const valorCompra = parseFloat(String(row[5] || '0').replace(/[^\d.-]/g, '')) || 0;
+        const mt = await imovelMotor(nome);
+        const valorCompra = imvNum(row[5]);
         const valorAtual = getValorAtualImovel(nome, row[7]);
-        
-        totalValorAtual += valorAtual;
-        totalValorCompra += valorCompra;
-        
-        // Busca despesas extras
-        const despesasExt = await loadDespesasExtraordinarias(nome);
-        const totalDespExtra = despesasExt.reduce((sum, d) => sum + d.valor, 0);
-        totalInvestido += valorCompra + totalDespExtra;
-        
-        // Busca aluguel e yield da ocupação
-        const ocupacao = await loadOcupacao(nome);
-        const ocupacaoAtual = ocupacao.find(o => o.status === 'Ocupado');
-        
-        if (ocupacaoAtual) {
-          const aluguel = ocupacaoAtual.valorAluguel;
-          totalAluguel += aluguel;
-          countOcupados++;
-          
-          // Calcula yield líquido
-          const despesasRec = await loadDespesasRecorrentes(nome);
-          const despesasMensais = despesasRec.reduce((sum, d) => sum + d.valorMensal, 0);
-          const despesasAnuais = despesasMensais * 12;
-          
-          if (valorAtual > 0 && aluguel > 0) {
-            const yieldLiquido = (((aluguel * 12) - despesasAnuais) / valorAtual * 100);
-            somaYield += yieldLiquido;
-            countComYield++;
+
+        totalValorAtual    += valorAtual;
+        totalValorCompra   += valorCompra;
+        totalInvestido     += mt.custoTotal;
+        totalAluguel       += mt.aluguelAtual;
+        totalResultadoMes  += mt.resultadoMedioMensal;
+        totalResultadoAcum += mt.resultadoAcumulado;
+        totalImob12        += mt.taxaImob12;
+        if (mt.avisos.length) avisosCarteira.push(nome);
+
+        if (row[2] !== 'Uso Pessoal') {
+          nInvest++;
+          if (mt.locadoAgora) countOcupados++;
+          if (mt.mesesNaJanela > 0 && valorAtual > 0) {
+            invValorAtual += valorAtual;
+            invResultado12Anual += mt.resultado12 * 12 / mt.mesesNaJanela;
+            invComJanela++;
           }
         }
       }
-      
-      // Calcula médias
+
       const valorizacao = totalValorCompra > 0 ? ((totalValorAtual - totalValorCompra) / totalValorCompra * 100).toFixed(1) : 0;
-      const yieldMedio = countComYield > 0 ? (somaYield / countComYield).toFixed(2) : 0;
-      const taxaOcupacao = imoveis.length > 0 ? ((countOcupados / imoveis.length) * 100).toFixed(1) : 0;
-      
-      // Calcula cash flow médio estimado
-      const despesasMediasEstimadas = totalAluguel * 0.25; // 25% das receitas
-      const cashFlowMensal = totalAluguel - despesasMediasEstimadas;
+      // Yield ponderado pelo valor (imóvel de R$ 5 mi pesa mais que um de R$ 500 mil)
+      const yieldMedio = invValorAtual > 0 ? (invResultado12Anual / invValorAtual * 100).toFixed(2) : '—';
+      const taxaOcupacao = nInvest > 0 ? ((countOcupados / nInvest) * 100).toFixed(1) : '—';
+      const cashFlowMensal = totalResultadoMes;
+      const totalReturn = totalInvestido > 0 ? (totalValorAtual - totalInvestido + totalResultadoAcum) / totalInvestido * 100 : 0;
       
       // CRIA GRÁFICO DE EVOLUÇÃO
       await renderCarteiraChart(imoveis);
@@ -7233,34 +7228,39 @@
         </div>
         <div class="carteira-card">
           <div class="carteira-label">Yield Médio</div>
-          <div class="carteira-valor">${yieldMedio}% a.a.</div>
-          <div class="carteira-subtitulo">Líquido de despesas</div>
+          <div class="carteira-valor">${yieldMedio}${yieldMedio === '—' ? '' : '% a.a.'}</div>
+          <div class="carteira-subtitulo">Líquido, últimos 12 meses</div>
         </div>
         <div class="carteira-card">
           <div class="carteira-label">Total Investido</div>
           <div class="carteira-valor">${fmt(totalInvestido)}</div>
-          <div class="carteira-subtitulo">Compra + despesas</div>
+          <div class="carteira-subtitulo">Compra + obras e investimentos</div>
         </div>
         <div class="carteira-card">
           <div class="carteira-label">Aluguel Mensal</div>
           <div class="carteira-valor">${fmt(totalAluguel)}</div>
-          <div class="carteira-subtitulo">${countOcupados} ocupado${countOcupados !== 1 ? 's' : ''}</div>
+          <div class="carteira-subtitulo">${countOcupados} ocupado${countOcupados !== 1 ? 's' : ''}${totalImob12 > 0 ? ` · imobiliária ${fmt(totalImob12)} em 12m` : ''}</div>
         </div>
         <div class="carteira-card">
           <div class="carteira-label">Cash Flow</div>
           <div class="carteira-valor stat-change ${cashFlowMensal >= 0 ? 'positive' : 'negative'}">${fmt(cashFlowMensal)}</div>
-          <div class="carteira-subtitulo">Mensal estimado</div>
+          <div class="carteira-subtitulo">Média mensal, últimos 12 meses</div>
         </div>
         <div class="carteira-card">
           <div class="carteira-label">Taxa Ocupação</div>
-          <div class="carteira-valor">${taxaOcupacao}%</div>
-          <div class="carteira-subtitulo">${countOcupados}/${imoveis.length} ocupados</div>
+          <div class="carteira-valor">${taxaOcupacao}${taxaOcupacao === '—' ? '' : '%'}</div>
+          <div class="carteira-subtitulo">${countOcupados}/${nInvest} de investimento ocupados</div>
         </div>
         <div class="carteira-card">
           <div class="carteira-label">Total Return</div>
-          <div class="carteira-valor stat-change ${valorizacao >= 0 ? 'positive' : 'negative'}">${variacaoSymbol}${valorizacao}%</div>
-          <div class="carteira-subtitulo">Valorização total</div>
+          <div class="carteira-valor stat-change ${totalReturn >= 0 ? 'positive' : 'negative'}">${totalReturn >= 0 ? '+' : ''}${totalReturn.toFixed(1)}%</div>
+          <div class="carteira-subtitulo">Valorização + resultado acumulado</div>
         </div>
+        ${avisosCarteira.length ? `
+        <div class="carteira-card" style="grid-column:1/-1;border-left-color:#f59e0b;">
+          <div class="carteira-label" style="color:#b45309;">Atenção</div>
+          <div class="carteira-subtitulo" style="font-size:12px;color:#7c2d12;">Imóveis com dado a conferir (abra o imóvel para ver): ${avisosCarteira.map(esc).join(', ')}</div>
+        </div>` : ''}
       `;
     }
     
@@ -7797,96 +7797,52 @@
       const vagas = row[15] || '';
       const observacoes = row[16] || '';
       
-      // Carrega dados avançados
-      const despesasRec = await loadDespesasRecorrentes(nome);
-      const despesasExt = await loadDespesasExtraordinarias(nome);
-      const investimentos = await loadInvestimentos(nome);
-
-      // CÁLCULOS AVANÇADOS
+      // Todos os números vêm do motor mensal (mesma conta da carteira, do
+      // fluxo de caixa e do PDF).
+      const mt = await imovelMotor(nome);
       const anos = calcularAnosDesdeCompra(dataCompra);
-
-      // Despesas
-      const despesasMensais  = despesasRec.reduce((sum, d) => sum + d.valorMensal, 0);
-      const despesasAnuais   = despesasMensais * 12;
-      const despesasExtTotal = despesasExt.reduce((sum, d) => sum + d.valor, 0);
-      const investimTotal    = investimentos.reduce((sum, d) => sum + d.valor, 0);
-
-      // ─── CUSTO TOTAL DE AQUISIÇÃO ───────────────────────────────────────
-      // Valor pago + tudo que foi gasto para adquirir/melhorar o imóvel
-      const custoTotal = valorCompra + despesasExtTotal + investimTotal;
-
-      // ─── VALORIZAÇÃO REAL ───────────────────────────────────────────────
-      // Quanto o imóvel valorizou sobre o custo total (não só o preço de compra)
-      const valorizacaoReal = custoTotal > 0 ? ((valorAtual - custoTotal) / custoTotal * 100).toFixed(1) : 0;
-      // Para exibir no header ainda mostramos vs valor de compra (mais intuitivo)
-      const variacaoVsCompra = valorCompra > 0 ? ((valorAtual - valorCompra) / valorCompra * 100).toFixed(1) : 0;
-
-      // ─── CAGR sobre custo total ─────────────────────────────────────────
+      const custoTotal = mt.custoTotal;
       const cagr = calcularCAGR(custoTotal, valorAtual, anos);
+      const usoPessoal = grupo === 'Uso Pessoal';
 
-      // ─── YIELDS ─────────────────────────────────────────────────────────
-      const yieldBruto   = valorAtual > 0 && aluguel > 0 ? ((aluguel * 12) / valorAtual * 100).toFixed(2) : 0;
-      const yieldLiquido = valorAtual > 0 && aluguel > 0 ? (((aluguel * 12) - despesasAnuais) / valorAtual * 100).toFixed(2) : 0;
+      const pct = (v, casas = 1) => v == null ? '—' : `${v >= 0 ? '+' : ''}${v.toFixed(casas)}%`;
+      const cls = v => v == null ? '' : (v >= 0 ? 'positive' : 'negative');
+      const item = (label, valor, extra = '', title = '') => `
+        <div class="detalhes-item">
+          <span class="detalhes-label">${label}</span>
+          <span class="detalhes-value ${extra}"${title ? ` title="${title}"` : ''}>${valor}</span>
+        </div>`;
 
-      // ─── CASH FLOW ──────────────────────────────────────────────────────
-      const cashFlowMensal   = aluguel - despesasMensais;
-      const mesesDecorridos  = Math.max(anos * 12, 1);
-      const cashFlowAcumulado = cashFlowMensal * mesesDecorridos;
-
-      // ─── TOTAL RETURN ───────────────────────────────────────────────────
-      // (Valor Atual - Custo Total + Receitas de Aluguel Acumuladas) / Custo Total
-      const aluguelAcumulado = aluguel > 0 ? aluguel * mesesDecorridos : 0;
-      const totalReturn = custoTotal > 0
-        ? (((valorAtual - custoTotal + aluguelAcumulado) / custoTotal) * 100).toFixed(1)
-        : 0;
-
-      // ─── PAYBACK ────────────────────────────────────────────────────────
-      const payback = cashFlowMensal > 0 ? (custoTotal / cashFlowMensal).toFixed(0) : 0;
-
-      // ─── OUTROS ─────────────────────────────────────────────────────────
-      const taxaOcupacao = calcularTaxaOcupacao(ocupacao);
-      const custoM2 = areaTotal > 0 ? (custoTotal / parseFloat(areaTotal)).toFixed(0) : 0;
-
-      const variacaoClass  = variacaoVsCompra >= 0 ? 'positive' : 'negative';
-      const variacaoSymbol = variacaoVsCompra >= 0 ? '+' : '';
-      
       // Header
       document.getElementById('detalhes-nome').textContent = nome;
       document.getElementById('detalhes-meta').textContent = `${tipo} • ${grupo} • ${subgrupo}`;
-      
+
       // Stats cards
-      document.getElementById('detalhes-stats').innerHTML = `
-        <div class="detalhes-item">
-          <span class="detalhes-label">Valor de Compra</span>
-          <span class="detalhes-value">${fmt(valorCompra)}</span>
-        </div>
-        <div class="detalhes-item">
-          <span class="detalhes-label">Custo Total</span>
-          <span class="detalhes-value" title="Compra + Despesas Extraordinárias + Investimentos">${fmt(custoTotal)}</span>
-        </div>
-        <div class="detalhes-item">
-          <span class="detalhes-label">Valor Atual</span>
-          <span class="detalhes-value">${fmt(valorAtual)}</span>
-        </div>
-        <div class="detalhes-item">
-          <span class="detalhes-label">Valoriz. Real</span>
-          <span class="detalhes-value stat-change ${valorizacaoReal >= 0 ? 'positive' : 'negative'}" title="Sobre o Custo Total">${valorizacaoReal >= 0 ? '+' : ''}${valorizacaoReal}%</span>
-        </div>
-        <div class="detalhes-item">
-          <span class="detalhes-label">CAGR</span>
-          <span class="detalhes-value stat-change ${cagr >= 0 ? 'positive' : 'negative'}">${cagr >= 0 ? '+' : ''}${cagr}% a.a.</span>
-        </div>
-        ${aluguel > 0 ? `
-        <div class="detalhes-item">
-          <span class="detalhes-label">Aluguel Mensal</span>
-          <span class="detalhes-value">${fmt(aluguel)}</span>
-        </div>
-        <div class="detalhes-item">
-          <span class="detalhes-label">Yield Líquido</span>
-          <span class="detalhes-value stat-change ${yieldLiquido > 0 ? 'positive' : 'negative'}">${yieldLiquido}% a.a.</span>
-        </div>
-        ` : ''}
-      `;
+      let statsHTML =
+        item('Valor de Compra', fmt(valorCompra)) +
+        item('Custo Total', fmt(custoTotal), '', 'Compra + Investimentos + Despesas extraordinárias de Reforma') +
+        item('Valor Atual', fmt(valorAtual)) +
+        item('Valoriz. Real', pct(mt.valorizacaoReal), `stat-change ${cls(mt.valorizacaoReal)}`, 'Sobre o Custo Total') +
+        item('CAGR', `${cagr >= 0 ? '+' : ''}${cagr}% a.a.`, `stat-change ${cagr >= 0 ? 'positive' : 'negative'}`);
+
+      if (usoPessoal) {
+        // Bem pessoal não tem yield: o que importa é quanto custa manter.
+        statsHTML += item('Custo de Manter (12m)', fmt(mt.despesas12), '', `Despesas dos últimos ${mt.mesesNaJanela} meses`) +
+                     item('Custo de Manter / mês', fmt(mt.mesesNaJanela ? mt.despesas12 / mt.mesesNaJanela : 0));
+      } else {
+        statsHTML +=
+          item('Aluguel Mensal', mt.locadoAgora ? fmt(mt.aluguelAtual) : 'Vago') +
+          item('Yield Líquido', mt.yieldLiquido == null ? '—' : `${mt.yieldLiquido.toFixed(2)}% a.a.`, `stat-change ${cls(mt.yieldLiquido)}`, 'Resultado dos últimos 12 meses ÷ valor atual') +
+          item('Ocupação', mt.taxaOcupacao == null ? '—' : `${mt.taxaOcupacao.toFixed(0)}%`, '', `${mt.mesesLocados} de ${mt.mesesPosse} meses locado`) +
+          item('Total Return', pct(mt.totalReturn), `stat-change ${cls(mt.totalReturn)}`, '(Valor atual − custo total + resultado acumulado) ÷ custo total') +
+          (mt.taxaImob12 > 0
+            ? item('Ficou c/ Imobiliária (12m)', fmt(mt.taxaImob12), '', mt.aluguel12 > 0 ? `${(mt.taxaImob12 / mt.aluguel12 * 100).toFixed(1)}% do aluguel bruto` : '')
+            : '');
+      }
+      const notaPrevisto = mt.naoConfirmados3m > 0
+        ? `<div class="detalhes-item" style="grid-column:1/-1;"><span style="font-size:12px;color:var(--fg-mute);">${mt.naoConfirmados3m} despesa(s) dos últimos 3 meses usam o valor previsto (sem realizado lançado na aba Despesas).</span></div>`
+        : '';
+      document.getElementById('detalhes-stats').innerHTML = statsHTML + notaPrevisto + imvAvisosHTML(mt.avisos);
       
       // Inicializa filtro de período como MAX e carrega gráficos
       const iniEl = document.getElementById('filtro-data-ini');
@@ -8108,17 +8064,18 @@
         if (dataIni) historico = historico.filter(h => h.data >= new Date(dataIni));
         if (dataFim) historico = historico.filter(h => h.data <= new Date(dataFim));
 
-        const ocupacoes  = await loadOcupacao(nomeImovel);
-        const despRec    = await loadDespesasRecorrentes(nomeImovel);
-        const despExt    = await loadDespesasExtraordinarias(nomeImovel);
-        const investim   = await loadInvestimentos(nomeImovel);
-        const despMensal = despRec.reduce((s, d) => s + (d.valorMensal || 0), 0);
+        // Renda e despesas mês a mês vêm do motor (vacância, vigência e
+        // realizado já considerados). Antes: aluguel do período × cada mês e
+        // despesa recorrente × meses desde a compra.
+        const mt = await imovelMotor(nomeImovel);
+        const mesMotor = new Map(mt.meses.map(m => [m.ym, m]));
+        const resultadoNoMes = d => (mesMotor.get(imvYm(d)) || {}).resultado || 0;
+        const aluguelNoMes   = d => (mesMotor.get(imvYm(d)) || {}).aluguelBruto || 0;
 
-        // Custo total como base do retorno
-        const valorCompraGraf = historico.length > 0 ? historico[0].valor : 0;
-        const despExtTotalGraf = despExt.reduce((s,d) => s+d.valor, 0);
-        const investimTotalGraf = investim.reduce((s,d) => s+d.valor, 0);
-        const custoTotalGraf = valorCompraGraf + despExtTotalGraf + investimTotalGraf;
+        // Custo total como base do retorno (compra da Lista; sem ela, 1ª avaliação)
+        const custoTotalGraf = mt.custoTotal - mt.benfeitoriasTotal > 0
+          ? mt.custoTotal
+          : (historico.length > 0 ? historico[0].valor : 0) + mt.benfeitoriasTotal;
 
         if (historico.length < 2) {
           wrap.style.display = 'none'; empty.style.display = 'block'; return;
@@ -8156,15 +8113,6 @@
           return historico[historico.length - 1].valor;
         }
 
-        function aluguelNaData(data) {
-          for (const o of ocupacoes) {
-            const ini = new Date(o.dataInicio);
-            const fim = o.dataFim ? new Date(o.dataFim) : new Date();
-            if (data >= ini && data <= fim) return o.valorAluguel || 0;
-          }
-          return 0;
-        }
-
         const inicio  = new Date(historico[0].data.getFullYear(), historico[0].data.getMonth(), 1);
         const fimData = new Date(hoje2.getFullYear(), hoje2.getMonth(), 1);
 
@@ -8172,20 +8120,21 @@
         const retornoTotal = [], retornoAluguel = [];
         const yieldBruto  = [], yieldLiquido   = [];
 
-        let aluguelAcum = 0;
+        let resultadoAcum = 0;
         let cur = new Date(inicio);
         while (cur <= fimData) {
           const val  = valorNaData(cur);
-          const alug = aluguelNaData(cur);
-          aluguelAcum += alug;
+          const alug = aluguelNoMes(cur);
+          const res  = resultadoNoMes(cur);   // aluguel − imobiliária − despesas do mês
+          resultadoAcum += res;
 
-          // Retorno acumulado % — base é o custo total (compra + investimentos + desp. extra)
-          const retTotal = custoTotalGraf > 0 ? (((val - custoTotalGraf) + aluguelAcum) / custoTotalGraf * 100) : 0;
-          const retAlug  = custoTotalGraf > 0 ? (aluguelAcum / custoTotalGraf * 100) : 0;
+          // Retorno acumulado % — base é o custo total (compra + obras/investimentos)
+          const retTotal = custoTotalGraf > 0 ? (((val - custoTotalGraf) + resultadoAcum) / custoTotalGraf * 100) : 0;
+          const retAlug  = custoTotalGraf > 0 ? (resultadoAcum / custoTotalGraf * 100) : 0;
 
           // Yield anualizado pontual
           const yb = val > 0 ? ((alug * 12) / val * 100) : 0;
-          const yl = val > 0 ? (((alug - despMensal) * 12) / val * 100) : 0;
+          const yl = val > 0 ? ((res * 12) / val * 100) : 0;
 
           labels.push(cur.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }));
           valoresPL.push(val);
@@ -8249,27 +8198,15 @@
           const cotaImovel = [], cotaCDI = [], cotaIPCA = [], cotaIPCA6 = [];
           let cur2 = new Date(dataCompraRef.getFullYear(), dataCompraRef.getMonth(), 1);
           const fim2 = new Date(hoje2.getFullYear(), hoje2.getMonth(), 1);
-          let alugAcum2 = 0;
+          let resAcum2 = 0;
 
           while (cur2 <= fim2) {
             const vm = valorNaData(cur2);
-
-            const alugMes = aluguelNaData(cur2);
-            alugAcum2 += alugMes;
-
-            const recAcum = receitas
-              .filter(r => r.data && new Date(r.data) <= cur2)
-              .reduce((s, r) => s + r.valor, 0);
-
-            const mesesDecorridos = Math.max(0, (cur2 - dataCompraRef) / (30.44 * 864e5));
-            const despRecAcum = despMensal * mesesDecorridos;
-
-            // Custo total crescente (aquisição + recorrentes acumuladas)
-            const custoAcum = custoTotalGraf + despRecAcum;
+            resAcum2 += resultadoNoMes(cur2);   // já inclui receitas avulsas e despesas
 
             // Retorno acumulado %: quanto o investimento gerou além do que custou
             const retAcum = custoTotalGraf > 0
-              ? ((vm + alugAcum2 + recAcum - custoAcum) / custoTotalGraf * 100)
+              ? ((vm + resAcum2 - custoTotalGraf) / custoTotalGraf * 100)
               : 0;
 
             cotaImovel.push(parseFloat(retAcum.toFixed(2)));
@@ -8504,20 +8441,332 @@
     
     // ========== CÁLCULOS AVANÇADOS ==========
     
+    // ========== MOTOR MENSAL DO IMÓVEL ==========
+    // UMA conta só para o imóvel. Carteira, tela do imóvel, fluxo de caixa,
+    // gráfico de rentabilidade e PDF leem daqui. Antes eram quatro contas
+    // diferentes, e o mesmo imóvel mostrava números diferentes em cada tela
+    // (ex.: aluguel de hoje × todos os meses desde a compra, ignorando vacância).
+    //
+    // Para cada mês, da compra até hoje:
+    //   1. o imóvel estava locado? Mês sem período de ocupação = VAGO.
+    //   2. quais despesas recorrentes valiam naquele mês e naquela ocupação?
+    //      → previsto (colunas F–J de Despesas_Recorrentes; em branco = sempre)
+    //   3. existe valor em Despesas_Realizadas? → substitui o previsto.
+    //
+    // Função pura: recebe os dados, devolve números. Não lê tela nem planilha,
+    // para poder ser testada isolada. O que ela não entende vira AVISO na tela,
+    // nunca chute silencioso.
+
+    function imvNum(v) {
+      return parseFloat(String(v ?? '0').replace(/[^\d.-]/g, '')) || 0;
+    }
+
+    // Data da planilha → Date LOCAL. Aceita AAAA-MM-DD, AAAA-MM e DD/MM/AAAA.
+    // new Date('2024-06-01') lê como UTC e, no fuso de Brasília, vira 31/05:
+    // o lançamento "mudava de mês" sozinho.
+    function imvData(v) {
+      if (!v) return null;
+      if (v instanceof Date) return isNaN(v) ? null : v;
+      const s = String(v).trim();
+      let m = s.match(/^(\d{4})-(\d{1,2})(?:-(\d{1,2}))?/);
+      if (m) return new Date(+m[1], +m[2] - 1, m[3] ? +m[3] : 1);
+      m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+      if (m) return new Date(+m[3], +m[2] - 1, +m[1]);
+      return null;
+    }
+
+    function imvYm(d) {
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    }
+
+    function imvTexto(s) {
+      return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+    }
+
+    // Coluna Meses: "2-11" → fev a nov (IPTU em 10x); "1,7" → jan e jul;
+    // vazio → todo mês (null). Texto não entendido → undefined (vira aviso).
+    function imvMeses(txt) {
+      const s = String(txt || '').replace(/\s/g, '');
+      if (!s) return null;
+      const meses = new Set();
+      for (const parte of s.split(/[,;]/)) {
+        const m = parte.match(/^(\d{1,2})(?:-(\d{1,2}))?$/);
+        if (!m) return undefined;
+        const a = +m[1], b = m[2] ? +m[2] : a;
+        if (a < 1 || b > 12 || a > b) return undefined;
+        for (let i = a; i <= b; i++) meses.add(i);
+      }
+      return meses;
+    }
+
+    function imovelRazaoMensal(e) {
+      const hoje = e.hoje || new Date();
+      const ymHoje = imvYm(hoje);
+      const avisos = [];
+      const soma = (arr, k) => arr.reduce((s, m) => s + m[k], 0);
+
+      // ── 1. Ocupação: só períodos com aluguel. "Vago" e buraco entre
+      //       contratos são a mesma coisa: mês sem aluguel.
+      const periodos = [];
+      for (const o of e.ocupacoes || []) {
+        const quem = o.inquilino || 'sem inquilino';
+        const ini = imvData(o.dataInicio);
+        if (!ini) { avisos.push(`Período de ocupação (${quem}) sem data de início válida: ignorado.`); continue; }
+        const fim = imvData(o.dataFim);
+        if (o.dataFim && !fim) avisos.push(`Período de ocupação (${quem}) com data de fim inválida: tratado como em aberto.`);
+        if (imvTexto(o.status) === 'vago') continue;
+        periodos.push({ ini, fim, aluguel: o.valorAluguel || 0, taxa: o.taxaImobiliaria || 0, inquilino: o.inquilino || '' });
+      }
+      const FIM_ABERTO = new Date(9999, 0, 1);
+      for (let i = 0; i < periodos.length; i++) {
+        for (let j = i + 1; j < periodos.length; j++) {
+          const a = periodos[i], b = periodos[j];
+          if (a.ini <= (b.fim || FIM_ABERTO) && b.ini <= (a.fim || FIM_ABERTO)) {
+            avisos.push(`Períodos de ocupação sobrepostos (${a.inquilino || '?'} e ${b.inquilino || '?'}): o aluguel conta uma vez por mês, do primeiro período.`);
+          }
+        }
+      }
+      // Mesma régua de antes: conta o período que cobre o dia 15 do mês.
+      const periodoNoMes = (ano, mes) => {
+        const meio = new Date(ano, mes, 15);
+        return periodos.find(p => meio >= p.ini && (!p.fim || meio <= p.fim)) || null;
+      };
+
+      // ── 2. Regras de despesa recorrente
+      const regras = [];
+      for (const d of e.despRec || []) {
+        const tipo = d.tipo || 'Outros';
+        const quando = imvTexto(d.aplicaQuando);
+        const pagador = imvTexto(d.pagadorLocado);
+        let meses = imvMeses(d.meses);
+        if (meses === undefined) {
+          avisos.push(`Despesa "${tipo}": Meses "${d.meses}" não entendido (use 2-11 ou 1,7). Considerada todo mês.`);
+          meses = null;
+        }
+        if (quando && !/^(sempre|loc|vag)/.test(quando)) {
+          avisos.push(`Despesa "${tipo}": Aplica_Quando "${d.aplicaQuando}" não entendido (use Sempre, Locado ou Vago). Considerada sempre.`);
+        }
+        if (pagador && !/^(prop|inq)/.test(pagador)) {
+          avisos.push(`Despesa "${tipo}": Pagador "${d.pagadorLocado}" não entendido (use Proprietario ou Inquilino). Considerado proprietário.`);
+        }
+        const ini = imvData(d.inicio), fim = imvData(d.fim);
+        if (d.inicio && !ini) avisos.push(`Despesa "${tipo}": data de início "${d.inicio}" inválida. Considerada desde a compra.`);
+        if (d.fim && !fim) avisos.push(`Despesa "${tipo}": data de fim "${d.fim}" inválida. Considerada em aberto.`);
+        regras.push({
+          tipo,
+          valor: d.valorMensal || 0,
+          ymIni: ini ? imvYm(ini) : null,
+          ymFim: fim ? imvYm(fim) : null,
+          meses,
+          aplica: quando.startsWith('loc') ? 'locado' : quando.startsWith('vag') ? 'vago' : 'sempre',
+          inquilinoPaga: pagador.startsWith('inq')
+        });
+      }
+
+      // ── 3. Lançamentos agrupados por mês (AAAA-MM)
+      const porMes = (lista, campo, nomeAba) => {
+        const mapa = new Map();
+        let invalidas = 0;
+        for (const x of lista || []) {
+          const d = imvData(x[campo]);
+          if (!d) { invalidas++; continue; }
+          const k = imvYm(d);
+          if (!mapa.has(k)) mapa.set(k, []);
+          mapa.get(k).push(x);
+        }
+        if (invalidas) avisos.push(`${invalidas} lançamento(s) em ${nomeAba} sem data válida: fora da conta.`);
+        return mapa;
+      };
+      const realizadosMes = porMes(e.realizados, 'anoMes', 'Despesas_Realizadas');
+      const extMes        = porMes(e.despExt, 'data', 'Despesas_Extraordinarias');
+      const invMes        = porMes(e.investimentos, 'data', 'Investimentos');
+      const recMes        = porMes(e.receitas, 'data', 'Receitas');
+
+      // ── 4. Janela de meses: da compra (ou do primeiro fato) até hoje
+      const compra = imvData(e.dataCompra);
+      const ymCompra = compra ? imvYm(compra) : null;
+      if (!compra) avisos.push('Imóvel sem data de compra: o histórico começa no primeiro lançamento, e a taxa de ocupação conta a partir dele.');
+      const yms = [
+        ymCompra,
+        ...periodos.map(p => imvYm(p.ini)),
+        ...realizadosMes.keys(), ...extMes.keys(), ...invMes.keys(), ...recMes.keys()
+      ].filter(Boolean).sort();
+      let cursor = yms.length ? imvData(yms[0]) : new Date(hoje.getFullYear() - 1, hoje.getMonth() + 1, 1);
+      if (imvYm(cursor) > ymHoje) cursor = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+
+      const meses = [];
+      let previstosNaoConfirmados = 0;
+      while (imvYm(cursor) <= ymHoje) {
+        const ano = cursor.getFullYear(), mes = cursor.getMonth(), ym = imvYm(cursor);
+        const p = periodoNoMes(ano, mes);
+        const locado = !!p;
+
+        // Previsto: regras que valem neste mês e nesta ocupação
+        const previsto = new Map();
+        for (const g of regras) {
+          const ini = g.ymIni || ymCompra;
+          if (ini && ym < ini) continue;
+          if (g.ymFim && ym > g.ymFim) continue;
+          if (g.meses && !g.meses.has(mes + 1)) continue;
+          if (g.aplica === 'locado' && !locado) continue;
+          if (g.aplica === 'vago' && locado) continue;
+          if (locado && g.inquilinoPaga) continue;
+          previsto.set(g.tipo, (previsto.get(g.tipo) || 0) + g.valor);
+        }
+        // Realizado substitui o previsto do mesmo tipo
+        const realizado = new Map();
+        for (const r of realizadosMes.get(ym) || []) {
+          realizado.set(r.tipo, (realizado.get(r.tipo) || 0) + (r.valor || 0));
+        }
+        let despRec = 0, naoConfirmadosNoMes = 0;
+        for (const tipo of new Set([...previsto.keys(), ...realizado.keys()])) {
+          if (realizado.has(tipo)) { despRec += realizado.get(tipo); continue; }
+          const v = previsto.get(tipo) || 0;
+          despRec += v;
+          if (v > 0 && ym < ymHoje) naoConfirmadosNoMes++;
+        }
+        previstosNaoConfirmados += naoConfirmadosNoMes;
+
+        // Extraordinária "Reforma" é obra que fica no imóvel: soma no custo,
+        // como Investimentos. Conserto, vacância e inadimplência são gasto.
+        const ext = extMes.get(ym) || [];
+        const ehReforma = x => imvTexto(x.categoria) === 'reforma';
+        const despExt = ext.filter(x => !ehReforma(x)).reduce((s, x) => s + x.valor, 0);
+        const benfeitorias = ext.filter(ehReforma).reduce((s, x) => s + x.valor, 0)
+                           + (invMes.get(ym) || []).reduce((s, x) => s + x.valor, 0);
+
+        const aluguelBruto = p ? p.aluguel : 0;
+        const taxaImob = p ? p.aluguel * p.taxa / 100 : 0;
+        const receitasAvulsas = (recMes.get(ym) || []).reduce((s, x) => s + x.valor, 0);
+        const resultado = aluguelBruto - taxaImob + receitasAvulsas - despRec - despExt;
+
+        meses.push({
+          ym, ano, mes, locado, inquilino: p ? p.inquilino : '',
+          posse: !ymCompra || ym >= ymCompra,
+          aluguelBruto, taxaImob, receitasAvulsas, despRec, despExt, benfeitorias,
+          naoConfirmados: naoConfirmadosNoMes,
+          resultado,                       // operacional: o que o imóvel rendeu no mês
+          caixa: resultado - benfeitorias  // o que saiu/entrou de fato, com obras
+        });
+        cursor = new Date(ano, mes + 1, 1);
+      }
+
+      // ── 5. Indicadores
+      const mesesPosse = meses.filter(m => m.posse);
+      const ult12 = mesesPosse.slice(-12);
+      const n12 = ult12.length;
+      const fator = n12 ? 12 / n12 : 0;
+      if (n12 > 0 && n12 < 12) avisos.push(`Só ${n12} mês(es) de histórico: yield anualizado a partir deles.`);
+      // Previsto sem realizado NÃO é aviso (seria em todo imóvel, até o
+      // fechamento do mês virar rotina). Vira nota, só dos últimos 3 meses.
+      const naoConfirmados3m = meses.filter(m => m.ym < ymHoje).slice(-3)
+        .reduce((s, m) => s + m.naoConfirmados, 0);
+
+      const valorAtual = e.valorAtual || 0;
+      const benfeitoriasTotal = soma(meses, 'benfeitorias');
+      const custoTotal = (e.valorCompra || 0) + benfeitoriasTotal;
+      const resultadoAcumulado = soma(meses, 'resultado');
+      const atual = meses.find(m => m.ym === ymHoje) || null;
+      const mesesLocados = mesesPosse.filter(m => m.locado).length;
+
+      return {
+        meses, avisos,
+        custoTotal, benfeitoriasTotal, resultadoAcumulado,
+        aluguelAtual: atual ? atual.aluguelBruto : 0,
+        inquilinoAtual: atual ? atual.inquilino : '',
+        locadoAgora: !!(atual && atual.locado),
+        mesesNaJanela: n12,
+        aluguel12: soma(ult12, 'aluguelBruto'),
+        taxaImob12: soma(ult12, 'taxaImob'),
+        despesas12: soma(ult12, 'despRec') + soma(ult12, 'despExt'),
+        resultado12: soma(ult12, 'resultado'),
+        resultadoMedioMensal: n12 ? soma(ult12, 'resultado') / n12 : 0,
+        yieldBruto:   valorAtual > 0 && n12 ? soma(ult12, 'aluguelBruto') * fator / valorAtual * 100 : null,
+        yieldLiquido: valorAtual > 0 && n12 ? soma(ult12, 'resultado') * fator / valorAtual * 100 : null,
+        mesesPosse: mesesPosse.length, mesesLocados,
+        taxaOcupacao: mesesPosse.length ? mesesLocados / mesesPosse.length * 100 : null,
+        valorizacaoReal: custoTotal > 0 ? (valorAtual - custoTotal) / custoTotal * 100 : null,
+        totalReturn: custoTotal > 0 ? (valorAtual - custoTotal + resultadoAcumulado) / custoTotal * 100 : null,
+        previstosNaoConfirmados, naoConfirmados3m
+      };
+    }
+
+    // Junta os dados de um imóvel (pela aba Lista + cache) e roda o motor.
+    async function imovelMotor(nome) {
+      const row = (imoveisData || []).find(r => r[0] === nome) || [];
+      return imovelRazaoMensal({
+        valorCompra: imvNum(row[5]),
+        dataCompra:  row[6] || '',
+        valorAtual:  getValorAtualImovel(nome, row[7]),
+        ocupacoes:     await loadOcupacao(nome),
+        despRec:       await loadDespesasRecorrentes(nome),
+        despExt:       await loadDespesasExtraordinarias(nome),
+        realizados:    await loadDespesasRealizadas(nome),
+        investimentos: await loadInvestimentos(nome),
+        receitas:      await loadReceitas(nome)
+      });
+    }
+
+    function imvAvisosHTML(avisos) {
+      if (!avisos || !avisos.length) return '';
+      return `
+        <div class="detalhes-item" style="grid-column:1/-1;background:#fff7ed;border-left:3px solid #f59e0b;border-radius:6px;padding:10px 14px;">
+          <span class="detalhes-label" style="color:#b45309;">Atenção — confira na planilha</span>
+          ${avisos.map(a => `<span style="font-size:12px;color:#7c2d12;">• ${esc(a)}</span>`).join('')}
+        </div>`;
+    }
+
+    // Exclui UMA linha da aba, pela posição real na planilha.
+    // Antes, o índice vinha da lista filtrada do imóvel e apagava a linha de
+    // mesma posição na aba inteira — com dois imóveis na planilha, a linha de
+    // OUTRO imóvel. Antes de apagar, relê a aba e confere que a linha continua
+    // a mesma; se mudou, não apaga nada.
+    async function imvExcluirLinha(aba, cacheKey, rowIndex) {
+      const esperado = JSON.stringify((dataCache[cacheKey] || [])[rowIndex] ?? null);
+      await reloadCacheTab(cacheKey);
+      const atual = JSON.stringify((dataCache[cacheKey] || [])[rowIndex] ?? null);
+      if (esperado === 'null' || atual !== esperado) {
+        throw new Error('a planilha mudou desde que esta tela foi aberta. Nada foi excluído. Recarregue a página e tente de novo.');
+      }
+      await gapi.client.sheets.spreadsheets.batchUpdate({
+        spreadsheetId: imoveisSheetId,
+        resource: { requests: [{ deleteDimension: { range: {
+          sheetId: await getSheetId(aba), dimension: 'ROWS',
+          startIndex: rowIndex + 1, endIndex: rowIndex + 2   // rowIndex 0 = linha 2
+        } } }] }
+      });
+      await reloadCacheTab(cacheKey);
+    }
+
+    // Os loaders guardam `rowIndex`: a posição da linha na ABA INTEIRA (0 = linha 2
+    // da planilha). É ela que os botões de excluir usam — nunca a posição na
+    // lista filtrada do imóvel.
+    function imvLinhasDoImovel(cacheKey, nomeImovel) {
+      return (dataCache[cacheKey] || [])
+        .map((r, rowIndex) => ({ r, rowIndex }))
+        .filter(({ r }) => r[0] === nomeImovel);
+    }
+
     async function loadDespesasRecorrentes(nomeImovel) {
       // Usa cache em vez de fazer chamada à API
-      const rows = dataCache.despesasRec || [];
-      return rows.filter(r => r[0] === nomeImovel).map(r => ({
+      // Colunas F–J são opcionais; em branco = comportamento antigo (vale sempre).
+      return imvLinhasDoImovel('despesasRec', nomeImovel).map(({ r, rowIndex }) => ({
+        rowIndex,
         tipo: r[1],
         valorMensal: parseFloat(String(r[2] || '0').replace(/[^\d.-]/g, '')) || 0,
-        vencimentoDia: r[3] || ''
+        vencimentoDia: r[3] || '',
+        inicio: r[5] || '',          // F: Inicio (data)
+        fim: r[6] || '',             // G: Fim (data)
+        aplicaQuando: r[7] || '',    // H: Aplica_Quando (Sempre | Locado | Vago)
+        pagadorLocado: r[8] || '',   // I: Pagador_Quando_Locado (Proprietario | Inquilino)
+        meses: r[9] || ''            // J: Meses (ex.: 2-11 para IPTU em 10x; vazio = todos)
       }));
     }
-    
+
     async function loadDespesasExtraordinarias(nomeImovel) {
       // Usa cache em vez de fazer chamada à API
-      const rows = dataCache.despesasExt || [];
-      return rows.filter(r => r[0] === nomeImovel).map(r => ({
+      return imvLinhasDoImovel('despesasExt', nomeImovel).map(({ r, rowIndex }) => ({
+        rowIndex,
         data: r[1],
         tipo: r[2],
         valor: parseFloat(String(r[3] || '0').replace(/[^\d.-]/g, '')) || 0,
@@ -8552,8 +8801,8 @@
     }
     
     async function loadOcupacao(nomeImovel) {
-      const rows = dataCache.ocupacao || [];
-      return rows.filter(r => r[0] === nomeImovel).map(r => ({
+      return imvLinhasDoImovel('ocupacao', nomeImovel).map(({ r, rowIndex }) => ({
+        rowIndex,
         dataInicio: r[1],
         dataFim: r[2],
         inquilino: r[3],
@@ -8670,7 +8919,7 @@
               <td class="realiz-grid-cell">${mesesHtml}</td>
               <td class="gestao-actions">
                 <button class="btn-lancar" onclick="openModalLancarRealizado('${esc(dep.tipo)}', ${dep.valorMensal})" title="Lançar valor real do mês">✎ Lançar</button>
-                <button class="btn-icon" onclick="deleteDespesaRec(${i})" title="Excluir"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg></button>
+                <button class="btn-icon" onclick="deleteDespesaRec(${dep.rowIndex})" title="Excluir"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg></button>
               </td>
             </tr>
           `;
@@ -8691,7 +8940,7 @@
             <td>${fmt(d.valor)}</td>
             <td>${esc(d.categoria)}</td>
             <td class="gestao-actions">
-              <button class="btn-icon" onclick="deleteDespesaExt(${i})" title="Excluir"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg></button>
+              <button class="btn-icon" onclick="deleteDespesaExt(${d.rowIndex})" title="Excluir"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg></button>
             </td>
           </tr>
         `).join('');
@@ -8737,7 +8986,7 @@
               <td>${fmt(o.valorAluguel)}${liqHtml}</td>
               <td><span style="padding: 4px 8px; background: ${o.status === 'Ocupado' ? '#dcfce7' : '#f3f4f6'}; border-radius: 4px; font-size: 12px;">${o.status}</span>${detHtml}</td>
               <td class="gestao-actions">
-                <button class="btn-icon" onclick="deleteOcupacao(${i})" title="Excluir"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg></button>
+                <button class="btn-icon" onclick="deleteOcupacao(${o.rowIndex})" title="Excluir"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg></button>
               </td>
             </tr>
           `;
@@ -9077,29 +9326,12 @@
       }
     }
     
-    async function deleteDespesaRec(index) {
+    async function deleteDespesaRec(rowIndex) {
       if (!confirm('Deseja realmente excluir esta despesa?')) return;
-      
+
       try {
-        const despesas = await loadDespesasRecorrentes(currentImovelNome);
-        const rowNumber = index + 2; // +2 porque começa em A2
-        
-        await gapi.client.sheets.spreadsheets.batchUpdate({
-          spreadsheetId: imoveisSheetId,
-          resource: {
-            requests: [{
-              deleteDimension: {
-                range: {
-                  sheetId: await getSheetId('Despesas_Recorrentes'),
-                  dimension: 'ROWS',
-                  startIndex: rowNumber - 1,
-                  endIndex: rowNumber
-                }
-              }
-            }]
-          }
-        });
-        
+        await imvExcluirLinha('Despesas_Recorrentes', 'despesasRec', rowIndex);
+
         alert('✅ Despesa excluída!');
         loadTabDespesas();
         viewImovelDetalhes(currentImovelIndex);
@@ -9143,28 +9375,12 @@
       }
     }
     
-    async function deleteDespesaExt(index) {
+    async function deleteDespesaExt(rowIndex) {
       if (!confirm('Deseja realmente excluir esta despesa?')) return;
-      
+
       try {
-        const rowNumber = index + 2;
-        
-        await gapi.client.sheets.spreadsheets.batchUpdate({
-          spreadsheetId: imoveisSheetId,
-          resource: {
-            requests: [{
-              deleteDimension: {
-                range: {
-                  sheetId: await getSheetId('Despesas_Extraordinarias'),
-                  dimension: 'ROWS',
-                  startIndex: rowNumber - 1,
-                  endIndex: rowNumber
-                }
-              }
-            }]
-          }
-        });
-        
+        await imvExcluirLinha('Despesas_Extraordinarias', 'despesasExt', rowIndex);
+
         alert('✅ Despesa excluída!');
         loadTabDespesas();
         viewImovelDetalhes(currentImovelIndex);
@@ -9178,8 +9394,8 @@
     function openModalInvestimentoImovel() { openModal('modal-investimento-imovel'); }
 
     async function loadInvestimentos(nomeImovel) {
-      const rows = dataCache.investimentos || [];
-      return rows.filter(r => r[0] === nomeImovel).map(r => ({
+      return imvLinhasDoImovel('investimentos', nomeImovel).map(({ r, rowIndex }) => ({
+        rowIndex,
         data: r[1], tipo: r[2],
         valor: parseFloat(String(r[3]||'0').replace(/[^\d.-]/g,''))||0,
         descricao: r[4]||''
@@ -9199,7 +9415,7 @@
           <td>${esc(d.tipo)}</td>
           <td>${fmt(d.valor)}</td>
           <td>${esc(d.descricao)}</td>
-          <td class="gestao-actions"><button class="btn-icon" style="color:#ef4444" onclick="deleteInvestimentoImovel(${i})"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg></button></td>
+          <td class="gestao-actions"><button class="btn-icon" style="color:#ef4444" onclick="deleteInvestimentoImovel(${d.rowIndex})"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg></button></td>
         </tr>`).join('');
     }
 
@@ -9219,15 +9435,11 @@
       } catch(e) { alert('Erro: '+e.message); }
     }
 
-    async function deleteInvestimentoImovel(i) {
+    async function deleteInvestimentoImovel(rowIndex) {
       if (!confirm('Excluir este investimento?')) return;
       try {
-        const shId = await getSheetId('Investimentos');
-        await gapi.client.sheets.spreadsheets.batchUpdate({
-          spreadsheetId: imoveisSheetId,
-          resource: { requests: [{ deleteDimension: { range: { sheetId: shId, dimension:'ROWS', startIndex:i+1, endIndex:i+2 }}}]}
-        });
-        await reloadCacheTab('investimentos'); loadTabInvestimentosImovel();
+        await imvExcluirLinha('Investimentos', 'investimentos', rowIndex);
+        loadTabInvestimentosImovel();
       } catch(e) { alert('Erro: '+e.message); }
     }
 
@@ -9235,8 +9447,8 @@
     function openModalReceitaImovel() { openModal('modal-receita-imovel'); }
 
     async function loadReceitas(nomeImovel) {
-      const rows = dataCache.receitas || [];
-      return rows.filter(r => r[0] === nomeImovel).map(r => ({
+      return imvLinhasDoImovel('receitas', nomeImovel).map(({ r, rowIndex }) => ({
+        rowIndex,
         data: r[1], tipo: r[2],
         valor: parseFloat(String(r[3]||'0').replace(/[^\d.-]/g,''))||0,
         fonte: r[4]||'', observacoes: r[5]||''
@@ -9256,7 +9468,7 @@
           <td>${esc(d.tipo)}</td>
           <td style="color:#16a34a;font-weight:600;">${fmt(d.valor)}</td>
           <td>${esc(d.fonte)}</td>
-          <td class="gestao-actions"><button class="btn-icon" style="color:#ef4444" onclick="deleteReceitaImovel(${i})"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg></button></td>
+          <td class="gestao-actions"><button class="btn-icon" style="color:#ef4444" onclick="deleteReceitaImovel(${d.rowIndex})"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg></button></td>
         </tr>`).join('');
     }
 
@@ -9276,15 +9488,11 @@
       } catch(e) { alert('Erro: '+e.message); }
     }
 
-    async function deleteReceitaImovel(i) {
+    async function deleteReceitaImovel(rowIndex) {
       if (!confirm('Excluir esta receita?')) return;
       try {
-        const shId = await getSheetId('Receitas');
-        await gapi.client.sheets.spreadsheets.batchUpdate({
-          spreadsheetId: imoveisSheetId,
-          resource: { requests: [{ deleteDimension: { range: { sheetId: shId, dimension:'ROWS', startIndex:i+1, endIndex:i+2 }}}]}
-        });
-        await reloadCacheTab('receitas'); loadTabReceitasImovel();
+        await imvExcluirLinha('Receitas', 'receitas', rowIndex);
+        loadTabReceitasImovel();
       } catch(e) { alert('Erro: '+e.message); }
     }
 
@@ -9299,62 +9507,29 @@
       await reloadCacheTab('investimentos');
       await reloadCacheTab('receitas');
 
-      const ocupacoes = await loadOcupacao(nome);
-      const despRec   = await loadDespesasRecorrentes(nome);
-      const despExt   = await loadDespesasExtraordinarias(nome);
-      const realizados= await loadDespesasRealizadas(nome);
-      const investim  = await loadInvestimentos(nome);
-      const receitas  = await loadReceitas(nome);
+      // Mesma conta da tela do imóvel e da carteira: o motor mensal.
+      const mt = await imovelMotor(nome);
 
-      const hoje = new Date();
-      const todasDatas = [
-        ...ocupacoes.map(o => new Date(o.dataInicio)),
-        ...despExt.map(d => new Date(d.data)),
-        ...investim.map(d => new Date(d.data)),
-        ...receitas.map(d => new Date(d.data))
-      ].filter(d => !isNaN(d));
-
-      const minData = todasDatas.length
-        ? new Date(Math.min(...todasDatas))
-        : new Date(hoje.getFullYear() - 1, hoje.getMonth(), 1);
-      const inicioMes = new Date(minData.getFullYear(), minData.getMonth(), 1);
-      const fimMes    = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
-
-      function anoMes(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
-      function aluguelMes(ym) {
-        const [y,m] = ym.split('-').map(Number);
-        const mid = new Date(y, m-1, 15);
-        for (const o of ocupacoes) {
-          const ini = new Date(o.dataInicio);
-          const fim = o.dataFim ? new Date(o.dataFim) : hoje;
-          if (mid >= ini && mid <= fim) return o.valorAluguel || 0;
-        }
-        return 0;
-      }
-
-      const labels = [], receitasBars = [], despRecBars = [], despExtBars = [], investimBars = [];
-      let cur = new Date(inicioMes);
-      while (cur <= fimMes) {
-        const ym = anoMes(cur);
-        labels.push(cur.toLocaleDateString('pt-BR', {month:'short', year:'2-digit'}));
-
-        const recManuais = receitas.filter(r => anoMes(new Date(r.data)) === ym).reduce((s,r) => s+r.valor, 0);
-        receitasBars.push(aluguelMes(ym) + recManuais);
-        despRecBars.push(-(despRecValorMes(despRec, realizados, ym)));                                              // realizado ou orçado
-        despExtBars.push(-(despExt.filter(d => anoMes(new Date(d.data)) === ym).reduce((s,d) => s+d.valor, 0)));
-        investimBars.push(-(investim.filter(d => anoMes(new Date(d.data)) === ym).reduce((s,d) => s+d.valor, 0)));
-
-        cur = new Date(cur.getFullYear(), cur.getMonth()+1, 1);
+      const labels = [], receitasBars = [], imobBars = [], despRecBars = [], despExtBars = [], investimBars = [];
+      for (const m of mt.meses) {
+        labels.push(new Date(m.ano, m.mes, 1).toLocaleDateString('pt-BR', {month:'short', year:'2-digit'}));
+        receitasBars.push(m.aluguelBruto + m.receitasAvulsas);
+        imobBars.push(-m.taxaImob);
+        despRecBars.push(-m.despRec);          // realizado ou previsto, conforme a ocupação do mês
+        despExtBars.push(-m.despExt);
+        investimBars.push(-m.benfeitorias);    // Investimentos + extraordinária de Reforma
       }
 
       const totRec  = receitasBars.reduce((s,v)=>s+v,0);
+      const totImob = imobBars.reduce((s,v)=>s+Math.abs(v),0);
       const totDRec = despRecBars.reduce((s,v)=>s+Math.abs(v),0);
       const totDExt = despExtBars.reduce((s,v)=>s+Math.abs(v),0);
       const totInv  = investimBars.reduce((s,v)=>s+Math.abs(v),0);
-      const saldo   = totRec - totDRec - totDExt - totInv;
+      const saldo   = totRec - totImob - totDRec - totDExt - totInv;
 
       document.getElementById('fluxo-resumo').innerHTML = [
         { label:'Total Receitas',    val: totRec,  cor:'#16a34a' },
+        { label:'Imobiliária',       val:-totImob, cor:'#64748b' },
         { label:'Desp. Recorrentes', val:-totDRec, cor:'#2e6b8e' },
         { label:'Desp. Extraordin.', val:-totDExt, cor:'#f59e0b' },
         { label:'Investimentos',     val:-totInv,  cor:'#8b5cf6' }
@@ -9380,6 +9555,12 @@
               data: receitasBars,
               backgroundColor: 'rgba(22,163,74,0.85)',
               stack: 'entradas'
+            },
+            {
+              label: 'Imobiliária',
+              data: imobBars,
+              backgroundColor: 'rgba(100,116,139,0.85)',
+              stack: 'saidas'
             },
             {
               label: 'Desp. Recorrentes',
@@ -9583,30 +9764,13 @@
       }
     }
     
-    async function deleteOcupacao(index) {
+    async function deleteOcupacao(rowIndex) {
       if (!confirm('Deseja realmente excluir este período?')) return;
-      
+
       try {
-        const rowNumber = index + 2;
-        
-        await gapi.client.sheets.spreadsheets.batchUpdate({
-          spreadsheetId: imoveisSheetId,
-          resource: {
-            requests: [{
-              deleteDimension: {
-                range: {
-                  sheetId: await getSheetId('Ocupacao'),
-                  dimension: 'ROWS',
-                  startIndex: rowNumber - 1,
-                  endIndex: rowNumber
-                }
-              }
-            }]
-          }
-        });
-        
+        await imvExcluirLinha('Ocupacao', 'ocupacao', rowIndex);
+
         alert('✅ Período excluído!');
-        await reloadCacheTab('ocupacao');  // Recarrega cache
         loadTabOcupacao();
         viewImovelDetalhes(currentImovelIndex);  // RECARREGA!
       } catch (e) {
@@ -10017,11 +10181,9 @@
           const vc   = parseFloat(String(row[5]||'0').replace(/[^\d.-]/g,''))||0;
           const va   = getValorAtualImovel(nome, row[7]);
           totVM  += va; totVC += vc;
-          const de = await loadDespesasExtraordinarias(nome);
-          totInv += vc + de.reduce((s,d)=>s+d.valor,0);
-          const oc = await loadOcupacao(nome);
-          const ocA= oc.find(o=>o.status==='Ocupado');
-          if (ocA){ totAlug+=ocA.valorAluguel; nOcup++; }
+          const mtCapa = await imovelMotor(nome);   // mesma conta da tela
+          totInv += mtCapa.custoTotal;
+          if (mtCapa.locadoAgora){ totAlug+=mtCapa.aluguelAtual; nOcup++; }
         }
         const valPct = totVC>0?((totVM-totVC)/totVC*100):0;
 
@@ -10085,31 +10247,25 @@
           const quartos    = row[13]||'—';
           const vagas      = row[15]||'—';
 
-          const despExt   = await loadDespesasExtraordinarias(nome);
-          const despRec   = await loadDespesasRecorrentes(nome);
-          const investim  = await loadInvestimentos(nome);
+          // Mesma conta da tela do imóvel: o motor mensal.
+          const mt = await imovelMotor(nome);
           const ocupacao  = await loadOcupacao(nome);
-          const receitas  = await loadReceitas(nome);
-
-          const despExtTotal = despExt.reduce((s,d)=>s+d.valor,0);
-          const invTotal     = investim.reduce((s,d)=>s+d.valor,0);
-          const despMensal   = despRec.reduce((s,d)=>s+d.valorMensal,0);
-          const custoTotal   = valorCompra + despExtTotal + invTotal;
+          const custoTotal = mt.custoTotal;
 
           const hoje = new Date();
-          const ocAtual = ocupacao.find(o=>{
-            const ini=new Date(o.dataInicio);
-            const fim=o.dataFim?new Date(o.dataFim):new Date('2099-12-31');
-            return hoje>=ini&&hoje<=fim;
-          }) || ocupacao.find(o=>o.status==='Ocupado');
-          const aluguel = ocAtual?ocAtual.valorAluguel:0;
+          const ocAtual = mt.locadoAgora
+            ? ocupacao.find(o=>(o.inquilino||'')===mt.inquilinoAtual) || null
+            : null;
+          const aluguel = mt.aluguelAtual;
 
-          const anos = dataCompra?(hoje-new Date(dataCompra+'T12:00:00'))/(365.25*864e5):0;
+          const dCompra = imvData(dataCompra);
+          const anos = dCompra?(hoje-dCompra)/(365.25*864e5):0;
           const varVC  = valorCompra>0?((valorAtual-valorCompra)/valorCompra*100):null;
-          const varReal= custoTotal>0?((valorAtual-custoTotal)/custoTotal*100):null;
+          const varReal= mt.valorizacaoReal;
           const cagr   = anos>0&&valorCompra>0?((Math.pow(valorAtual/valorCompra,1/anos)-1)*100):null;
-          const yBruto = valorAtual>0&&aluguel>0?((aluguel*12)/valorAtual*100):null;
-          const cashFlow= aluguel>0?(aluguel-despMensal):null;
+          const yBruto = mt.yieldBruto;
+          // Média dos últimos 12 meses, com vacância e despesas reais
+          const cashFlow= mt.mesesNaJanela>0?mt.resultadoMedioMensal:null;
 
           pageHeader(nome);
           let y = 20;
@@ -10237,23 +10393,12 @@
             }
             return histPts[histPts.length-1].y;
           }
-          function alugNaData2(d){
-            for(const o of ocupacao){
-              const ini=new Date(o.dataInicio);
-              const fim=o.dataFim?new Date(o.dataFim):new Date('2099-12-31');
-              if(d>=ini&&d<=fim) return o.valorAluguel||0;
-            }
-            return 0;
-          }
+          const mesMotorPdf = new Map(mt.meses.map(m=>[m.ym,m]));
 
           while(curR<=fimR){
-            alugAcum+=alugNaData2(curR);
-            const recAcum=receitas.filter(r=>r.data&&new Date(r.data)<=curR).reduce((s,r)=>s+r.valor,0);
-            const meses=Math.max(0,(curR-dataRef)/(30.44*864e5));
-            const despRecAcum=despMensal*meses;
-            const custoAcum=custoTotal+despRecAcum;
+            alugAcum+=(mesMotorPdf.get(imvYm(curR))||{}).resultado||0;   // resultado acumulado do motor
             const vm=vmNaData2(curR);
-            const ret=custoTotal>0?((vm+alugAcum+recAcum-custoAcum)/custoTotal*100):0;
+            const ret=custoTotal>0?((vm+alugAcum-custoTotal)/custoTotal*100):0;
             retIm.push({x:new Date(curR),y:parseFloat(ret.toFixed(2))});
             retCDI.push({x:new Date(curR),y:parseFloat(((benchMult(dataRef,curR,tCDI)-1)*100).toFixed(2))});
             retIPCA.push({x:new Date(curR),y:parseFloat(((benchMult(dataRef,curR,tIPCA)-1)*100).toFixed(2))});
@@ -10424,7 +10569,10 @@
         spreadsheetId: imoveisSheetId
       });
       const sheet = response.result.sheets.find(s => s.properties.title === sheetName);
-      return sheet ? sheet.properties.sheetId : 0;
+      // Antes devolvia 0 quando não achava — e 0 é a PRIMEIRA aba (Lista):
+      // uma exclusão iria parar no cadastro de imóveis.
+      if (!sheet) throw new Error(`aba "${sheetName}" não encontrada na planilha.`);
+      return sheet.properties.sheetId;
     }
     
     // VIEW DOCS (placeholder)
